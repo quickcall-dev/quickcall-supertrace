@@ -8,7 +8,7 @@ import { PromptMetricsChart } from './PromptMetricsChart';
 import { TimingChart } from './TimingChart';
 import { ToolDistributionChart } from './ToolDistributionChart';
 
-// Simple tooltip wrapper
+// Simple tooltip wrapper - shows BELOW the element
 function Tooltip({ children, text }: { children: React.ReactNode; text: string }) {
   const [show, setShow] = useState(false);
   return (
@@ -19,7 +19,7 @@ function Tooltip({ children, text }: { children: React.ReactNode; text: string }
     >
       {children}
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[10px] bg-popover text-popover-foreground border border-border rounded shadow-lg whitespace-nowrap z-50">
+        <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 text-[10px] bg-popover text-popover-foreground border border-border rounded shadow-lg whitespace-nowrap z-50">
           {text}
         </span>
       )}
