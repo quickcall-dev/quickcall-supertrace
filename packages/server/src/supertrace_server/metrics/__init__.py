@@ -25,6 +25,7 @@ from typing import Any
 from .registry import MetricCategory, MetricFormat, MetricRegistry, metric
 
 # Import all metric modules to register them
+from . import chart_metrics as _charts  # noqa: F401
 from . import interaction_metrics as _interaction  # noqa: F401
 from . import timing_metrics as _timing  # noqa: F401
 from . import token_metrics as _tokens  # noqa: F401

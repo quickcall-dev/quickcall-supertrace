@@ -2,14 +2,11 @@
  * Expanded analytics view with compact header and charts.
  */
 
-import type { MetricsResponse, MetricFormat, Event } from '../../api/client';
-import { ToolTimeline } from './ToolTimeline';
-import { TokenBarChart } from './TokenBarChart';
+import type { MetricsResponse, MetricFormat, PromptTurnsData } from '../../api/client';
+import { PromptMetricsChart } from './PromptMetricsChart';
 
 interface ExpandedViewProps {
   metrics: MetricsResponse;
-  events: Event[];
-  sessionStart: string | null;
   onCollapse: () => void;
   onScrollToEvent?: (eventId: number) => void;
 }
@@ -54,8 +51,6 @@ function formatWithSign(value: number): string {
 
 export function ExpandedView({
   metrics,
-  events,
-  sessionStart,
   onCollapse,
   onScrollToEvent,
 }: ExpandedViewProps) {
@@ -77,6 +72,9 @@ export function ExpandedView({
   const prompts = byCategory.interaction?.prompt_count?.value as number ?? 0;
   const editsPerPrompt = byCategory.interaction?.edits_per_prompt?.value as number ?? 0;
   const completionRate = byCategory.interaction?.completion_rate?.value as number ?? 0;
+
+  // Get chart data from metrics (pre-computed by backend)
+  const chartData = byCategory.charts?.prompt_turns?.value as PromptTurnsData | null;
 
   return (
     <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
@@ -128,20 +126,12 @@ export function ExpandedView({
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Token Usage Chart */}
+        {/* Unified Prompt Metrics Chart */}
         <div className="px-5 py-4 border-b border-border">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
-            Tokens by Prompt
+            Tokens & Tools by Prompt
           </div>
-          <TokenBarChart events={events} onBarClick={onScrollToEvent} />
-        </div>
-
-        {/* Tool Distribution */}
-        <div className="px-5 py-4 border-b border-border">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
-            Tool Distribution
-          </div>
-          <ToolTimeline events={events} sessionStart={sessionStart} />
+          <PromptMetricsChart data={chartData} onPromptClick={onScrollToEvent} />
         </div>
 
         {/* Work Output */}

@@ -26,6 +26,7 @@ class MetricCategory(str, Enum):
     TOOLS = "tools"
     TIMING = "timing"
     INTERACTION = "interaction"
+    CHARTS = "charts"
 
 
 class MetricFormat(str, Enum):
@@ -35,6 +36,7 @@ class MetricFormat(str, Enum):
     DURATION = "duration"
     CURRENCY = "currency"
     DISTRIBUTION = "distribution"
+    RAW = "raw"  # For complex data like chart data
 
 
 @dataclass

@@ -158,8 +158,6 @@ function App() {
       {/* Analytics - center panel (the hero) */}
       <AnalyticsPanel
         metrics={metrics}
-        events={events}
-        sessionStart={selectedSession?.started_at ?? null}
         loading={metricsLoading}
         expanded={analyticsExpanded}
         onToggle={() => setAnalyticsExpanded(!analyticsExpanded)}

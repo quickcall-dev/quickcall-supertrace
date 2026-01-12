@@ -30,8 +30,31 @@ export interface SearchResult extends Event {
 }
 
 // Metrics types
-export type MetricFormat = 'number' | 'currency' | 'duration' | 'percentage' | 'distribution';
-export type MetricCategory = 'tokens' | 'tools' | 'timing' | 'interaction';
+export type MetricFormat = 'number' | 'currency' | 'duration' | 'percentage' | 'distribution' | 'raw';
+export type MetricCategory = 'tokens' | 'tools' | 'timing' | 'interaction' | 'charts';
+
+// Chart data types
+export interface PromptTurn {
+  promptIndex: number;
+  promptEventId: number;
+  responseEventId: number;
+  inputTokens: number;
+  outputTokens: number;
+  tools: Array<{ name: string; count: number; color: string }>;
+  totalTools: number;
+}
+
+export interface PromptTurnsData {
+  turns: PromptTurn[];
+  maxTokens: number;
+  maxTools: number;
+  totals: {
+    inputTokens: number;
+    outputTokens: number;
+    tools: number;
+  };
+  toolLegend: Array<{ name: string; count: number; color: string }>;
+}
 
 export interface MetricConfig {
   name: string;

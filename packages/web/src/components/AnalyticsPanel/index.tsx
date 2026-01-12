@@ -7,14 +7,12 @@
  * Related: App.tsx (parent), api/client.ts (types)
  */
 
-import type { MetricsResponse, Event } from '../../api/client';
+import type { MetricsResponse } from '../../api/client';
 import { ExpandedView } from './ExpandedView';
 import { CollapsedView } from './CollapsedView';
 
 interface AnalyticsPanelProps {
   metrics: MetricsResponse | null;
-  events: Event[];
-  sessionStart: string | null;
   loading: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -23,8 +21,6 @@ interface AnalyticsPanelProps {
 
 export function AnalyticsPanel({
   metrics,
-  events,
-  sessionStart,
   loading,
   expanded,
   onToggle,
@@ -71,8 +67,6 @@ export function AnalyticsPanel({
     return (
       <ExpandedView
         metrics={metrics!}
-        events={events}
-        sessionStart={sessionStart}
         onCollapse={onToggle}
         onScrollToEvent={onScrollToEvent}
       />
