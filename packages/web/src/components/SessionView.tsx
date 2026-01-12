@@ -5,7 +5,7 @@
  * Professional enterprise-ready design. Uses Remix Icons.
  */
 
-import { useEffect, useRef, useCallback, type MutableRefObject } from 'react';
+import { useEffect, useRef, useCallback, useState, type MutableRefObject } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { MessageBubble } from './MessageBubble';
@@ -128,65 +128,66 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
   const isActive = session.started_at && !session.ended_at;
   const groupedEvents = groupEvents(events);
 
+  // Get session file path for clipboard (absolute path)
+  const getSessionFilePath = () => {
+    if (!session.project_path) return session.id;
+    const escapedPath = session.project_path.replace(/^\//, '').replace(/\//g, '-');
+    // Use absolute path with typical home directory
+    const homeDir = '/Users/' + (session.project_path.split('/')[2] || 'user');
+    return `${homeDir}/.claude/projects/-${escapedPath}/${session.id}.jsonl`;
+  };
+
+  const [copied, setCopied] = useState(false);
+
+  const copySessionPath = () => {
+    navigator.clipboard.writeText(getSessionFilePath());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   // Calculate session stats
   const userPrompts = events.filter(e => e.event_type === 'user_prompt').length;
   const toolCalls = events.filter(e => e.event_type === 'tool_use').length;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-foreground">
-                {getProjectName(session.project_path)}
-              </h2>
-              {isActive && (
-                <span className="flex items-center gap-1.5 text-[11px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-2 py-0.5 rounded-full border border-[color:var(--success)]/30">
-                  <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
-                  Live
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <i className="ri-calendar-line text-xs"></i>
-                {formatDate(session.started_at)}
-              </span>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="flex items-center gap-1">
-                <i className="ri-time-line text-xs"></i>
-                {formatTime(session.started_at)}
-              </span>
-              {session.ended_at && (
-                <>
-                  <i className="ri-arrow-right-line text-muted-foreground/50 text-xs"></i>
-                  <span>{formatTime(session.ended_at)}</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Export buttons */}
-          <div className="flex items-center gap-2">
-            <a
-              href={getExportUrl(session.id, 'json')}
-              download
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted hover:bg-accent border border-border rounded-lg transition-colors"
-            >
-              <i className="ri-download-2-line"></i>
-              JSON
-            </a>
-            <a
-              href={getExportUrl(session.id, 'md')}
-              download
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted hover:bg-accent border border-border rounded-lg transition-colors"
-            >
-              <i className="ri-markdown-line"></i>
-              Markdown
-            </a>
-          </div>
+      {/* Header - compact single row */}
+      <div className="h-12 px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-semibold text-foreground">{getProjectName(session.project_path)}</span>
+          {isActive && (
+            <span className="flex items-center gap-1 text-[10px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-1.5 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
+              Live
+            </span>
+          )}
+          <span className="text-muted-foreground/50">·</span>
+          <span className="text-muted-foreground text-xs flex items-center gap-1">
+            <i className="ri-calendar-line" />
+            {formatDate(session.started_at)}
+          </span>
+          <span className="text-muted-foreground text-xs flex items-center gap-1">
+            <i className="ri-time-line" />
+            {formatTime(session.started_at)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <a
+            href={getExportUrl(session.id, 'json')}
+            download
+            className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+            title="Export JSON"
+          >
+            JSON
+          </a>
+          <a
+            href={getExportUrl(session.id, 'md')}
+            download
+            className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+            title="Export Markdown"
+          >
+            MD
+          </a>
         </div>
       </div>
 
@@ -241,10 +242,14 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
       <div className="px-6 py-3 border-t border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <div className="flex items-center gap-4">
-            <span className="font-mono flex items-center gap-1">
-              <i className="ri-fingerprint-line"></i>
-              {session.id.slice(0, 12)}
-            </span>
+            <button
+              onClick={copySessionPath}
+              className={`font-mono flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'text-[color:var(--success)]' : 'hover:text-primary'}`}
+              title={getSessionFilePath()}
+            >
+              <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
+              {copied ? 'Copied!' : session.id.slice(0, 12)}
+            </button>
             <span className="text-muted-foreground/50">·</span>
             <span className="flex items-center gap-1">
               <i className="ri-chat-1-line"></i>

@@ -79,50 +79,29 @@ export function ExpandedView({
 
   return (
     <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
-      {/* Header with branding and key metrics */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between">
-          {/* SuperTrace branding */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-foreground tracking-wide">SuperTrace</span>
-            <span className="text-muted-foreground/50">|</span>
-            {/* Inline key metrics */}
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5 group relative cursor-default">
-                <i className="ri-money-dollar-circle-line text-[color:var(--cost)]" />
-                <span className="font-semibold text-foreground">${cost.toFixed(2)}</span>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                  Total session cost (API usage)
-                </div>
-              </div>
-              {cacheSavings > 0 && (
-                <div className="flex items-center gap-1 group relative cursor-default">
-                  <i className="ri-leaf-line text-[color:var(--success)]" />
-                  <span className="text-[color:var(--success)] font-medium">-${cacheSavings.toFixed(2)}</span>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Saved by prompt caching
-                  </div>
-                </div>
-              )}
-              {duration !== null && (
-                <div className="flex items-center gap-1 group relative cursor-default">
-                  <i className="ri-time-line text-muted-foreground" />
-                  <span className="text-muted-foreground">{formatValue(duration, 'duration')}</span>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Session duration
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={onCollapse}
-            className="p-1.5 hover:bg-accent rounded transition-colors"
-            title="Collapse"
-          >
-            <i className="ri-arrow-left-double-line text-muted-foreground" />
-          </button>
+      {/* Header - compact single row matching SessionView */}
+      <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-semibold text-foreground">SuperTrace</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span className="text-xs text-foreground font-medium">${cost.toFixed(2)}</span>
+          {cacheSavings > 0 && (
+            <span className="text-xs text-[color:var(--success)]">-${cacheSavings.toFixed(2)}</span>
+          )}
+          {duration !== null && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{formatValue(duration, 'duration')}</span>
+            </>
+          )}
         </div>
+        <button
+          onClick={onCollapse}
+          className="p-1.5 hover:bg-accent rounded transition-colors"
+          title="Collapse"
+        >
+          <i className="ri-arrow-left-double-line text-muted-foreground" />
+        </button>
       </div>
 
       {/* Scrollable content */}

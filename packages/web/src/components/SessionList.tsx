@@ -64,8 +64,9 @@ function getSessionFilePath(projectPath: string | null, sessionId: string): stri
   // Convert project path to Claude's folder naming convention
   // Remove leading slash then replace remaining slashes with dashes
   const escapedPath = projectPath.replace(/^\//, '').replace(/\//g, '-');
-  // Use $HOME for portability, user can expand ~ if needed
-  return `$HOME/.claude/projects/-${escapedPath}/${sessionId}.jsonl`;
+  // Use absolute path - extract username from project path
+  const homeDir = '/Users/' + (projectPath.split('/')[2] || 'user');
+  return `${homeDir}/.claude/projects/-${escapedPath}/${sessionId}.jsonl`;
 }
 
 export function SessionList({
@@ -77,6 +78,15 @@ export function SessionList({
   onToggleTheme,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyPath = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
+    const filePath = getSessionFilePath(session.project_path, session.id);
+    navigator.clipboard.writeText(filePath);
+    setCopiedId(session.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -207,17 +217,11 @@ export function SessionList({
                           </span>
                           <span className="text-muted-foreground/50">·</span>
                           <span
-                            className="text-[11px] text-muted-foreground font-mono hover:text-primary cursor-pointer transition-colors"
+                            className={`text-[11px] font-mono cursor-pointer transition-colors ${copiedId === session.id ? 'text-[color:var(--success)]' : 'text-muted-foreground hover:text-primary'}`}
                             title={getSessionFilePath(session.project_path, session.id)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const filePath = getSessionFilePath(session.project_path, session.id);
-                              if (filePath) {
-                                navigator.clipboard.writeText(filePath);
-                              }
-                            }}
+                            onClick={(e) => handleCopyPath(e, session)}
                           >
-                            {session.id.slice(0, 7)}
+                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 7)}
                           </span>
                         </div>
                       </div>
