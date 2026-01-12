@@ -22,6 +22,8 @@ class HookInput(BaseModel):
     hook_event_name: str | None = None
     tool_name: str | None = None
     tool_input: dict[str, Any] | None = None
+    prompt: str | None = None  # For UserPromptSubmit hook (field name is 'prompt' not 'user_prompt')
+    reason: str | None = None  # For Stop hook
 
 
 class TracingEvent(BaseModel):

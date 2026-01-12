@@ -62,13 +62,14 @@ def handle_session_end(hook_input: HookInput) -> None:
 
 def handle_prompt(hook_input: HookInput) -> None:
     """Handle UserPromptSubmit hook - user sent a message."""
+    # prompt is passed directly in the hook input (field name is 'prompt')
     event = TracingEvent(
         event_type="user_prompt",
         session_id=hook_input.session_id,
         project_path=hook_input.cwd,
         transcript_path=hook_input.transcript_path,
         data={
-            "tool_input": hook_input.tool_input,
+            "prompt": hook_input.prompt,
         },
     )
     send_event(event)

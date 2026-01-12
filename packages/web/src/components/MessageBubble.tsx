@@ -23,7 +23,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
   };
 
   const renderUserPrompt = () => {
-    const prompt = (event.data?.tool_input as Record<string, unknown>)?.prompt as string;
+    const prompt = event.data?.prompt as string;
     return (
       <div className="flex justify-end">
         <div className="max-w-[80%] bg-blue-600 text-white rounded-lg px-4 py-2">
