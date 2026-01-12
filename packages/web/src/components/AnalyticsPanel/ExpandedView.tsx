@@ -5,6 +5,7 @@
 import type { MetricsResponse, MetricFormat, PromptTurnsData } from '../../api/client';
 import { PromptMetricsChart } from './PromptMetricsChart';
 import { TimingChart } from './TimingChart';
+import { ToolDistributionChart } from './ToolDistributionChart';
 
 interface ExpandedViewProps {
   metrics: MetricsResponse;
@@ -112,6 +113,14 @@ export function ExpandedView({
             Tokens & Tools by Prompt
           </div>
           <PromptMetricsChart data={chartData} onPromptClick={onScrollToEvent} />
+        </div>
+
+        {/* Tool Distribution */}
+        <div className="px-5 py-4 border-b border-border">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
+            Tool Usage
+          </div>
+          <ToolDistributionChart data={chartData} />
         </div>
 
         {/* Turn Timing Chart */}
