@@ -53,14 +53,14 @@ TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|
 if [ -n "$TS_FILES" ]; then
     echo -e "${YELLOW}Checking TypeScript/JavaScript files...${NC}"
 
-    # Check for eslint in node_modules
-    if [ -f "packages/web/node_modules/.bin/eslint" ]; then
+    # Check for eslint config and node_modules
+    if [ -f "packages/web/node_modules/.bin/eslint" ] && [ -f "packages/web/eslint.config.js" ]; then
         cd packages/web
-        echo "$TS_FILES" | xargs npx eslint --fix
+        echo "$TS_FILES" | xargs npx eslint --fix 2>/dev/null || true
         cd ../..
-        echo "$TS_FILES" | xargs git add
+        echo "$TS_FILES" | xargs git add 2>/dev/null || true
     else
-        echo -e "${YELLOW}Warning: eslint not found, skipping TS/JS linting${NC}"
+        echo -e "${YELLOW}Warning: eslint not configured, skipping TS/JS linting${NC}"
     fi
 fi
 

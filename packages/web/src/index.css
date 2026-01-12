@@ -1,0 +1,11 @@
+/**
+ * Global styles with Tailwind.
+ *
+ * Related: App.tsx, components/
+ */
+
+@import "tailwindcss";
+
+body {
+  @apply bg-gray-900 text-gray-100;
+}
