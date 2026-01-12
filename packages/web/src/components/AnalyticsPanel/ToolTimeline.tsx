@@ -1,9 +1,11 @@
 /**
- * Tool Timeline Chart - shows when tools were used during the session.
+ * Tool Usage Chart - shows tool distribution across the session.
  *
- * Horizontal timeline with colored dots/bars for each tool usage.
+ * Clean horizontal stacked bar showing proportion of each tool type.
+ * Hover for details, with summary stats below.
  */
 
+import { useState } from 'react';
 import type { Event } from '../../api/client';
 
 interface ToolTimelineProps {
@@ -11,27 +13,34 @@ interface ToolTimelineProps {
   sessionStart: string | null;
 }
 
-// Tool colors matching ToolGroup
-const TOOL_COLORS: Record<string, string> = {
-  Read: 'bg-[color:var(--info)]',
-  Write: 'bg-[color:var(--success)]',
-  Edit: 'bg-[color:var(--warning)]',
-  Bash: 'bg-[color:var(--cost)]',
-  Glob: 'bg-[color:var(--info)]',
-  Grep: 'bg-[color:var(--info)]',
-  Task: 'bg-[color:var(--warning)]',
-  WebFetch: 'bg-[color:var(--info)]',
-  WebSearch: 'bg-[color:var(--info)]',
-  TodoWrite: 'bg-[color:var(--success)]',
-  AskUserQuestion: 'bg-[color:var(--cost)]',
-  default: 'bg-muted-foreground',
+// Tool colors - consistent palette
+const TOOL_CONFIG: Record<string, { color: string; label: string }> = {
+  Read: { color: 'var(--info)', label: 'Read' },
+  Glob: { color: 'var(--info)', label: 'Glob' },
+  Grep: { color: 'var(--info)', label: 'Grep' },
+  Write: { color: 'var(--success)', label: 'Write' },
+  Edit: { color: 'var(--warning)', label: 'Edit' },
+  Bash: { color: 'var(--cost)', label: 'Bash' },
+  Task: { color: '#a78bfa', label: 'Task' },
+  TodoWrite: { color: '#34d399', label: 'Todo' },
+  WebFetch: { color: '#60a5fa', label: 'Web' },
+  WebSearch: { color: '#60a5fa', label: 'Search' },
+  AskUserQuestion: { color: '#f472b6', label: 'Ask' },
 };
 
-function getToolColor(toolName: string): string {
-  return TOOL_COLORS[toolName] || TOOL_COLORS.default;
+const DEFAULT_COLOR = 'var(--muted-foreground)';
+
+interface ToolStat {
+  name: string;
+  count: number;
+  color: string;
+  label: string;
+  percentage: number;
 }
 
-export function ToolTimeline({ events, sessionStart }: ToolTimelineProps) {
+export function ToolTimeline({ events }: ToolTimelineProps) {
+  const [hoveredTool, setHoveredTool] = useState<string | null>(null);
+
   const toolEvents = events.filter(e => e.event_type === 'tool_use');
 
   if (toolEvents.length === 0) {
@@ -42,63 +51,104 @@ export function ToolTimeline({ events, sessionStart }: ToolTimelineProps) {
     );
   }
 
-  // Calculate time range
-  const startTime = sessionStart ? new Date(sessionStart).getTime() : new Date(toolEvents[0].timestamp).getTime();
-  const endTime = new Date(toolEvents[toolEvents.length - 1].timestamp).getTime();
-  const duration = Math.max(endTime - startTime, 1000); // At least 1 second
-
-  // Group tools by name for legend
+  // Count tools
   const toolCounts: Record<string, number> = {};
   toolEvents.forEach(e => {
     const name = e.data?.tool_name as string || 'unknown';
     toolCounts[name] = (toolCounts[name] || 0) + 1;
   });
 
-  // Sort by count descending
-  const sortedTools = Object.entries(toolCounts).sort((a, b) => b[1] - a[1]);
+  const total = toolEvents.length;
+
+  // Build stats sorted by count
+  const stats: ToolStat[] = Object.entries(toolCounts)
+    .map(([name, count]) => ({
+      name,
+      count,
+      color: TOOL_CONFIG[name]?.color || DEFAULT_COLOR,
+      label: TOOL_CONFIG[name]?.label || name,
+      percentage: (count / total) * 100,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Group small tools into "Other"
+  const mainTools = stats.filter(s => s.percentage >= 5);
+  const otherTools = stats.filter(s => s.percentage < 5);
+  const otherCount = otherTools.reduce((sum, t) => sum + t.count, 0);
+
+  const displayStats = otherCount > 0
+    ? [...mainTools, {
+        name: 'Other',
+        count: otherCount,
+        color: 'var(--muted-foreground)',
+        label: 'Other',
+        percentage: (otherCount / total) * 100
+      }]
+    : mainTools;
 
   return (
     <div className="space-y-3">
-      {/* Timeline */}
-      <div className="relative h-12 bg-muted/30 rounded-lg overflow-hidden">
-        {/* Time axis markers */}
-        <div className="absolute inset-x-0 bottom-0 h-4 flex justify-between px-2 text-[9px] text-muted-foreground">
-          <span>0s</span>
-          <span>{Math.round(duration / 1000)}s</span>
-        </div>
+      {/* Stacked horizontal bar */}
+      <div className="relative">
+        <div className="h-8 rounded-lg overflow-hidden flex bg-muted/30">
+          {displayStats.map((stat) => (
+            <div
+              key={stat.name}
+              className="h-full transition-all duration-200 cursor-pointer relative group"
+              style={{
+                width: `${stat.percentage}%`,
+                backgroundColor: stat.color,
+                opacity: hoveredTool === null || hoveredTool === stat.name ? 1 : 0.3,
+              }}
+              onMouseEnter={() => setHoveredTool(stat.name)}
+              onMouseLeave={() => setHoveredTool(null)}
+            >
+              {/* Show label if segment is wide enough */}
+              {stat.percentage > 12 && (
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white/90 pointer-events-none">
+                  {stat.label}
+                </span>
+              )}
 
-        {/* Tool markers */}
-        <div className="absolute inset-x-0 top-1 bottom-5 px-1">
-          {toolEvents.map((event, idx) => {
-            const eventTime = new Date(event.timestamp).getTime();
-            const position = ((eventTime - startTime) / duration) * 100;
-            const toolName = event.data?.tool_name as string || 'unknown';
-            const color = getToolColor(toolName);
-
-            return (
-              <div
-                key={event.id || idx}
-                className={`absolute w-1.5 h-full ${color} rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer`}
-                style={{ left: `${Math.min(Math.max(position, 0), 98)}%` }}
-                title={`${toolName} at ${new Date(event.timestamp).toLocaleTimeString()}`}
-              />
-            );
-          })}
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                <span className="font-medium">{stat.label}</span>
+                <span className="text-muted-foreground ml-1">
+                  {stat.count} ({stat.percentage.toFixed(0)}%)
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-2">
-        {sortedTools.slice(0, 6).map(([name, count]) => (
-          <div key={name} className="flex items-center gap-1.5 text-xs">
-            <div className={`w-2 h-2 rounded-full ${getToolColor(name)}`} />
-            <span className="text-muted-foreground">{name}</span>
-            <span className="text-foreground font-medium">{count}</span>
+      {/* Legend with counts */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {stats.slice(0, 8).map(stat => (
+          <div
+            key={stat.name}
+            className="flex items-center gap-1.5 text-xs cursor-pointer transition-opacity"
+            style={{ opacity: hoveredTool === null || hoveredTool === stat.name ? 1 : 0.4 }}
+            onMouseEnter={() => setHoveredTool(stat.name)}
+            onMouseLeave={() => setHoveredTool(null)}
+          >
+            <div
+              className="w-2.5 h-2.5 rounded-sm shrink-0"
+              style={{ backgroundColor: stat.color }}
+            />
+            <span className="text-muted-foreground">{stat.label}</span>
+            <span className="font-medium text-foreground">{stat.count}</span>
           </div>
         ))}
-        {sortedTools.length > 6 && (
-          <span className="text-xs text-muted-foreground">+{sortedTools.length - 6} more</span>
+        {stats.length > 8 && (
+          <span className="text-xs text-muted-foreground">+{stats.length - 8} more</span>
         )}
+      </div>
+
+      {/* Summary stat */}
+      <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+        <span className="text-muted-foreground">Total tool calls</span>
+        <span className="font-mono font-medium text-foreground">{total}</span>
       </div>
     </div>
   );
