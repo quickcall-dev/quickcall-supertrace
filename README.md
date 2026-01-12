@@ -4,6 +4,15 @@ Monitoring and observability tool for AI coding assistant sessions.
 
 Captures inputs/outputs, stores them in SQLite, and displays them in a web UI.
 
+## Documentation
+
+See the [docs/](docs/) folder for detailed documentation:
+
+- **[Getting Started](docs/getting-started/)** - Installation and quick start
+- **[How-to Guides](docs/guides/)** - Configure hooks, export sessions
+- **[Reference](docs/reference/)** - API, hook events, configuration
+- **[Concepts](docs/concepts/)** - Architecture, how hooks work
+
 ## Architecture
 
 ```
@@ -42,26 +51,28 @@ cd quickcall-supertrace
 
 ### Configure Hooks
 
-Add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json` (replace `/path/to` with your actual path):
 
 ```json
 {
   "hooks": {
     "UserPromptSubmit": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "supertrace prompt" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace prompt" }] }
     ],
     "Stop": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "supertrace stop" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace stop" }] }
     ],
     "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "supertrace session-start" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-start" }] }
     ],
     "SessionEnd": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "supertrace session-end" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-end" }] }
     ]
   }
 }
 ```
+
+See [Configure Hooks Guide](docs/guides/configure-hooks.md) for detailed options.
 
 ### Run
 
