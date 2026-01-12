@@ -7,7 +7,7 @@
  * Related: components/ (UI), hooks/ (data), api/client.ts
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SessionList } from './components/SessionList';
 import { SessionView } from './components/SessionView';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
@@ -33,6 +33,14 @@ function App() {
 
   // Theme
   const { isDark, toggleTheme } = useTheme();
+
+  // Ref for scrolling to events in SessionView
+  const scrollToEventRef = useRef<((eventId: number) => void) | null>(null);
+
+  // Handle scroll to event from analytics panel
+  const handleScrollToEvent = useCallback((eventId: number) => {
+    scrollToEventRef.current?.(eventId);
+  }, []);
 
   // Session metrics
   const { metrics, loading: metricsLoading, updateMetrics } = useSessionMetrics({
@@ -150,9 +158,12 @@ function App() {
       {/* Analytics - center panel (the hero) */}
       <AnalyticsPanel
         metrics={metrics}
+        events={events}
+        sessionStart={selectedSession?.started_at ?? null}
         loading={metricsLoading}
         expanded={analyticsExpanded}
         onToggle={() => setAnalyticsExpanded(!analyticsExpanded)}
+        onScrollToEvent={handleScrollToEvent}
       />
 
       {/* Chat/Events - right panel */}
@@ -160,6 +171,7 @@ function App() {
         session={selectedSession}
         events={events}
         isLoading={isLoading}
+        onScrollToEventRef={scrollToEventRef}
       />
     </div>
   );

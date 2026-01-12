@@ -5,7 +5,7 @@
  * Professional enterprise-ready design. Uses Remix Icons.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, type MutableRefObject } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { MessageBubble } from './MessageBubble';
@@ -15,6 +15,7 @@ interface SessionViewProps {
   session: Session | null;
   events: Event[];
   isLoading: boolean;
+  onScrollToEventRef?: MutableRefObject<((eventId: number) => void) | null>;
 }
 
 type GroupedItem =
@@ -44,8 +45,34 @@ function groupEvents(events: Event[]): GroupedItem[] {
   return result;
 }
 
-export function SessionView({ session, events, isLoading }: SessionViewProps) {
+export function SessionView({ session, events, isLoading, onScrollToEventRef }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const eventRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Scroll to event function
+  const scrollToEvent = useCallback((eventId: number) => {
+    const element = eventRefs.current.get(eventId);
+    if (element && scrollRef.current) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add highlight effect
+      element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+      }, 2000);
+    }
+  }, []);
+
+  // Register scroll function with parent
+  useEffect(() => {
+    if (onScrollToEventRef) {
+      onScrollToEventRef.current = scrollToEvent;
+    }
+    return () => {
+      if (onScrollToEventRef) {
+        onScrollToEventRef.current = null;
+      }
+    };
+  }, [onScrollToEventRef, scrollToEvent]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -176,9 +203,35 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
           ) : (
             groupedEvents.map((item, idx) => {
               if (item.type === 'tool_group') {
-                return <ToolGroup key={`group-${idx}`} events={item.events} />;
+                // For tool groups, get the first event's ID for the ref
+                const firstEventId = item.events[0]?.id;
+                return (
+                  <div
+                    key={`group-${idx}`}
+                    ref={(el) => {
+                      if (el && firstEventId) {
+                        eventRefs.current.set(firstEventId, el);
+                        // Also register all events in the group
+                        item.events.forEach(e => eventRefs.current.set(e.id, el));
+                      }
+                    }}
+                    className="transition-all duration-300"
+                  >
+                    <ToolGroup events={item.events} />
+                  </div>
+                );
               }
-              return <MessageBubble key={item.event.id} event={item.event} />;
+              return (
+                <div
+                  key={item.event.id}
+                  ref={(el) => {
+                    if (el) eventRefs.current.set(item.event.id, el);
+                  }}
+                  className="transition-all duration-300"
+                >
+                  <MessageBubble event={item.event} />
+                </div>
+              );
             })
           )}
         </div>
