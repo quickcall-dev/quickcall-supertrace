@@ -147,8 +147,8 @@ function App() {
       setIsLoading(true);
       setMetricsLoading(true);
 
-      // Start both requests simultaneously - load only last 50 events initially
-      const sessionPromise = getSession(selectedSessionId, 50);
+      // Start both requests simultaneously - load only last 10 events initially
+      const sessionPromise = getSession(selectedSessionId, 10);
       const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
 
       // Handle session data
@@ -225,7 +225,7 @@ function App() {
       const oldestEventId = events[0]?.id;
       if (!oldestEventId) return;
 
-      const data = await getSessionEvents(selectedSessionId, 50, oldestEventId);
+      const data = await getSessionEvents(selectedSessionId, 20, oldestEventId);
       if (data.events.length > 0) {
         // Prepend older events to the beginning
         setEvents((prev) => [...data.events, ...prev]);
