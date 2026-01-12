@@ -59,8 +59,28 @@ export function SessionView({
   onLoadMore,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
   const eventRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [copied, setCopied] = useState(false);
+
+  // Infinite scroll - load more when scrolling to top
+  useEffect(() => {
+    const trigger = loadMoreTriggerRef.current;
+    if (!trigger || !onLoadMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !isLoadingMore && events.length < totalEvents) {
+          onLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  }, [onLoadMore, isLoadingMore, events.length, totalEvents]);
 
   // Scroll to event function
   const scrollToEvent = useCallback((eventId: number) => {
@@ -198,26 +218,19 @@ export function SessionView({
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-4xl mx-auto space-y-4">
-          {/* Load More button at top */}
+          {/* Infinite scroll trigger at top */}
           {events.length > 0 && events.length < totalEvents && (
-            <div className="flex justify-center pb-2">
-              <button
-                onClick={onLoadMore}
-                disabled={isLoadingMore}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg border border-border transition-colors disabled:opacity-50"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <i className="ri-loader-4-line animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <i className="ri-arrow-up-line" />
-                    Load {Math.min(50, totalEvents - events.length)} older events
-                  </>
-                )}
-              </button>
+            <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
+              {isLoadingMore ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <i className="ri-loader-4-line animate-spin" />
+                  Loading older messages...
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  Scroll up for more
+                </div>
+              )}
             </div>
           )}
           {groupedEvents.length === 0 ? (
