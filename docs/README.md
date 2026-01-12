@@ -22,6 +22,8 @@ This documentation follows the [Diátaxis framework](https://diataxis.fr/), orga
 ### How-to Guides
 - [Configure Hooks](guides/configure-hooks.md) - Set up Claude Code hooks
 - [Export Sessions](guides/export-sessions.md) - Export data to JSON/Markdown
+- [Token Usage Tracking](guides/token-usage.md) - Monitor token consumption and costs
+- [Optimize File Suggestions](guides/file-suggestion.md) - Speed up `@` file autocomplete
 
 ### Reference
 - [API Reference](reference/api.md) - REST API endpoints

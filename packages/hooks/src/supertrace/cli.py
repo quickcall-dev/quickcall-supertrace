@@ -11,6 +11,8 @@ import json
 import sys
 
 from .handlers import (
+    handle_notification,
+    handle_precompact,
     handle_prompt,
     handle_session_end,
     handle_session_start,
@@ -25,6 +27,8 @@ COMMANDS = {
     "prompt": handle_prompt,
     "stop": handle_stop,
     "tool": handle_tool_use,
+    "precompact": handle_precompact,
+    "notification": handle_notification,
 }
 
 

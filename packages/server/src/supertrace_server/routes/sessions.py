@@ -27,14 +27,15 @@ async def list_sessions(limit: int = 50, offset: int = 0) -> dict[str, Any]:
 
 @router.get("/{session_id}")
 async def get_session(session_id: str) -> dict[str, Any]:
-    """Get session details with events."""
+    """Get session details with all events (no limit)."""
     db = await get_db()
 
     session = await db.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    events = await db.get_events(session_id)
+    # Get all events - no truncation
+    events = await db.get_events(session_id, limit=10000)
 
     return {"session": session, "events": events}
 

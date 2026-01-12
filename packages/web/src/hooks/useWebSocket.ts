@@ -25,6 +25,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  // Use ref for callback to avoid reconnections when callback changes
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -45,8 +48,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     ws.onmessage = (event) => {
       try {
         const data: WebSocketMessage = JSON.parse(event.data);
-        if (data.type === 'new_event' && onEvent) {
-          onEvent(data.event);
+        if (data.type === 'new_event' && onEventRef.current) {
+          onEventRef.current(data.event);
         }
       } catch {
         // Ignore parse errors
@@ -68,7 +71,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     };
 
     wsRef.current = ws;
-  }, [onEvent, reconnectInterval]);
+  }, [reconnectInterval]);
 
   useEffect(() => {
     connect();

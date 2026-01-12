@@ -4,18 +4,51 @@
  * Displays conversation thread with messages, tool calls,
  * token/cost info, and export buttons.
  *
- * Related: MessageBubble.tsx (child), api/client.ts (types)
+ * Tool calls are grouped together per turn for better readability.
+ *
+ * Related: MessageBubble.tsx (child), ToolGroup.tsx (child), api/client.ts (types)
  */
 
 import { useEffect, useRef } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { MessageBubble } from './MessageBubble';
+import { ToolGroup } from './ToolGroup';
 
 interface SessionViewProps {
   session: Session | null;
   events: Event[];
   isLoading: boolean;
+}
+
+// Group consecutive tool_use events together
+type GroupedItem =
+  | { type: 'single'; event: Event }
+  | { type: 'tool_group'; events: Event[] };
+
+function groupEvents(events: Event[]): GroupedItem[] {
+  const result: GroupedItem[] = [];
+  let currentToolGroup: Event[] = [];
+
+  for (const event of events) {
+    if (event.event_type === 'tool_use') {
+      currentToolGroup.push(event);
+    } else {
+      // Flush any pending tool group
+      if (currentToolGroup.length > 0) {
+        result.push({ type: 'tool_group', events: currentToolGroup });
+        currentToolGroup = [];
+      }
+      result.push({ type: 'single', event });
+    }
+  }
+
+  // Flush remaining tool group
+  if (currentToolGroup.length > 0) {
+    result.push({ type: 'tool_group', events: currentToolGroup });
+  }
+
+  return result;
 }
 
 export function SessionView({ session, events, isLoading }: SessionViewProps) {
@@ -56,6 +89,7 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
   };
 
   const isActive = session.started_at && !session.ended_at;
+  const groupedEvents = groupEvents(events);
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -99,10 +133,15 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {events.length === 0 ? (
+        {groupedEvents.length === 0 ? (
           <div className="text-center text-gray-500">No events yet</div>
         ) : (
-          events.map((event) => <MessageBubble key={event.id} event={event} />)
+          groupedEvents.map((item, idx) => {
+            if (item.type === 'tool_group') {
+              return <ToolGroup key={`group-${idx}`} events={item.events} />;
+            }
+            return <MessageBubble key={item.event.id} event={item.event} />;
+          })
         )}
       </div>
 

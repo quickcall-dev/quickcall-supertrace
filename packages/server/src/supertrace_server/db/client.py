@@ -153,7 +153,7 @@ class Database:
         return event_id
 
     async def get_events(
-        self, session_id: str, limit: int = 100, offset: int = 0
+        self, session_id: str, limit: int = 10000, offset: int = 0
     ) -> list[dict[str, Any]]:
         """Get events for a session."""
         cursor = await self.conn.execute(

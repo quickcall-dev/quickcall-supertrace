@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from ..db import get_db
 from ..ws import manager
+from .media import process_images_in_event
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -60,12 +61,15 @@ async def create_event(event: EventCreate) -> dict[str, Any]:
             project_path=event.project_path,
         )
 
+    # Process images in event data (store to disk, replace base64 with URLs)
+    processed_data = process_images_in_event(event.data, event.session_id)
+
     # Insert event
     event_id = await db.insert_event(
         session_id=event.session_id,
         event_type=event.event_type,
         timestamp=timestamp,
-        data=event.data,
+        data=processed_data,
     )
 
     # Broadcast to WebSocket clients
@@ -77,7 +81,7 @@ async def create_event(event: EventCreate) -> dict[str, Any]:
                 "session_id": event.session_id,
                 "event_type": event.event_type,
                 "timestamp": timestamp.isoformat(),
-                "data": event.data,
+                "data": processed_data,
             },
         }
     )

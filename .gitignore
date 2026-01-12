@@ -39,3 +39,5 @@ logs/
 # Cache
 .cache/
 .uv/
+claude-code-ref/
+claude-code-ref/

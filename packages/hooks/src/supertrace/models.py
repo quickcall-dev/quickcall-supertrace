@@ -13,6 +13,15 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class ImageData(BaseModel):
+    """Image data from Claude Code hooks or transcript."""
+
+    index: int = 0
+    media_type: str  # MIME type (image/png, image/jpeg, etc.)
+    base64: str  # Base64-encoded image data
+    source: str = "hook"  # "hook" or "transcript"
+
+
 class HookInput(BaseModel):
     """Base input received from Claude Code hooks via stdin."""
 
@@ -24,6 +33,12 @@ class HookInput(BaseModel):
     tool_input: dict[str, Any] | None = None
     prompt: str | None = None  # For UserPromptSubmit hook (field name is 'prompt' not 'user_prompt')
     reason: str | None = None  # For Stop hook
+    # Tool result from PostToolUse hook (may be named tool_result or tool_response)
+    tool_result: str | dict[str, Any] | None = None
+    tool_response: str | dict[str, Any] | None = None
+    # Images field - proposed feature for future Claude Code versions
+    # See: https://github.com/anthropics/claude-code/issues/16592
+    images: list[dict[str, Any]] | None = None
 
 
 class TracingEvent(BaseModel):
