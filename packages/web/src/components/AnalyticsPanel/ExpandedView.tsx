@@ -103,14 +103,14 @@ export function ExpandedView({
           )}
           <span className="text-muted-foreground/50">·</span>
           <span
-            className="text-xs text-foreground font-medium cursor-help"
+            className="text-xs text-foreground font-medium"
             title="Estimated API cost based on token usage"
           >
             ${cost.toFixed(2)}
           </span>
           {cacheSavings > 0 && (
             <span
-              className="text-xs text-[color:var(--success)] cursor-help"
+              className="text-xs text-[color:var(--success)]"
               title="Savings from prompt caching"
             >
               -${cacheSavings.toFixed(2)}
@@ -119,7 +119,12 @@ export function ExpandedView({
           {duration !== null && (
             <>
               <span className="text-muted-foreground/50">·</span>
-              <span className="text-xs text-muted-foreground">{formatValue(duration, 'duration')}</span>
+              <span
+                className="text-xs text-muted-foreground"
+                title="Session duration"
+              >
+                {formatValue(duration, 'duration')}
+              </span>
             </>
           )}
         </div>

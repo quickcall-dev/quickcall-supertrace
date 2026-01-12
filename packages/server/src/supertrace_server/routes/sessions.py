@@ -45,18 +45,14 @@ def _slim_event(event: dict) -> dict:
             "tool_input": _slim_tool_input(data.get("tool_input", {})),
             "tool_result": _slim_text(data.get("tool_result"), 500),
         }
-    # For user_prompt, keep the prompt at top level (frontend expects data.prompt)
+    # For user_prompt, keep the prompt (can be at top level or in tool_input)
     elif event_type == "user_prompt":
-        tool_input = data.get("tool_input", {})
-        # Frontend reads from data.prompt directly
+        # Prompt can be at data.prompt or data.tool_input.prompt
+        prompt = data.get("prompt") or data.get("tool_input", {}).get("prompt", "")
+        images = data.get("images") or data.get("tool_input", {}).get("images", [])
         slim["data"] = {
-            "prompt": tool_input.get("prompt", ""),
-            "images": tool_input.get("images", []),
-            # Also keep tool_input for compatibility
-            "tool_input": {
-                "prompt": tool_input.get("prompt", ""),
-                "images": tool_input.get("images", []),
-            }
+            "prompt": prompt,
+            "images": images or [],
         }
     # For assistant_stop, need to keep transcript for display but slim it down
     elif event_type == "assistant_stop":
