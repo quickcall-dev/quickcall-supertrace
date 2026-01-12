@@ -145,9 +145,6 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Calculate session stats
-  const userPrompts = events.filter(e => e.event_type === 'user_prompt').length;
-  const toolCalls = events.filter(e => e.event_type === 'tool_use').length;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background">
@@ -241,30 +238,15 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
       {/* Footer */}
       <div className="px-6 py-3 border-t border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={copySessionPath}
-              className={`font-mono flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'text-[color:var(--success)]' : 'hover:text-primary'}`}
-              title={getSessionFilePath()}
-            >
-              <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
-              {copied ? 'Copied!' : session.id.slice(0, 12)}
-            </button>
-            <span className="text-muted-foreground/50">·</span>
-            <span className="flex items-center gap-1">
-              <i className="ri-chat-1-line"></i>
-              {userPrompts}
-            </span>
-            <span className="text-muted-foreground/50">·</span>
-            <span className="flex items-center gap-1">
-              <i className="ri-tools-line"></i>
-              {toolCalls}
-            </span>
-          </div>
-          <span className="flex items-center gap-1">
-            <i className="ri-list-check"></i>
-            {events.length} events
-          </span>
+          <button
+            onClick={copySessionPath}
+            className={`font-mono flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'text-[color:var(--success)]' : 'hover:text-primary'}`}
+            title={getSessionFilePath()}
+          >
+            <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
+            {copied ? 'Copied!' : session.id.slice(0, 12)}
+          </button>
+          <span>{events.length} events</span>
         </div>
       </div>
     </div>
