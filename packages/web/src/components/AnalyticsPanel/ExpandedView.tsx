@@ -89,20 +89,29 @@ export function ExpandedView({
             <span className="text-muted-foreground/50">|</span>
             {/* Inline key metrics */}
             <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5" title="Session Cost">
+              <div className="flex items-center gap-1.5 group relative cursor-help">
                 <i className="ri-money-dollar-circle-line text-[color:var(--cost)]" />
-                <span className="font-semibold text-foreground">{cost.toFixed(2)}</span>
+                <span className="font-semibold text-foreground">${cost.toFixed(2)}</span>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  Total session cost (API usage)
+                </div>
               </div>
               {cacheSavings > 0 && (
-                <div className="flex items-center gap-1" title="Cache Savings">
+                <div className="flex items-center gap-1 group relative cursor-help">
                   <i className="ri-leaf-line text-[color:var(--success)]" />
                   <span className="text-[color:var(--success)] font-medium">-${cacheSavings.toFixed(2)}</span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Saved by prompt caching
+                  </div>
                 </div>
               )}
               {duration !== null && (
-                <div className="flex items-center gap-1" title="Duration">
+                <div className="flex items-center gap-1 group relative cursor-help">
                   <i className="ri-time-line text-muted-foreground" />
                   <span className="text-muted-foreground">{formatValue(duration, 'duration')}</span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Session duration
+                  </div>
                 </div>
               )}
             </div>
