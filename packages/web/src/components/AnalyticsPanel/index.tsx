@@ -22,7 +22,7 @@ export function AnalyticsPanel({ metrics, loading, expanded, onToggle }: Analyti
   // No session selected
   if (!metrics && !loading) {
     return (
-      <div className={`${expanded ? 'w-[420px]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
+      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-zinc-600 px-4">
             {expanded ? (
@@ -48,7 +48,7 @@ export function AnalyticsPanel({ metrics, loading, expanded, onToggle }: Analyti
   // Loading state
   if (loading) {
     return (
-      <div className={`${expanded ? 'w-[420px]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
+      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
         <div className="flex-1 flex items-center justify-center">
           <i className="ri-loader-4-line animate-spin text-zinc-500 text-xl" />
         </div>

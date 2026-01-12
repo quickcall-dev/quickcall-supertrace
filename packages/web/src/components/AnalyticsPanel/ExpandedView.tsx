@@ -72,7 +72,7 @@ export function ExpandedView({ metrics, onCollapse }: ExpandedViewProps) {
   const toolDistribution = byCategory.tools?.tool_distribution?.value as Record<string, number> ?? {};
 
   return (
-    <div className="w-[420px] bg-zinc-900 border-x border-zinc-800 flex flex-col overflow-hidden shrink-0">
+    <div className="w-[calc(50%-7rem)] bg-zinc-900 border-x border-zinc-800 flex flex-col overflow-hidden shrink-0">
       {/* Header */}
       <div className="px-5 py-3 border-b border-zinc-700 flex items-center justify-between">
         <span className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Analytics</span>

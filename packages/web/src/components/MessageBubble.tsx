@@ -5,13 +5,17 @@
  * Uses Remix Icons.
  */
 
+import { useState } from 'react';
 import type { Event } from '../api/client';
 
 interface MessageBubbleProps {
   event: Event;
 }
 
+const MAX_COLLAPSED_LENGTH = 500; // Characters before truncating
+
 export function MessageBubble({ event }: MessageBubbleProps) {
+  const [expanded, setExpanded] = useState(false);
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -24,6 +28,11 @@ export function MessageBubble({ event }: MessageBubbleProps) {
       media_type?: string;
       base64?: string;
     }> | undefined;
+
+    const isLong = prompt && prompt.length > MAX_COLLAPSED_LENGTH;
+    const displayPrompt = expanded || !isLong
+      ? prompt
+      : prompt?.slice(0, MAX_COLLAPSED_LENGTH);
 
     return (
       <div className="flex justify-end">
@@ -58,9 +67,34 @@ export function MessageBubble({ event }: MessageBubbleProps) {
               })}
             </div>
           )}
-          <p className="text-white text-sm leading-relaxed whitespace-pre-wrap break-words">
-            {prompt || 'User message'}
-          </p>
+          <div className="relative">
+            <p className="text-white text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {displayPrompt || 'User message'}
+            </p>
+
+            {/* Gradient fade + Show more button */}
+            {isLong && !expanded && (
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-blue-600 via-blue-600/90 to-transparent">
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="text-sm font-medium text-white hover:underline transition-colors"
+                >
+                  Show more
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Show less button when expanded */}
+          {isLong && expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              className="mt-2 text-sm font-medium text-white hover:underline transition-colors"
+            >
+              Show less
+            </button>
+          )}
+
           <div className="mt-2 text-right">
             <span className="text-[11px] text-blue-200/70">
               {formatTime(event.timestamp)}
@@ -106,12 +140,43 @@ export function MessageBubble({ event }: MessageBubbleProps) {
       return n.toString();
     };
 
+    const isLong = content.length > MAX_COLLAPSED_LENGTH;
+    const displayContent = expanded || !isLong
+      ? content
+      : content.slice(0, MAX_COLLAPSED_LENGTH);
+
     return (
       <div className="flex justify-start">
         <div className="max-w-[85%] bg-gray-800/80 border border-gray-700/50 rounded-2xl rounded-bl-md px-4 py-3">
-          <p className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap break-words">
-            {content || 'Assistant response'}
-          </p>
+          <div className="relative">
+            <div className="overflow-x-auto max-w-full">
+              <pre className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
+                {displayContent || 'Assistant response'}
+              </pre>
+            </div>
+
+            {/* Gradient fade + Show more button */}
+            {isLong && !expanded && (
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-gray-800 via-gray-800/90 to-transparent">
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="text-sm font-medium text-zinc-200 hover:underline transition-colors"
+                >
+                  Show more
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Show less button when expanded */}
+          {isLong && expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              className="mt-2 text-sm font-medium text-zinc-200 hover:underline transition-colors"
+            >
+              Show less
+            </button>
+          )}
 
           {/* Footer with time and tokens */}
           <div className="mt-3 pt-2 border-t border-gray-700/50 flex items-center justify-between gap-4 flex-wrap">
