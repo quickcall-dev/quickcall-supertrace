@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Commit-msg hook for quickcall-supertrace
+# Enforces commit message format and blocks Claude/Anthropic attribution
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# ============================================
+# 1. Enforce conventional commit format
+# ============================================
+# Valid prefixes: add, update, fix, remove, refactor, docs, test, chore, ci, perf, style
+VALID_PREFIXES="^(add|update|fix|remove|refactor|docs|test|chore|ci|perf|style):"
+
+if ! echo "$COMMIT_MSG" | head -1 | grep -qE "$VALID_PREFIXES"; then
+    echo -e "${RED}ERROR: Commit message must start with a valid prefix${NC}"
+    echo -e "${YELLOW}Valid prefixes:${NC}"
+    echo -e "  add:      New feature or file"
+    echo -e "  update:   Update existing functionality"
+    echo -e "  fix:      Bug fix"
+    echo -e "  remove:   Remove code or files"
+    echo -e "  refactor: Code refactoring (no functional change)"
+    echo -e "  docs:     Documentation only"
+    echo -e "  test:     Adding or updating tests"
+    echo -e "  chore:    Maintenance tasks"
+    echo -e "  ci:       CI/CD changes"
+    echo -e "  perf:     Performance improvements"
+    echo -e "  style:    Code style/formatting"
+    echo -e ""
+    echo -e "Example: add: user authentication module"
+    exit 1
+fi
+
+# ============================================
+# 2. Block Claude/Anthropic attribution
+# ============================================
+if echo "$COMMIT_MSG" | grep -iE '(claude|anthropic|co-authored-by.*claude|co-authored-by.*anthropic)' > /dev/null; then
+    echo -e "${RED}ERROR: Commit message contains Claude/Anthropic attribution${NC}"
+    echo -e "Please remove any Claude or Anthropic references from your commit message"
+    exit 1
+fi
+
+exit 0
