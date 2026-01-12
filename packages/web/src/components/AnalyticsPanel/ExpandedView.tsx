@@ -97,14 +97,24 @@ export function ExpandedView({
       {/* Header - compact single row matching SessionView */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">Analytics</span>
+          <span className="font-semibold text-foreground">SuperTrace</span>
           {loading && (
             <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
           )}
           <span className="text-muted-foreground/50">·</span>
-          <span className="text-xs text-foreground font-medium">${cost.toFixed(2)}</span>
+          <span
+            className="text-xs text-foreground font-medium cursor-help"
+            title="Estimated API cost based on token usage"
+          >
+            ${cost.toFixed(2)}
+          </span>
           {cacheSavings > 0 && (
-            <span className="text-xs text-[color:var(--success)]">-${cacheSavings.toFixed(2)}</span>
+            <span
+              className="text-xs text-[color:var(--success)] cursor-help"
+              title="Savings from prompt caching"
+            >
+              -${cacheSavings.toFixed(2)}
+            </span>
           )}
           {duration !== null && (
             <>

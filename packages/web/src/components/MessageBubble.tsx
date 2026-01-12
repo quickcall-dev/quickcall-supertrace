@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { Event } from '../api/client';
+import { formatTime } from '../utils/time';
 
 interface MessageBubbleProps {
   event: Event;
@@ -16,9 +17,6 @@ const MAX_COLLAPSED_LENGTH = 500; // Characters before truncating
 
 export function MessageBubble({ event }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
 
   const renderUserPrompt = () => {
     const prompt = event.data?.prompt as string;

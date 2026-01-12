@@ -8,6 +8,7 @@
 import { useEffect, useRef, useCallback, useState, type MutableRefObject } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
+import { formatDate, formatTime } from '../utils/time';
 import { MessageBubble } from './MessageBubble';
 import { ToolGroup } from './ToolGroup';
 
@@ -113,21 +114,6 @@ export function SessionView({
     if (!path) return 'Unknown Project';
     const parts = path.split('/');
     return parts[parts.length - 1] || path;
-  };
-
-  const formatDate = (timestamp: string | null) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (timestamp: string | null) => {
-    if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const isActive = session.started_at && !session.ended_at;

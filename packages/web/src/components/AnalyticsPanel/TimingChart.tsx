@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { PromptTurnsData } from '../../api/client';
+import { formatTime } from '../../utils/time';
 
 interface TimingChartProps {
   data: PromptTurnsData | null;
@@ -52,12 +53,6 @@ export function TimingChart({ data, onPromptClick }: TimingChartProps) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.round(seconds % 60);
     return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
-  };
-
-  const formatTime = (timestamp: string | null): string => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Chart dimensions

@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { Event } from '../api/client';
+import { formatTimeWithSeconds } from '../utils/time';
 
 interface ToolGroupProps {
   events: Event[];
@@ -47,10 +48,6 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   const formatData = (data: unknown): string => {
     if (data === null || data === undefined) return '';
     return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-  };
-
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
   // Get a preview of the tool input for collapsed view
@@ -96,7 +93,7 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
           )}
         </div>
         <span className="text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTime(event.timestamp)}
+          {formatTimeWithSeconds(event.timestamp)}
         </span>
         <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
       </button>

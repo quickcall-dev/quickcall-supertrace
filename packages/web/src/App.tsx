@@ -41,9 +41,36 @@ function App() {
   const scrollToEventRef = useRef<((eventId: number) => void) | null>(null);
 
   // Handle scroll to event from analytics panel
-  const handleScrollToEvent = useCallback((eventId: number) => {
-    scrollToEventRef.current?.(eventId);
-  }, []);
+  // If event not loaded, load all events first then scroll
+  const handleScrollToEvent = useCallback(async (eventId: number) => {
+    // Check if event is already loaded
+    const eventExists = events.some(e => e.id === eventId);
+
+    if (eventExists) {
+      scrollToEventRef.current?.(eventId);
+      return;
+    }
+
+    // Event not loaded - need to load all events
+    if (!selectedSessionId) return;
+
+    setIsLoadingMore(true);
+    try {
+      // Load all events (pass 0 for unlimited)
+      const data = await getSession(selectedSessionId, 0);
+      setEvents(data.events);
+      setTotalEvents(data.total_events || data.events.length);
+
+      // Scroll after state updates
+      setTimeout(() => {
+        scrollToEventRef.current?.(eventId);
+      }, 100);
+    } catch (error) {
+      console.error('Failed to load events for scroll:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [events, selectedSessionId]);
 
   // Session metrics - loaded in parallel with session data
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);

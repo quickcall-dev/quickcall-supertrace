@@ -7,6 +7,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Session } from '../api/client';
+import { parseUTCTimestamp } from '../utils/time';
 
 interface SessionListProps {
   sessions: Session[];
@@ -25,9 +26,9 @@ interface GroupedSessions {
 }
 
 function getDateGroup(timestamp: string | null): DateGroup {
-  if (!timestamp) return 'Older';
+  const date = parseUTCTimestamp(timestamp);
+  if (!date) return 'Older';
 
-  const date = new Date(timestamp);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
@@ -42,9 +43,9 @@ function getDateGroup(timestamp: string | null): DateGroup {
 }
 
 function getRelativeTime(timestamp: string | null): string {
-  if (!timestamp) return '';
+  const date = parseUTCTimestamp(timestamp);
+  if (!date) return '';
 
-  const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
