@@ -66,23 +66,34 @@ export function SessionView({
   const [copied, setCopied] = useState(false);
 
   // Infinite scroll - load more when scrolling to top
-  const isLoadingRef = useRef(false);
+  // Store scroll height before loading to restore position after
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevEventCountRef = useRef<number>(0);
 
+  // After events change, adjust scroll to maintain position
   useEffect(() => {
-    // Sync ref with prop
-    isLoadingRef.current = isLoadingMore;
-  }, [isLoadingMore]);
+    if (scrollRef.current && prevScrollHeightRef.current > 0) {
+      const newScrollHeight = scrollRef.current.scrollHeight;
+      const heightDiff = newScrollHeight - prevScrollHeightRef.current;
+      if (heightDiff > 0 && events.length > prevEventCountRef.current) {
+        // Events were prepended, adjust scroll position
+        scrollRef.current.scrollTop += heightDiff;
+      }
+    }
+    prevEventCountRef.current = events.length;
+  }, [events]);
 
   useEffect(() => {
     const trigger = loadMoreTriggerRef.current;
-    if (!trigger || !onLoadMore || !hasMoreEvents) return;
+    const container = scrollRef.current;
+    if (!trigger || !container || !onLoadMore || !hasMoreEvents) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        // Use ref for immediate check to prevent multiple calls
-        if (entry.isIntersecting && !isLoadingRef.current && hasMoreEvents) {
-          isLoadingRef.current = true; // Immediately block further calls
+        if (entry.isIntersecting && !isLoadingMore && hasMoreEvents) {
+          // Store current scroll height before loading
+          prevScrollHeightRef.current = container.scrollHeight;
           onLoadMore();
         }
       },
@@ -91,7 +102,7 @@ export function SessionView({
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMoreEvents]);
+  }, [onLoadMore, isLoadingMore, hasMoreEvents]);
 
   // Scroll to event function
   const scrollToEvent = useCallback((eventId: number) => {
