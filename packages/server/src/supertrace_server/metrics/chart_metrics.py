@@ -5,7 +5,14 @@ Pre-computes data for frontend charts:
 - prompt_turns: tokens and tools per prompt turn for unified chart
 """
 
+import re
 from .registry import MetricCategory, MetricFormat, metric
+
+# Patterns to detect git commits
+GIT_COMMIT_PATTERNS = [
+    re.compile(r"\bgit\s+commit\b", re.IGNORECASE),
+    re.compile(r"\bgit\s+.*\s+commit\b", re.IGNORECASE),  # git -c ... commit
+]
 
 # Tool colors matching frontend
 TOOL_COLORS = {
@@ -72,11 +79,16 @@ def calc_prompt_turns(events: list[dict]) -> dict:
     total_input = 0
     total_output = 0
     total_tools = 0
+    total_commits = 0
     max_tokens = 0
     max_tools = 0
 
     # Global tool counts for legend
     global_tool_counts: dict[str, int] = {}
+
+    def is_git_commit(command: str) -> bool:
+        """Check if a bash command is a git commit."""
+        return any(p.search(command) for p in GIT_COMMIT_PATTERNS)
 
     i = 0
     while i < len(events):
@@ -92,6 +104,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                 "outputTokens": 0,
                 "tools": [],
                 "totalTools": 0,
+                "hasCommit": False,
             }
 
             # Collect tools and find assistant_stop
@@ -107,6 +120,14 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                     turn["totalTools"] += 1
                     # Update global counts
                     global_tool_counts[tool_name] = global_tool_counts.get(tool_name, 0) + 1
+
+                    # Check for git commit in Bash commands
+                    if tool_name == "Bash" and not turn["hasCommit"]:
+                        tool_input = e.get("data", {}).get("tool_input", {})
+                        command = tool_input.get("command", "")
+                        if is_git_commit(command):
+                            turn["hasCommit"] = True
+                            total_commits += 1
 
                 if e.get("event_type") == "assistant_stop":
                     turn["responseEventId"] = e.get("id")
@@ -168,6 +189,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
             "inputTokens": total_input,
             "outputTokens": total_output,
             "tools": total_tools,
+            "commits": total_commits,
         },
         "toolLegend": tool_legend,
     }

@@ -42,6 +42,7 @@ export interface PromptTurn {
   outputTokens: number;
   tools: Array<{ name: string; count: number; color: string }>;
   totalTools: number;
+  hasCommit: boolean;
 }
 
 export interface PromptTurnsData {
@@ -52,6 +53,7 @@ export interface PromptTurnsData {
     inputTokens: number;
     outputTokens: number;
     tools: number;
+    commits: number;
   };
   toolLegend: Array<{ name: string; count: number; color: string }>;
 }

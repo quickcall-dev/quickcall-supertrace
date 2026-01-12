@@ -56,6 +56,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
 
   const tokenChartHeight = 80;
   const toolChartHeight = 100;
+  const commitLaneHeight = totals.commits > 0 ? 20 : 0;
   const xAxisHeight = 20;
   const gapHeight = 8;
 
@@ -97,7 +98,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
     y: toolPadding.top + toolGraphHeight - (value / safeMaxTools) * toolGraphHeight,
   }));
 
-  const totalHeight = tokenChartHeight + gapHeight + toolChartHeight + xAxisHeight;
+  const totalHeight = tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + xAxisHeight;
 
   // Get hovered turn data for tooltip
   const hoveredTurn = hoveredPrompt !== null ? turns[hoveredPrompt] : null;
@@ -141,6 +142,13 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               </text>
             ))}
           </svg>
+
+          {/* Commit lane label */}
+          {commitLaneHeight > 0 && (
+            <div style={{ height: commitLaneHeight }} className="flex items-center justify-end pr-1">
+              <i className="ri-git-commit-line text-[10px] text-[color:var(--warning)]" />
+            </div>
+          )}
 
           {/* X-axis space */}
           <div style={{ height: xAxisHeight }} />
@@ -249,8 +257,39 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               })}
             </g>
 
+            {/* Commit lane - thin row with dots for commits */}
+            {commitLaneHeight > 0 && (
+              <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight})`}>
+                {/* Horizontal line for commit lane */}
+                <line
+                  x1={0}
+                  y1={commitLaneHeight / 2}
+                  x2={graphWidth}
+                  y2={commitLaneHeight / 2}
+                  stroke="var(--warning)"
+                  strokeOpacity={0.2}
+                  strokeDasharray="4,4"
+                />
+                {/* Commit dots */}
+                {turns.map((turn, idx) => {
+                  if (!turn.hasCommit) return null;
+                  const x = getX(idx);
+                  return (
+                    <circle
+                      key={idx}
+                      cx={x}
+                      cy={commitLaneHeight / 2}
+                      r={5}
+                      fill="var(--warning)"
+                      className="cursor-pointer"
+                    />
+                  );
+                })}
+              </g>
+            )}
+
             {/* X-axis labels and interaction */}
-            <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight})`}>
+            <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight})`}>
               <line x1={0} y1={0} x2={graphWidth} y2={0} stroke="currentColor" strokeOpacity={0.15} />
 
               {turns.map((turn, idx) => {
@@ -259,12 +298,12 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
 
                 return (
                   <g key={idx}>
-                    {/* Hover zone spanning both charts */}
+                    {/* Hover zone spanning all charts */}
                     <rect
                       x={x - 24}
-                      y={-tokenChartHeight - gapHeight - toolChartHeight}
+                      y={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight}
                       width={48}
-                      height={tokenChartHeight + gapHeight + toolChartHeight + xAxisHeight}
+                      height={tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + xAxisHeight}
                       fill="transparent"
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredPrompt(idx)}
@@ -276,7 +315,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                     {isHovered && (
                       <line
                         x1={x}
-                        y1={-tokenChartHeight - gapHeight - toolChartHeight}
+                        y1={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight}
                         x2={x}
                         y2={0}
                         stroke="currentColor"
@@ -285,7 +324,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                       />
                     )}
 
-                    {/* X label */}
+                    {/* X label - always show prompt number */}
                     <text
                       x={x}
                       y={14}
@@ -311,8 +350,13 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               transform: 'translateX(-50%)',
             }}
           >
-            <div className="font-semibold text-foreground mb-1.5">
-              Prompt {hoveredTurn.promptIndex}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-semibold text-foreground">Prompt {hoveredTurn.promptIndex}</span>
+              {hoveredTurn.hasCommit && (
+                <span className="text-[color:var(--warning)] text-[10px] font-medium px-1.5 py-0.5 bg-[color:var(--warning)]/10 rounded">
+                  COMMIT
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 mb-1.5">
               <div className="flex items-center gap-1">
@@ -385,6 +429,12 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
           <span className="text-muted-foreground">
             {totals.tools} tools
           </span>
+          {totals.commits > 0 && (
+            <span className="flex items-center gap-1 text-[color:var(--warning)]">
+              <span>●</span>
+              <span>{totals.commits} commit{totals.commits !== 1 ? 's' : ''}</span>
+            </span>
+          )}
         </div>
       </div>
     </div>
