@@ -66,6 +66,13 @@ export function SessionView({
   const [copied, setCopied] = useState(false);
 
   // Infinite scroll - load more when scrolling to top
+  const isLoadingRef = useRef(false);
+
+  useEffect(() => {
+    // Sync ref with prop
+    isLoadingRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
   useEffect(() => {
     const trigger = loadMoreTriggerRef.current;
     if (!trigger || !onLoadMore || !hasMoreEvents) return;
@@ -73,7 +80,9 @@ export function SessionView({
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry.isIntersecting && !isLoadingMore && hasMoreEvents) {
+        // Use ref for immediate check to prevent multiple calls
+        if (entry.isIntersecting && !isLoadingRef.current && hasMoreEvents) {
+          isLoadingRef.current = true; // Immediately block further calls
           onLoadMore();
         }
       },
@@ -82,7 +91,7 @@ export function SessionView({
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [onLoadMore, isLoadingMore, hasMoreEvents]);
+  }, [onLoadMore, hasMoreEvents]);
 
   // Scroll to event function
   const scrollToEvent = useCallback((eventId: number) => {
