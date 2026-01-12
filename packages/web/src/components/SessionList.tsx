@@ -112,11 +112,20 @@ export function SessionList({
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <i className="ri-flashlight-line text-primary-foreground text-sm"></i>
-            </div>
-            <span className="font-semibold text-foreground">SuperTrace</span>
+          <div className="flex flex-col">
+            {/* QuickCall Logo */}
+            <span className="inline-flex items-baseline">
+              <span className="text-lg font-medium tracking-tight text-teal-600 dark:text-teal-500">
+                quick
+              </span>
+              <span className="text-lg font-medium tracking-tight text-foreground">
+                call
+              </span>
+            </span>
+            {/* SuperTrace subscript */}
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
+              SuperTrace
+            </span>
           </div>
           {/* Theme toggle */}
           <button
