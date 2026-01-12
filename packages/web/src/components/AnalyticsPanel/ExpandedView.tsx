@@ -2,10 +2,30 @@
  * Expanded analytics view with compact header and charts.
  */
 
+import { useState } from 'react';
 import type { MetricsResponse, MetricFormat, PromptTurnsData } from '../../api/client';
 import { PromptMetricsChart } from './PromptMetricsChart';
 import { TimingChart } from './TimingChart';
 import { ToolDistributionChart } from './ToolDistributionChart';
+
+// Simple tooltip wrapper
+function Tooltip({ children, text }: { children: React.ReactNode; text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[10px] bg-popover text-popover-foreground border border-border rounded shadow-lg whitespace-nowrap z-50">
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
 
 interface ExpandedViewProps {
   metrics: MetricsResponse;
@@ -14,6 +34,7 @@ interface ExpandedViewProps {
   hoursBack?: number;
   onTimeRangeChange?: (hours: number) => void;
   loading?: boolean;
+  isJumpingToEvent?: boolean;
 }
 
 const TIME_OPTIONS = [
@@ -69,6 +90,7 @@ export function ExpandedView({
   hoursBack = 2,
   onTimeRangeChange,
   loading = false,
+  isJumpingToEvent = false,
 }: ExpandedViewProps) {
   const byCategory = metrics.by_category || {};
 
@@ -93,7 +115,7 @@ export function ExpandedView({
   const chartData = byCategory.charts?.prompt_turns?.value as PromptTurnsData | null;
 
   return (
-    <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
+    <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0 relative">
       {/* Header - compact single row matching SessionView */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
@@ -102,29 +124,26 @@ export function ExpandedView({
             <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
           )}
           <span className="text-muted-foreground/50">·</span>
-          <span
-            className="text-xs text-foreground font-medium"
-            title="Estimated API cost based on token usage"
-          >
-            ${cost.toFixed(2)}
-          </span>
-          {cacheSavings > 0 && (
-            <span
-              className="text-xs text-[color:var(--success)]"
-              title="Savings from prompt caching"
-            >
-              -${cacheSavings.toFixed(2)}
+          <Tooltip text="Estimated API cost">
+            <span className="text-xs text-foreground font-medium">
+              ${cost.toFixed(2)}
             </span>
+          </Tooltip>
+          {cacheSavings > 0 && (
+            <Tooltip text="Savings from prompt caching">
+              <span className="text-xs text-[color:var(--success)]">
+                -${cacheSavings.toFixed(2)}
+              </span>
+            </Tooltip>
           )}
           {duration !== null && (
             <>
               <span className="text-muted-foreground/50">·</span>
-              <span
-                className="text-xs text-muted-foreground"
-                title="Session duration"
-              >
-                {formatValue(duration, 'duration')}
-              </span>
+              <Tooltip text="Session duration">
+                <span className="text-xs text-muted-foreground">
+                  {formatValue(duration, 'duration')}
+                </span>
+              </Tooltip>
             </>
           )}
         </div>
@@ -154,6 +173,16 @@ export function ExpandedView({
           </button>
         </div>
       </div>
+
+      {/* Loading overlay when jumping to event */}
+      {isJumpingToEvent && (
+        <div className="absolute inset-0 bg-card/80 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="flex items-center gap-3 text-muted-foreground bg-card px-4 py-3 rounded-lg border border-border shadow-lg">
+            <i className="ri-loader-4-line animate-spin text-lg" />
+            <span className="text-sm">Loading conversation...</span>
+          </div>
+        </div>
+      )}
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">

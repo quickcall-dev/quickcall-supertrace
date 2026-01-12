@@ -39,10 +39,14 @@ function App() {
 
   // Ref for scrolling to events in SessionView
   const scrollToEventRef = useRef<((eventId: number) => void) | null>(null);
+  const [isJumpingToEvent, setIsJumpingToEvent] = useState(false);
 
   // Handle scroll to event from analytics panel
   // If event not loaded, load all events first then scroll
   const handleScrollToEvent = useCallback(async (eventId: number) => {
+    // Prevent multiple clicks while already loading
+    if (isJumpingToEvent || isLoadingMore) return;
+
     // Check if event is already loaded
     const eventExists = events.some(e => e.id === eventId);
 
@@ -54,6 +58,7 @@ function App() {
     // Event not loaded - need to load all events
     if (!selectedSessionId) return;
 
+    setIsJumpingToEvent(true);
     setIsLoadingMore(true);
     try {
       // Load all events (pass 0 for unlimited)
@@ -64,13 +69,15 @@ function App() {
       // Scroll after state updates
       setTimeout(() => {
         scrollToEventRef.current?.(eventId);
+        setIsJumpingToEvent(false);
       }, 100);
     } catch (error) {
       console.error('Failed to load events for scroll:', error);
+      setIsJumpingToEvent(false);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [events, selectedSessionId]);
+  }, [events, selectedSessionId, isJumpingToEvent, isLoadingMore]);
 
   // Session metrics - loaded in parallel with session data
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
@@ -333,6 +340,7 @@ function App() {
         onScrollToEvent={handleScrollToEvent}
         hoursBack={metricsHoursBack}
         onTimeRangeChange={handleTimeRangeChange}
+        isJumpingToEvent={isJumpingToEvent}
       />
 
       {/* Chat/Events - right panel */}

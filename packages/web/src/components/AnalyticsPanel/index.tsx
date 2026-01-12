@@ -19,6 +19,7 @@ interface AnalyticsPanelProps {
   onScrollToEvent?: (eventId: number) => void;
   hoursBack?: number;
   onTimeRangeChange?: (hours: number) => void;
+  isJumpingToEvent?: boolean;
 }
 
 export function AnalyticsPanel({
@@ -29,6 +30,7 @@ export function AnalyticsPanel({
   onScrollToEvent,
   hoursBack = 2,
   onTimeRangeChange,
+  isJumpingToEvent = false,
 }: AnalyticsPanelProps) {
   // No session selected - show minimal placeholder
   if (!metrics && !loading) {
@@ -69,6 +71,7 @@ export function AnalyticsPanel({
         hoursBack={hoursBack}
         onTimeRangeChange={onTimeRangeChange}
         loading={loading}
+        isJumpingToEvent={isJumpingToEvent}
       />
     );
   }
