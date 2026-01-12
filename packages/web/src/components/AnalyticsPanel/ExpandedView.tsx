@@ -1,5 +1,5 @@
 /**
- * Expanded analytics view with big numbers and charts.
+ * Expanded analytics view with compact header and charts.
  */
 
 import type { MetricsResponse, MetricFormat, Event } from '../../api/client';
@@ -63,8 +63,6 @@ export function ExpandedView({
 
   // Extract key metrics
   const cost = byCategory.tokens?.estimated_cost?.value as number ?? 0;
-  const inputCost = byCategory.tokens?.input_cost?.value as number ?? 0;
-  const outputCost = byCategory.tokens?.output_cost?.value as number ?? 0;
   const cacheSavings = byCategory.tokens?.cache_savings?.value as number ?? 0;
 
   const filesChanged = byCategory.tools?.files_changed?.value as number ?? 0;
@@ -82,63 +80,57 @@ export function ExpandedView({
 
   return (
     <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground uppercase tracking-wider">Analytics</span>
-        <button
-          onClick={onCollapse}
-          className="p-1.5 hover:bg-accent rounded transition-colors"
-          title="Collapse"
-        >
-          <i className="ri-arrow-left-double-line text-muted-foreground" />
-        </button>
+      {/* Header with branding and key metrics */}
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          {/* SuperTrace branding */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-foreground tracking-wide">SuperTrace</span>
+            <span className="text-muted-foreground/50">|</span>
+            {/* Inline key metrics */}
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5" title="Session Cost">
+                <i className="ri-money-dollar-circle-line text-[color:var(--cost)]" />
+                <span className="font-semibold text-foreground">{cost.toFixed(2)}</span>
+              </div>
+              {cacheSavings > 0 && (
+                <div className="flex items-center gap-1" title="Cache Savings">
+                  <i className="ri-leaf-line text-[color:var(--success)]" />
+                  <span className="text-[color:var(--success)] font-medium">-${cacheSavings.toFixed(2)}</span>
+                </div>
+              )}
+              {duration !== null && (
+                <div className="flex items-center gap-1" title="Duration">
+                  <i className="ri-time-line text-muted-foreground" />
+                  <span className="text-muted-foreground">{formatValue(duration, 'duration')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onCollapse}
+            className="p-1.5 hover:bg-accent rounded transition-colors"
+            title="Collapse"
+          >
+            <i className="ri-arrow-left-double-line text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Hero: Cost */}
-        <div className="px-5 py-6 border-b border-border bg-gradient-to-b from-muted/50 to-transparent">
-          <div className="text-center">
-            <div className="text-5xl font-bold text-[color:var(--cost)] mb-2">
-              ${cost.toFixed(2)}
-            </div>
-            <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Session Cost</div>
-          </div>
-
-          {/* Cost breakdown */}
-          <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-            <div className="bg-muted/50 rounded-lg py-2 px-3">
-              <div className="text-base font-semibold text-foreground">${inputCost.toFixed(2)}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">Input</div>
-            </div>
-            <div className="bg-muted/50 rounded-lg py-2 px-3">
-              <div className="text-base font-semibold text-foreground">${outputCost.toFixed(2)}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">Output</div>
-            </div>
-          </div>
-
-          {cacheSavings > 0 && (
-            <div className="mt-3 text-center">
-              <span className="text-xs text-[color:var(--success)] font-medium">
-                <i className="ri-discount-percent-line mr-1" />
-                ${cacheSavings.toFixed(2)} saved with cache
-              </span>
-            </div>
-          )}
-        </div>
-
         {/* Token Usage Chart */}
         <div className="px-5 py-4 border-b border-border">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
-            Token Usage by Prompt
+            Tokens by Prompt
           </div>
           <TokenBarChart events={events} onBarClick={onScrollToEvent} />
         </div>
 
-        {/* Tool Timeline */}
+        {/* Tool Distribution */}
         <div className="px-5 py-4 border-b border-border">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
-            Tool Usage Timeline
+            Tool Distribution
           </div>
           <ToolTimeline events={events} sessionStart={sessionStart} />
         </div>
@@ -194,14 +186,6 @@ export function ExpandedView({
               <span className="text-sm text-foreground">Completion rate</span>
               <span className="text-sm font-semibold text-foreground">{completionRate}%</span>
             </div>
-            {duration !== null && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">Duration</span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatValue(duration, 'duration')}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>
