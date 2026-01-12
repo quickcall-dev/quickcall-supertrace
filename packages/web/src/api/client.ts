@@ -43,12 +43,16 @@ export interface PromptTurn {
   tools: Array<{ name: string; count: number; color: string }>;
   totalTools: number;
   hasCommit: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  durationSeconds: number | null;
 }
 
 export interface PromptTurnsData {
   turns: PromptTurn[];
   maxTokens: number;
   maxTools: number;
+  maxDuration: number;
   totals: {
     inputTokens: number;
     outputTokens: number;

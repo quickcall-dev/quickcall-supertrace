@@ -59,6 +59,15 @@ function getRelativeTime(timestamp: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function getSessionFilePath(projectPath: string | null, sessionId: string): string {
+  if (!projectPath) return sessionId;
+  // Convert project path to Claude's folder naming convention
+  // Remove leading slash then replace remaining slashes with dashes
+  const escapedPath = projectPath.replace(/^\//, '').replace(/\//g, '-');
+  // Use $HOME for portability, user can expand ~ if needed
+  return `$HOME/.claude/projects/-${escapedPath}/${sessionId}.jsonl`;
+}
+
 export function SessionList({
   sessions,
   selectedId,
@@ -197,8 +206,18 @@ export function SessionList({
                             {getRelativeTime(session.started_at)}
                           </span>
                           <span className="text-muted-foreground/50">·</span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {session.id.slice(0, 6)}
+                          <span
+                            className="text-[11px] text-muted-foreground font-mono hover:text-primary cursor-pointer transition-colors"
+                            title={getSessionFilePath(session.project_path, session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const filePath = getSessionFilePath(session.project_path, session.id);
+                              if (filePath) {
+                                navigator.clipboard.writeText(filePath);
+                              }
+                            }}
+                          >
+                            {session.id.slice(0, 7)}
                           </span>
                         </div>
                       </div>

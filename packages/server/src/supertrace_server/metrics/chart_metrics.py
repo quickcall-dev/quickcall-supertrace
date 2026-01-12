@@ -6,7 +6,20 @@ Pre-computes data for frontend charts:
 """
 
 import re
+from datetime import datetime
 from .registry import MetricCategory, MetricFormat, metric
+
+
+def parse_timestamp(ts: str | None) -> datetime | None:
+    """Parse ISO timestamp string to datetime."""
+    if not ts:
+        return None
+    try:
+        # Handle various ISO formats
+        ts = ts.replace("Z", "+00:00")
+        return datetime.fromisoformat(ts)
+    except (ValueError, TypeError):
+        return None
 
 # Patterns to detect git commits
 GIT_COMMIT_PATTERNS = [
@@ -82,6 +95,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
     total_commits = 0
     max_tokens = 0
     max_tools = 0
+    max_duration = 0
 
     # Global tool counts for legend
     global_tool_counts: dict[str, int] = {}
@@ -96,6 +110,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
 
         if event.get("event_type") == "user_prompt":
             prompt_index += 1
+            start_time = parse_timestamp(event.get("timestamp"))
             turn = {
                 "promptIndex": prompt_index,
                 "promptEventId": event.get("id"),
@@ -105,10 +120,14 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                 "tools": [],
                 "totalTools": 0,
                 "hasCommit": False,
+                "startTime": event.get("timestamp"),
+                "endTime": None,
+                "durationSeconds": None,
             }
 
             # Collect tools and find assistant_stop
             tool_counts: dict[str, int] = {}
+            end_time = None
 
             j = i + 1
             while j < len(events):
@@ -131,6 +150,8 @@ def calc_prompt_turns(events: list[dict]) -> dict:
 
                 if e.get("event_type") == "assistant_stop":
                     turn["responseEventId"] = e.get("id")
+                    turn["endTime"] = e.get("timestamp")
+                    end_time = parse_timestamp(e.get("timestamp"))
                     token_usage = e.get("data", {}).get("token_usage", {})
                     if token_usage:
                         turn["inputTokens"] = token_usage.get("input_tokens", 0)
@@ -141,6 +162,12 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                     break
 
                 j += 1
+
+            # Calculate duration
+            if start_time and end_time:
+                duration = (end_time - start_time).total_seconds()
+                turn["durationSeconds"] = round(duration, 1)
+                max_duration = max(max_duration, duration)
 
             # Convert tool counts to sorted list
             turn["tools"] = sorted(
@@ -185,6 +212,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
         "turns": turns,
         "maxTokens": max_tokens,
         "maxTools": max_tools,
+        "maxDuration": round(max_duration, 1) if max_duration else 0,
         "totals": {
             "inputTokens": total_input,
             "outputTokens": total_output,
