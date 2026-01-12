@@ -134,11 +134,29 @@ export function SessionView({
   const groupedEvents = groupEvents(events);
 
   // Get session file path for clipboard (absolute path)
+  // Claude stores sessions at the git root, not the cwd. We need to find
+  // the git root from project_path. Convention: .claude folder is at git root.
   const getSessionFilePath = () => {
     if (!session.project_path) return session.id;
-    const escapedPath = session.project_path.replace(/^\//, '').replace(/\//g, '-');
-    // Use absolute path with typical home directory
-    const homeDir = '/Users/' + (session.project_path.split('/')[2] || 'user');
+
+    // Find git root - look for common project indicators
+    // e.g., /Users/sagar/work/project/packages/server -> /Users/sagar/work/project
+    const parts = session.project_path.split('/');
+    const homeDir = parts.slice(0, 3).join('/'); // /Users/username
+
+    // Find the likely git root by looking for common subdirectories
+    // that indicate we're in a subdirectory of a monorepo
+    let gitRootParts = [...parts];
+    const subDirIndicators = ['packages', 'apps', 'libs', 'src', 'services'];
+    for (let i = parts.length - 1; i >= 3; i--) {
+      if (subDirIndicators.includes(parts[i])) {
+        gitRootParts = parts.slice(0, i);
+        break;
+      }
+    }
+
+    const gitRoot = gitRootParts.join('/');
+    const escapedPath = gitRoot.replace(/^\//, '').replace(/\//g, '-');
     return `${homeDir}/.claude/projects/-${escapedPath}/${session.id}.jsonl`;
   };
 
