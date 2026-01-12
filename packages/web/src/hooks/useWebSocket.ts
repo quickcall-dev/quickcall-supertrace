@@ -2,43 +2,44 @@
  * WebSocket hook for real-time session updates.
  *
  * Establishes WS connection to server, handles reconnection,
- * and provides callback for new events.
+ * and provides subscribe/unsubscribe for session-specific updates.
  *
  * Related: api/client.ts (Event type), App.tsx (usage)
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import type { Event, MetricsResponse } from '../api/client';
+import type { Event } from '../api/client';
 
 interface NewEventMessage {
   type: 'new_event';
   event: Event;
 }
 
-interface MetricsUpdateMessage {
-  type: 'metrics_update';
+interface NewSessionMessage {
+  type: 'new_session';
   session_id: string;
-  metrics: MetricsResponse;
 }
 
-type WebSocketMessage = NewEventMessage | MetricsUpdateMessage;
+type WebSocketMessage = NewEventMessage | NewSessionMessage;
 
 interface UseWebSocketOptions {
   onEvent?: (event: Event) => void;
-  onMetricsUpdate?: (sessionId: string, metrics: MetricsResponse) => void;
+  onNewSession?: (sessionId: string) => void;
   reconnectInterval?: number;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onEvent, onMetricsUpdate, reconnectInterval = 3000 } = options;
+  const { onEvent, onNewSession, reconnectInterval = 3000 } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const subscribedSessionRef = useRef<string | null>(null);
+
   // Use ref for callbacks to avoid reconnections when callbacks change
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
-  const onMetricsUpdateRef = useRef(onMetricsUpdate);
-  onMetricsUpdateRef.current = onMetricsUpdate;
+  const onNewSessionRef = useRef(onNewSession);
+  onNewSessionRef.current = onNewSession;
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -54,6 +55,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      // Re-subscribe to session if we had one before reconnect
+      if (subscribedSessionRef.current) {
+        ws.send(JSON.stringify({ type: 'subscribe', session_id: subscribedSessionRef.current }));
+      }
     };
 
     ws.onmessage = (event) => {
@@ -61,8 +66,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         const data: WebSocketMessage = JSON.parse(event.data);
         if (data.type === 'new_event' && onEventRef.current) {
           onEventRef.current(data.event);
-        } else if (data.type === 'metrics_update' && onMetricsUpdateRef.current) {
-          onMetricsUpdateRef.current(data.session_id, data.metrics);
+        } else if (data.type === 'new_session' && onNewSessionRef.current) {
+          onNewSessionRef.current(data.session_id);
         }
       } catch {
         // Ignore parse errors
@@ -86,6 +91,20 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     wsRef.current = ws;
   }, [reconnectInterval]);
 
+  // Subscribe to a session's updates
+  const subscribe = useCallback((sessionId: string) => {
+    // Unsubscribe from previous session
+    if (subscribedSessionRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'unsubscribe', session_id: subscribedSessionRef.current }));
+    }
+
+    subscribedSessionRef.current = sessionId;
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'subscribe', session_id: sessionId }));
+    }
+  }, []);
+
   useEffect(() => {
     connect();
 
@@ -99,5 +118,5 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     };
   }, [connect]);
 
-  return { isConnected };
+  return { isConnected, subscribe };
 }

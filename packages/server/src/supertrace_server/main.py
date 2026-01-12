@@ -62,14 +62,27 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time updates.
 
-    Clients connect here to receive new events as they arrive.
+    Clients send JSON messages to subscribe/unsubscribe from sessions:
+    - {"type": "subscribe", "session_id": "..."}
+    - {"type": "unsubscribe", "session_id": "..."}
     """
+    import json
+
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive, handle any client messages
             data = await websocket.receive_text()
-            # Could handle client commands here if needed
+            try:
+                msg = json.loads(data)
+                msg_type = msg.get("type")
+                session_id = msg.get("session_id")
+
+                if msg_type == "subscribe" and session_id:
+                    manager.subscribe(websocket, session_id)
+                elif msg_type == "unsubscribe" and session_id:
+                    manager.unsubscribe(websocket, session_id)
+            except json.JSONDecodeError:
+                pass  # Ignore invalid messages
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

@@ -20,7 +20,6 @@ import {
   searchEvents,
   type Session,
   type Event,
-  type MetricsResponse,
 } from './api/client';
 
 function App() {
@@ -42,43 +41,39 @@ function App() {
     scrollToEventRef.current?.(eventId);
   }, []);
 
-  // Session metrics
-  const { metrics, loading: metricsLoading, updateMetrics } = useSessionMetrics({
+  // Session metrics (lazy loaded when session selected)
+  const { metrics, loading: metricsLoading } = useSessionMetrics({
     sessionId: selectedSessionId,
   });
 
-  // Handle new events from WebSocket
+  // Handle new events from WebSocket (only for subscribed session)
   const handleNewEvent = useCallback((event: Event) => {
-    // Update events if viewing the same session
-    if (event.session_id === selectedSessionId) {
-      setEvents((prev) => [...prev, event]);
-    }
+    // Update events - server only sends events for subscribed session
+    setEvents((prev) => [...prev, event]);
 
-    // Update session list (move active session to top)
+    // Move session to top of list
     setSessions((prev) => {
       const existing = prev.find((s) => s.id === event.session_id);
       if (existing) {
-        // Move to top
         return [existing, ...prev.filter((s) => s.id !== event.session_id)];
       }
-      // New session - will be fetched on next refresh
       return prev;
     });
-  }, [selectedSessionId]);
+  }, []);
 
-  // Handle metrics updates from WebSocket
-  const handleMetricsUpdate = useCallback(
-    (sessionId: string, newMetrics: MetricsResponse) => {
-      if (sessionId === selectedSessionId) {
-        updateMetrics(newMetrics);
-      }
-    },
-    [selectedSessionId, updateMetrics]
-  );
+  // Handle new session notifications (refresh session list)
+  const handleNewSession = useCallback(async () => {
+    try {
+      const data = await getSessions();
+      setSessions(data.sessions);
+    } catch (error) {
+      console.error('Failed to refresh sessions:', error);
+    }
+  }, []);
 
-  useWebSocket({
+  const { subscribe } = useWebSocket({
     onEvent: handleNewEvent,
-    onMetricsUpdate: handleMetricsUpdate,
+    onNewSession: handleNewSession,
   });
 
   // Load sessions on mount
@@ -99,13 +94,16 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load session details when selected
+  // Load session details when selected and subscribe to updates
   useEffect(() => {
     if (!selectedSessionId) {
       setSelectedSession(null);
       setEvents([]);
       return;
     }
+
+    // Subscribe to this session's WebSocket updates
+    subscribe(selectedSessionId);
 
     const loadSession = async () => {
       setIsLoading(true);
@@ -121,7 +119,7 @@ function App() {
     };
 
     loadSession();
-  }, [selectedSessionId]);
+  }, [selectedSessionId, subscribe]);
 
   // Handle search
   const handleSearch = async (query: string) => {
