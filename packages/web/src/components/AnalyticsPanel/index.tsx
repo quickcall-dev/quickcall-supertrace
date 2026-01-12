@@ -17,6 +17,8 @@ interface AnalyticsPanelProps {
   expanded: boolean;
   onToggle: () => void;
   onScrollToEvent?: (eventId: number) => void;
+  hoursBack?: number;
+  onTimeRangeChange?: (hours: number) => void;
 }
 
 export function AnalyticsPanel({
@@ -25,23 +27,15 @@ export function AnalyticsPanel({
   expanded,
   onToggle,
   onScrollToEvent,
+  hoursBack = 2,
+  onTimeRangeChange,
 }: AnalyticsPanelProps) {
-  // No session selected
+  // No session selected - show minimal placeholder
   if (!metrics && !loading) {
     return (
       <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-muted-foreground px-4">
-            {expanded ? (
-              <>
-                <i className="ri-bar-chart-2-line text-3xl mb-2 block" />
-                <p className="text-sm">Select a session</p>
-              </>
-            ) : (
-              <i className="ri-bar-chart-2-line text-xl" />
-            )}
-          </div>
-        </div>
+        {/* Empty - content shown in SessionView */}
+        <div className="flex-1" />
         <button
           onClick={onToggle}
           className="p-3 border-t border-border hover:bg-accent transition-colors"
@@ -52,12 +46,15 @@ export function AnalyticsPanel({
     );
   }
 
-  // Loading state
-  if (loading) {
+  // Loading state - show spinner overlay if we have metrics, full spinner otherwise
+  if (loading && !metrics) {
     return (
       <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
         <div className="flex-1 flex items-center justify-center">
-          <i className="ri-loader-4-line animate-spin text-muted-foreground text-xl" />
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <i className="ri-loader-4-line animate-spin text-xl" />
+            {expanded && <span className="text-sm">Loading metrics...</span>}
+          </div>
         </div>
       </div>
     );
@@ -69,6 +66,9 @@ export function AnalyticsPanel({
         metrics={metrics!}
         onCollapse={onToggle}
         onScrollToEvent={onScrollToEvent}
+        hoursBack={hoursBack}
+        onTimeRangeChange={onTimeRangeChange}
+        loading={loading}
       />
     );
   }

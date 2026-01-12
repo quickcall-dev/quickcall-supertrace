@@ -11,7 +11,18 @@ interface ExpandedViewProps {
   metrics: MetricsResponse;
   onCollapse: () => void;
   onScrollToEvent?: (eventId: number) => void;
+  hoursBack?: number;
+  onTimeRangeChange?: (hours: number) => void;
+  loading?: boolean;
 }
+
+const TIME_OPTIONS = [
+  { value: 1, label: '1h' },
+  { value: 2, label: '2h' },
+  { value: 6, label: '6h' },
+  { value: 24, label: '24h' },
+  { value: 0, label: 'All' },
+];
 
 function formatValue(value: unknown, format: MetricFormat): string {
   if (value === null || value === undefined) return '-';
@@ -55,6 +66,9 @@ export function ExpandedView({
   metrics,
   onCollapse,
   onScrollToEvent,
+  hoursBack = 2,
+  onTimeRangeChange,
+  loading = false,
 }: ExpandedViewProps) {
   const byCategory = metrics.by_category || {};
 
@@ -83,7 +97,10 @@ export function ExpandedView({
       {/* Header - compact single row matching SessionView */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">SuperTrace</span>
+          <span className="font-semibold text-foreground">Analytics</span>
+          {loading && (
+            <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
+          )}
           <span className="text-muted-foreground/50">·</span>
           <span className="text-xs text-foreground font-medium">${cost.toFixed(2)}</span>
           {cacheSavings > 0 && (
@@ -96,13 +113,31 @@ export function ExpandedView({
             </>
           )}
         </div>
-        <button
-          onClick={onCollapse}
-          className="p-1.5 hover:bg-accent rounded transition-colors"
-          title="Collapse"
-        >
-          <i className="ri-arrow-left-double-line text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Time range selector */}
+          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+            {TIME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onTimeRangeChange?.(opt.value)}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  hoursBack === opt.value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={onCollapse}
+            className="p-1.5 hover:bg-accent rounded transition-colors"
+            title="Collapse"
+          >
+            <i className="ri-arrow-left-double-line text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       {/* Scrollable content */}

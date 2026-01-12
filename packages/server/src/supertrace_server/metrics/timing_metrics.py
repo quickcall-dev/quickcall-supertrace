@@ -2,22 +2,16 @@
 Timing metrics.
 
 Session duration info.
+Uses preprocessed data for efficiency.
 """
 
-from datetime import datetime
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from .registry import metric, MetricCategory, MetricFormat
 
-
-def _parse_timestamp(ts: str | None) -> datetime | None:
-    """Parse ISO timestamp string to datetime."""
-    if not ts:
-        return None
-    try:
-        ts_clean = ts.replace("Z", "+00:00")
-        return datetime.fromisoformat(ts_clean)
-    except (ValueError, AttributeError):
-        return None
+if TYPE_CHECKING:
+    from .preprocess import PreprocessedEvents
 
 
 @metric(
@@ -28,9 +22,24 @@ def _parse_timestamp(ts: str | None) -> datetime | None:
     icon="ri-time-line",
     order=0,
 )
-def calc_session_duration(events: list[dict]) -> int | None:
+def calc_session_duration(events: list[dict], pre: PreprocessedEvents = None) -> int | None:
     """Session duration in seconds from first to last event."""
-    timestamps = [_parse_timestamp(e.get("timestamp")) for e in events]
+    if pre and pre.first_timestamp and pre.last_timestamp:
+        duration = (pre.last_timestamp - pre.first_timestamp).total_seconds()
+        return int(duration)
+
+    # Fallback
+    from datetime import datetime
+
+    def parse_ts(ts):
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return None
+
+    timestamps = [parse_ts(e.get("timestamp")) for e in events]
     valid = [t for t in timestamps if t]
 
     if len(valid) < 2:

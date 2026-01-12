@@ -23,6 +23,7 @@ Adding new metrics:
 from typing import Any
 
 from .registry import MetricCategory, MetricFormat, MetricRegistry, metric
+from .preprocess import preprocess_events
 
 # Import all metric modules to register them
 from . import chart_metrics as _charts  # noqa: F401
@@ -44,6 +45,9 @@ def compute_metrics(events: list[dict]) -> dict[str, Any]:
     """
     Compute all registered metrics for a list of events.
 
+    Uses single-pass preprocessing for efficiency - all event filtering
+    is done once upfront, then metrics use the pre-filtered data.
+
     Returns dict with two keys:
     - by_category: Metrics grouped by category (tokens, tools, timing, interaction)
     - mini_bar: List of metrics flagged for mini-bar display
@@ -63,7 +67,11 @@ def compute_metrics(events: list[dict]) -> dict[str, Any]:
         ]
     }
     """
-    raw = MetricRegistry.compute_all(events)
+    # Single-pass preprocessing - extract all commonly needed data
+    preprocessed = preprocess_events(events)
+
+    # Compute metrics using preprocessed data
+    raw = MetricRegistry.compute_all(events, preprocessed)
 
     # Group by category
     grouped: dict[str, dict] = {}

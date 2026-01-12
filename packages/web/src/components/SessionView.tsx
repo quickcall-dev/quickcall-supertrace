@@ -16,6 +16,9 @@ interface SessionViewProps {
   events: Event[];
   isLoading: boolean;
   onScrollToEventRef?: MutableRefObject<((eventId: number) => void) | null>;
+  totalEvents?: number;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 type GroupedItem =
@@ -45,9 +48,18 @@ function groupEvents(events: Event[]): GroupedItem[] {
   return result;
 }
 
-export function SessionView({ session, events, isLoading, onScrollToEventRef }: SessionViewProps) {
+export function SessionView({
+  session,
+  events,
+  isLoading,
+  onScrollToEventRef,
+  totalEvents = 0,
+  isLoadingMore = false,
+  onLoadMore,
+}: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [copied, setCopied] = useState(false);
 
   // Scroll to event function
   const scrollToEvent = useCallback((eventId: number) => {
@@ -80,19 +92,7 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
     }
   }, [events]);
 
-  if (!session) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-2xl flex items-center justify-center">
-            <i className="ri-chat-3-line text-muted-foreground text-2xl"></i>
-          </div>
-          <p className="text-muted-foreground text-sm">Select a session to view</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Loading state - check this BEFORE checking session
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
@@ -102,6 +102,11 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
         </div>
       </div>
     );
+  }
+
+  // Note: Empty state is handled in App.tsx with welcome screen
+  if (!session) {
+    return null;
   }
 
   const getProjectName = (path: string | null) => {
@@ -136,8 +141,6 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
     const homeDir = '/Users/' + (session.project_path.split('/')[2] || 'user');
     return `${homeDir}/.claude/projects/-${escapedPath}/${session.id}.jsonl`;
   };
-
-  const [copied, setCopied] = useState(false);
 
   const copySessionPath = () => {
     navigator.clipboard.writeText(getSessionFilePath());
@@ -191,6 +194,28 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-4xl mx-auto space-y-4">
+          {/* Load More button at top */}
+          {events.length > 0 && events.length < totalEvents && (
+            <div className="flex justify-center pb-2">
+              <button
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg border border-border transition-colors disabled:opacity-50"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <i className="ri-loader-4-line animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-arrow-up-line" />
+                    Load {Math.min(50, totalEvents - events.length)} older events
+                  </>
+                )}
+              </button>
+            </div>
+          )}
           {groupedEvents.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-12 h-12 mx-auto mb-3 bg-muted rounded-full flex items-center justify-center">
@@ -246,7 +271,11 @@ export function SessionView({ session, events, isLoading, onScrollToEventRef }: 
             <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
             {copied ? 'Copied!' : session.id.slice(0, 12)}
           </button>
-          <span>{events.length} events</span>
+          <span>
+            {events.length === totalEvents || totalEvents === 0
+              ? `${events.length} events`
+              : `${events.length} of ${totalEvents} events`}
+          </span>
         </div>
       </div>
     </div>

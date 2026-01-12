@@ -68,13 +68,27 @@ class MetricRegistry:
         cls._metrics[config.name] = (config, func)
 
     @classmethod
-    def compute_all(cls, events: list[dict]) -> dict[str, Any]:
-        """Compute all metrics for given events."""
+    def compute_all(cls, events: list[dict], preprocessed: Any = None) -> dict[str, Any]:
+        """Compute all metrics for given events.
+
+        Args:
+            events: Raw event list
+            preprocessed: Optional PreprocessedEvents for optimized metrics
+        """
         result = {}
         for name, (config, func) in cls._metrics.items():
             try:
+                # Try to call with preprocessed data first (optimized metrics)
+                # Fall back to events-only for legacy metrics
+                import inspect
+                sig = inspect.signature(func)
+                if len(sig.parameters) >= 2 and preprocessed is not None:
+                    value = func(events, preprocessed)
+                else:
+                    value = func(events)
+
                 result[name] = {
-                    "value": func(events),
+                    "value": value,
                     "config": {
                         "name": config.name,
                         "category": config.category.value,

@@ -106,19 +106,22 @@ export async function getSessions(
 }
 
 export async function getSession(
-  sessionId: string
-): Promise<{ session: Session; events: Event[] }> {
-  return fetchJson(`${BASE_URL}/sessions/${sessionId}`);
+  sessionId: string,
+  eventLimit: number = 100
+): Promise<{ session: Session; events: Event[]; total_events?: number }> {
+  return fetchJson(`${BASE_URL}/sessions/${sessionId}?event_limit=${eventLimit}`);
 }
 
 export async function getSessionEvents(
   sessionId: string,
   limit = 100,
-  offset = 0
+  beforeId?: number
 ): Promise<{ events: Event[]; count: number }> {
-  return fetchJson(
-    `${BASE_URL}/sessions/${sessionId}/events?limit=${limit}&offset=${offset}`
-  );
+  let url = `${BASE_URL}/sessions/${sessionId}/events?limit=${limit}`;
+  if (beforeId !== undefined) {
+    url += `&before_id=${beforeId}`;
+  }
+  return fetchJson(url);
 }
 
 export async function searchEvents(
@@ -135,7 +138,8 @@ export function getExportUrl(sessionId: string, format: 'json' | 'md'): string {
 }
 
 export async function getSessionMetrics(
-  sessionId: string
+  sessionId: string,
+  hoursBack: number = 2
 ): Promise<SessionMetricsResponse> {
-  return fetchJson(`${BASE_URL}/metrics/session/${sessionId}`);
+  return fetchJson(`${BASE_URL}/metrics/session/${sessionId}?hours_back=${hoursBack}`);
 }

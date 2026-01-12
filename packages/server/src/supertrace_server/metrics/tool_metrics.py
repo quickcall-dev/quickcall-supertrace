@@ -2,16 +2,17 @@
 Tool usage breakdown.
 
 Shows which tools were used and how often.
+Uses preprocessed data for efficiency.
 """
 
+from __future__ import annotations
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from .registry import metric, MetricCategory, MetricFormat
 
-
-def _get_tool_events(events: list[dict]) -> list[dict]:
-    """Get all tool_use events."""
-    return [e for e in events if e.get("event_type") == "tool_use"]
+if TYPE_CHECKING:
+    from .preprocess import PreprocessedEvents
 
 
 @metric(
@@ -22,10 +23,15 @@ def _get_tool_events(events: list[dict]) -> list[dict]:
     icon="ri-pie-chart-line",
     order=10,
 )
-def calc_tool_distribution(events: list[dict]) -> dict[str, int]:
+def calc_tool_distribution(events: list[dict], pre: PreprocessedEvents = None) -> dict[str, int]:
     """Count of each tool type used, sorted by frequency."""
-    tool_events = _get_tool_events(events)
+    if pre:
+        return dict(pre.tool_counts.most_common())
+
+    # Fallback
     counter = Counter(
-        (e.get("data") or {}).get("tool_name", "unknown") for e in tool_events
+        (e.get("data") or {}).get("tool_name", "unknown")
+        for e in events
+        if e.get("event_type") == "tool_use"
     )
     return dict(counter.most_common())

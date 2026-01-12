@@ -25,14 +25,13 @@ type WebSocketMessage = NewEventMessage | NewSessionMessage;
 interface UseWebSocketOptions {
   onEvent?: (event: Event) => void;
   onNewSession?: (sessionId: string) => void;
-  reconnectInterval?: number;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onEvent, onNewSession, reconnectInterval = 3000 } = options;
+  const { onEvent, onNewSession } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subscribedSessionRef = useRef<string | null>(null);
 
   // Use ref for callbacks to avoid reconnections when callbacks change
@@ -41,55 +40,67 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const onNewSessionRef = useRef(onNewSession);
   onNewSessionRef.current = onNewSession;
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  // Connect on mount
+  useEffect(() => {
+    const connect = () => {
+      // Don't reconnect if already connected or connecting
+      if (wsRef.current?.readyState === WebSocket.OPEN ||
+          wsRef.current?.readyState === WebSocket.CONNECTING) {
+        return;
+      }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-    const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-      setIsConnected(true);
+      ws.onopen = () => {
+        setIsConnected(true);
+        // Re-subscribe to session if we had one before reconnect
+        if (subscribedSessionRef.current) {
+          ws.send(JSON.stringify({ type: 'subscribe', session_id: subscribedSessionRef.current }));
+        }
+      };
+
+      ws.onmessage = (messageEvent) => {
+        try {
+          const data: WebSocketMessage = JSON.parse(messageEvent.data);
+          if (data.type === 'new_event' && onEventRef.current) {
+            onEventRef.current(data.event);
+          } else if (data.type === 'new_session' && onNewSessionRef.current) {
+            onNewSessionRef.current(data.session_id);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        wsRef.current = null;
+        // Reconnect after 3 seconds
+        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+
+      wsRef.current = ws;
+    };
+
+    connect();
+
+    return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
       }
-      // Re-subscribe to session if we had one before reconnect
-      if (subscribedSessionRef.current) {
-        ws.send(JSON.stringify({ type: 'subscribe', session_id: subscribedSessionRef.current }));
-      }
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data: WebSocketMessage = JSON.parse(event.data);
-        if (data.type === 'new_event' && onEventRef.current) {
-          onEventRef.current(data.event);
-        } else if (data.type === 'new_session' && onNewSessionRef.current) {
-          onNewSessionRef.current(data.session_id);
-        }
-      } catch {
-        // Ignore parse errors
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
       }
     };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      wsRef.current = null;
-
-      // Reconnect after interval
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
-      }, reconnectInterval);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
-
-    wsRef.current = ws;
-  }, [reconnectInterval]);
+  }, []);
 
   // Subscribe to a session's updates
   const subscribe = useCallback((sessionId: string) => {
@@ -104,19 +115,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current.send(JSON.stringify({ type: 'subscribe', session_id: sessionId }));
     }
   }, []);
-
-  useEffect(() => {
-    connect();
-
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [connect]);
 
   return { isConnected, subscribe };
 }

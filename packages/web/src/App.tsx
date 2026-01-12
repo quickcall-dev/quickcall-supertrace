@@ -12,14 +12,16 @@ import { SessionList } from './components/SessionList';
 import { SessionView } from './components/SessionView';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
-import { useSessionMetrics } from './hooks/useSessionMetrics';
 import { useTheme } from './hooks/useTheme';
 import {
   getSessions,
   getSession,
+  getSessionEvents,
+  getSessionMetrics,
   searchEvents,
   type Session,
   type Event,
+  type MetricsResponse,
 } from './api/client';
 
 function App() {
@@ -27,7 +29,9 @@ function App() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [totalEvents, setTotalEvents] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
 
   // Theme
@@ -41,24 +45,15 @@ function App() {
     scrollToEventRef.current?.(eventId);
   }, []);
 
-  // Session metrics (lazy loaded when session selected)
-  const { metrics, loading: metricsLoading } = useSessionMetrics({
-    sessionId: selectedSessionId,
-  });
+  // Session metrics - loaded in parallel with session data
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsHoursBack, setMetricsHoursBack] = useState<number>(2); // Default: last 2 hours
 
   // Handle new events from WebSocket (only for subscribed session)
   const handleNewEvent = useCallback((event: Event) => {
     // Update events - server only sends events for subscribed session
     setEvents((prev) => [...prev, event]);
-
-    // Move session to top of list
-    setSessions((prev) => {
-      const existing = prev.find((s) => s.id === event.session_id);
-      if (existing) {
-        return [existing, ...prev.filter((s) => s.id !== event.session_id)];
-      }
-      return prev;
-    });
   }, []);
 
   // Handle new session notifications (refresh session list)
@@ -94,32 +89,114 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load session details when selected and subscribe to updates
+  // Load session details and metrics in parallel when selected
   useEffect(() => {
     if (!selectedSessionId) {
       setSelectedSession(null);
       setEvents([]);
+      setMetrics(null);
       return;
     }
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
 
-    const loadSession = async () => {
+    let cancelled = false;
+
+    // Load session and metrics in parallel
+    const loadData = async () => {
       setIsLoading(true);
+      setMetricsLoading(true);
+
+      // Start both requests simultaneously - load only last 50 events initially
+      const sessionPromise = getSession(selectedSessionId, 50);
+      const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
+
+      // Handle session data
       try {
-        const data = await getSession(selectedSessionId);
-        setSelectedSession(data.session);
-        setEvents(data.events);
+        const data = await sessionPromise;
+        if (!cancelled) {
+          setSelectedSession(data.session);
+          setEvents(data.events);
+          setTotalEvents(data.total_events || data.events.length);
+        }
       } catch (error) {
         console.error('Failed to load session:', error);
+        if (!cancelled) {
+          setSelectedSession(null);
+          setEvents([]);
+          setTotalEvents(0);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+
+      // Handle metrics data
+      try {
+        const metricsData = await metricsPromise;
+        if (!cancelled) {
+          setMetrics(metricsData.metrics);
+        }
+      } catch (error) {
+        console.error('Failed to load metrics:', error);
+        if (!cancelled) {
+          setMetrics(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setMetricsLoading(false);
+        }
       }
     };
 
-    loadSession();
-  }, [selectedSessionId, subscribe]);
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSessionId]);
+
+  // Handle time range change for metrics
+  const handleTimeRangeChange = useCallback(async (hours: number) => {
+    setMetricsHoursBack(hours);
+    if (!selectedSessionId) return;
+
+    setMetricsLoading(true);
+    try {
+      const metricsData = await getSessionMetrics(selectedSessionId, hours);
+      setMetrics(metricsData.metrics);
+    } catch (error) {
+      console.error('Failed to load metrics:', error);
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, [selectedSessionId]);
+
+  // Load more (older) events
+  const handleLoadMore = useCallback(async () => {
+    if (!selectedSessionId || isLoadingMore || events.length === 0) return;
+    if (events.length >= totalEvents) return; // Already have all events
+
+    setIsLoadingMore(true);
+    try {
+      // Get the oldest event we have and load events before it
+      const oldestEventId = events[0]?.id;
+      if (!oldestEventId) return;
+
+      const data = await getSessionEvents(selectedSessionId, 50, oldestEventId);
+      if (data.events.length > 0) {
+        // Prepend older events to the beginning
+        setEvents((prev) => [...data.events, ...prev]);
+      }
+    } catch (error) {
+      console.error('Failed to load more events:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [selectedSessionId, isLoadingMore, events, totalEvents]);
 
   // Handle search
   const handleSearch = async (query: string) => {
@@ -141,6 +218,73 @@ function App() {
     }
   };
 
+  // Show welcome screen when no session selected
+  if (!selectedSessionId) {
+    return (
+      <div className="h-screen flex bg-background text-foreground">
+        {/* Sessions list - narrow left panel */}
+        <SessionList
+          sessions={sessions}
+          selectedId={selectedSessionId}
+          onSelect={setSelectedSessionId}
+          onSearch={handleSearch}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
+
+        {/* Welcome screen spanning main area */}
+        <div className="flex-1 flex items-center justify-center bg-background border-l border-border">
+          <div className="text-center max-w-lg px-8">
+            {/* Logo/Icon */}
+            <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-teal-500/20 to-primary/20 rounded-3xl flex items-center justify-center border border-border shadow-sm">
+              <i className="ri-line-chart-line text-teal-500 text-4xl"></i>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-2xl font-semibold text-foreground mb-3">
+              Welcome to SuperTrace
+            </h1>
+
+            {/* Description */}
+            <p className="text-muted-foreground mb-8 leading-relaxed">
+              Monitor your Claude Code sessions with detailed analytics, token usage tracking, and conversation history.
+            </p>
+
+            {/* Quick tips */}
+            <div className="text-left bg-muted/30 rounded-xl p-5 space-y-3 border border-border/50">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <i className="ri-cursor-line text-primary"></i>
+                </div>
+                <span className="text-foreground">Select a session from the sidebar to begin</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0">
+                  <i className="ri-bar-chart-2-line text-teal-500"></i>
+                </div>
+                <span className="text-foreground">View token costs, tool usage, and timing metrics</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <i className="ri-time-line text-amber-500"></i>
+                </div>
+                <span className="text-foreground">Filter by time range to focus on recent activity</span>
+              </div>
+            </div>
+
+            {/* Session count hint */}
+            {sessions.length > 0 && (
+              <p className="mt-6 text-sm text-muted-foreground">
+                <i className="ri-folder-3-line mr-1"></i>
+                {sessions.length} session{sessions.length !== 1 ? 's' : ''} available
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex bg-background text-foreground">
       {/* Sessions list - narrow left panel */}
@@ -160,6 +304,8 @@ function App() {
         expanded={analyticsExpanded}
         onToggle={() => setAnalyticsExpanded(!analyticsExpanded)}
         onScrollToEvent={handleScrollToEvent}
+        hoursBack={metricsHoursBack}
+        onTimeRangeChange={handleTimeRangeChange}
       />
 
       {/* Chat/Events - right panel */}
@@ -168,6 +314,9 @@ function App() {
         events={events}
         isLoading={isLoading}
         onScrollToEventRef={scrollToEventRef}
+        totalEvents={totalEvents}
+        isLoadingMore={isLoadingMore}
+        onLoadMore={handleLoadMore}
       />
     </div>
   );
