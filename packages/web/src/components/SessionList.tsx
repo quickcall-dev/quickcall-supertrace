@@ -1,13 +1,11 @@
 /**
  * Session list sidebar component.
  *
- * Displays list of sessions sorted by recency with search bar.
- * Highlights active session and shows live indicator.
- *
- * Related: api/client.ts (Session type), App.tsx (parent)
+ * Displays sessions grouped by date with first prompt as identifier.
+ * Clean, professional design for enterprise use.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Session } from '../api/client';
 
 interface SessionListProps {
@@ -15,7 +13,48 @@ interface SessionListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSearch: (query: string) => void;
-  isConnected: boolean;
+}
+
+type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Older';
+
+interface GroupedSessions {
+  group: DateGroup;
+  sessions: Session[];
+}
+
+function getDateGroup(timestamp: string | null): DateGroup {
+  if (!timestamp) return 'Older';
+
+  const date = new Date(timestamp);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  if (date >= today) return 'Today';
+  if (date >= yesterday) return 'Yesterday';
+  if (date >= weekAgo) return 'This Week';
+  return 'Older';
+}
+
+function getRelativeTime(timestamp: string | null): string {
+  if (!timestamp) return '';
+
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function SessionList({
@@ -23,89 +62,142 @@ export function SessionList({
   selectedId,
   onSelect,
   onSearch,
-  isConnected,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Debounced search on type
+    if (value === '') {
+      onSearch('');
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
   };
 
-  const formatTime = (timestamp: string | null) => {
-    if (!timestamp) return 'N/A';
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
+  const groupedSessions = useMemo(() => {
+    const groups: Record<DateGroup, Session[]> = {
+      'Today': [],
+      'Yesterday': [],
+      'This Week': [],
+      'Older': [],
+    };
 
-  const getProjectName = (path: string | null) => {
-    if (!path) return 'Unknown Project';
-    const parts = path.split('/');
-    return parts[parts.length - 1] || path;
-  };
+    sessions.forEach(session => {
+      const group = getDateGroup(session.started_at);
+      groups[group].push(session);
+    });
 
-  const isActive = (session: Session) => {
-    return session.started_at && !session.ended_at;
-  };
+    const result: GroupedSessions[] = [];
+    const order: DateGroup[] = ['Today', 'Yesterday', 'This Week', 'Older'];
+
+    order.forEach(group => {
+      if (groups[group].length > 0) {
+        result.push({ group, sessions: groups[group] });
+      }
+    });
+
+    return result;
+  }, [sessions]);
 
   return (
-    <div className="w-80 border-r border-gray-700 flex flex-col h-full">
+    <div className="w-72 border-r border-gray-800 flex flex-col h-full bg-gray-950">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-semibold">SuperTrace</h1>
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-500' : 'bg-red-500'
-            }`}
-            title={isConnected ? 'Connected' : 'Disconnected'}
-          />
+      <div className="p-4 border-b border-gray-800">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <span className="font-semibold text-gray-100">SuperTrace</span>
         </div>
 
         {/* Search */}
         <form onSubmit={handleSearch}>
-          <input
-            type="text"
-            placeholder="Search sessions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm focus:outline-none focus:border-blue-500"
-          />
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gray-700 focus:ring-1 focus:ring-gray-700 transition-all"
+            />
+          </div>
         </form>
       </div>
 
       {/* Session List */}
       <div className="flex-1 overflow-y-auto">
         {sessions.length === 0 ? (
-          <div className="p-4 text-gray-500 text-sm text-center">
-            No sessions yet
+          <div className="p-8 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 bg-gray-900 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-500">No sessions yet</p>
+            <p className="text-xs text-gray-600 mt-1">Start a Claude session to see it here</p>
           </div>
         ) : (
-          sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => onSelect(session.id)}
-              className={`w-full p-3 text-left border-b border-gray-800 hover:bg-gray-800 transition-colors ${
-                selectedId === session.id ? 'bg-gray-800' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm truncate">
-                  {getProjectName(session.project_path)}
-                </span>
-                {isActive(session) && (
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                )}
+          groupedSessions.map(({ group, sessions: groupSessions }) => (
+            <div key={group}>
+              {/* Group Header */}
+              <div className="px-4 py-2 text-[11px] font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-950/95 backdrop-blur-sm border-b border-gray-900">
+                {group}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {formatTime(session.started_at)}
-              </div>
-              <div className="text-xs text-gray-600 truncate mt-0.5">
-                {session.id.slice(0, 8)}...
-              </div>
-            </button>
+
+              {/* Sessions in Group */}
+              {groupSessions.map((session) => {
+                const isSelected = selectedId === session.id;
+                const prompt = session.first_prompt || 'New session';
+
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => onSelect(session.id)}
+                    className={`
+                      w-full px-4 py-3 text-left transition-all duration-150
+                      ${isSelected
+                        ? 'bg-gray-800/80 border-l-2 border-blue-500'
+                        : 'hover:bg-gray-900/50 border-l-2 border-transparent'
+                      }
+                    `}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm leading-snug ${isSelected ? 'text-gray-100' : 'text-gray-300'} line-clamp-2`}>
+                          {prompt}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[11px] text-gray-600">
+                            {getRelativeTime(session.started_at)}
+                          </span>
+                          <span className="text-gray-800">·</span>
+                          <span className="text-[11px] text-gray-600 font-mono">
+                            {session.id.slice(0, 6)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           ))
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-3 border-t border-gray-800 text-[11px] text-gray-600 text-center">
+        {sessions.length} session{sessions.length !== 1 ? 's' : ''}
       </div>
     </div>
   );

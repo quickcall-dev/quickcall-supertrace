@@ -13,6 +13,7 @@ export interface Session {
   started_at: string | null;
   ended_at: string | null;
   metadata: Record<string, unknown> | null;
+  first_prompt: string | null;
 }
 
 export interface Event {

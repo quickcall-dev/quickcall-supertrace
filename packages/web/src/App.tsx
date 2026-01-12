@@ -116,7 +116,6 @@ function App() {
         selectedId={selectedSessionId}
         onSelect={setSelectedSessionId}
         onSearch={handleSearch}
-        isConnected={isConnected}
       />
       <SessionView
         session={selectedSession}

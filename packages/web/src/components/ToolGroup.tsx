@@ -1,10 +1,8 @@
 /**
- * Tool group component for displaying multiple tool calls in a single widget.
+ * Tool group component for displaying multiple tool calls.
  *
- * Groups consecutive tool_use events and displays them in a collapsible panel.
- * Each tool can be expanded individually to view full input/output without truncation.
- *
- * Related: SessionView.tsx (parent), MessageBubble.tsx (sibling)
+ * Clean, compact design that doesn't overflow. Shows tool count
+ * and names in a constrained layout.
  */
 
 import { useState } from 'react';
@@ -20,10 +18,30 @@ interface ToolItemProps {
   onToggle: () => void;
 }
 
+// Tool name to icon/color mapping
+const TOOL_STYLES: Record<string, { icon: string; color: string }> = {
+  Read: { icon: '📄', color: 'text-blue-400' },
+  Write: { icon: '✏️', color: 'text-green-400' },
+  Edit: { icon: '🔧', color: 'text-yellow-400' },
+  Bash: { icon: '💻', color: 'text-purple-400' },
+  Glob: { icon: '🔍', color: 'text-cyan-400' },
+  Grep: { icon: '🔎', color: 'text-cyan-400' },
+  Task: { icon: '📋', color: 'text-orange-400' },
+  WebFetch: { icon: '🌐', color: 'text-blue-400' },
+  WebSearch: { icon: '🔍', color: 'text-blue-400' },
+  TodoWrite: { icon: '✅', color: 'text-green-400' },
+  default: { icon: '⚡', color: 'text-gray-400' },
+};
+
+function getToolStyle(toolName: string) {
+  return TOOL_STYLES[toolName] || TOOL_STYLES.default;
+}
+
 function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
-  const toolName = event.data?.tool_name as string;
+  const toolName = event.data?.tool_name as string || 'unknown';
   const toolInput = event.data?.tool_input as Record<string, unknown>;
   const toolResult = event.data?.tool_result;
+  const style = getToolStyle(toolName);
 
   const formatData = (data: unknown): string => {
     if (data === null || data === undefined) return '';
@@ -31,36 +49,79 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString();
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  // Get a preview of the tool input for collapsed view
+  const getInputPreview = (): string => {
+    if (!toolInput) return '';
+
+    // Special handling for common tools
+    if (toolName === 'Read' && toolInput.file_path) {
+      return String(toolInput.file_path).split('/').slice(-2).join('/');
+    }
+    if (toolName === 'Edit' && toolInput.file_path) {
+      return String(toolInput.file_path).split('/').slice(-2).join('/');
+    }
+    if (toolName === 'Write' && toolInput.file_path) {
+      return String(toolInput.file_path).split('/').slice(-2).join('/');
+    }
+    if (toolName === 'Bash' && toolInput.command) {
+      const cmd = String(toolInput.command);
+      return cmd.length > 40 ? cmd.slice(0, 40) + '...' : cmd;
+    }
+    if (toolName === 'Glob' && toolInput.pattern) {
+      return String(toolInput.pattern);
+    }
+    if (toolName === 'Grep' && toolInput.pattern) {
+      return String(toolInput.pattern);
+    }
+
+    return '';
+  };
+
+  const preview = getInputPreview();
+
   return (
-    <div className="border-b border-gray-700 last:border-b-0">
+    <div className="border-b border-gray-800 last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-750 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-800/50 transition-colors text-left group"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
-          <span className="font-mono text-yellow-400 text-sm">{toolName || 'unknown'}</span>
+        <span className="text-sm">{style.icon}</span>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <span className={`font-mono text-sm ${style.color}`}>{toolName}</span>
+          {preview && !isExpanded && (
+            <span className="text-xs text-gray-500 truncate">{preview}</span>
+          )}
         </div>
-        <span className="text-xs text-gray-500">{formatTime(event.timestamp)}</span>
+        <span className="text-[11px] text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+          {formatTime(event.timestamp)}
+        </span>
+        <svg
+          className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
       {isExpanded && (
         <div className="px-3 pb-3 space-y-3">
           {toolInput && Object.keys(toolInput).length > 0 && (
             <div>
-              <div className="text-xs text-gray-400 mb-1 font-semibold">Input:</div>
-              <pre className="text-xs bg-gray-900 p-2 rounded overflow-x-auto overflow-y-auto max-h-[400px] whitespace-pre-wrap break-words border border-gray-700">
+              <div className="text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Input</div>
+              <pre className="text-xs bg-gray-900/80 p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[300px] text-gray-300 border border-gray-800">
                 {formatData(toolInput)}
               </pre>
             </div>
           )}
           {toolResult !== null && toolResult !== undefined && (
             <div>
-              <div className="text-xs text-gray-400 mb-1 font-semibold">Result:</div>
-              <pre className="text-xs bg-gray-900 p-2 rounded overflow-x-auto overflow-y-auto max-h-[600px] whitespace-pre-wrap break-words border border-gray-700">
+              <div className="text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Result</div>
+              <pre className="text-xs bg-gray-900/80 p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[400px] text-gray-300 border border-gray-800">
                 {formatData(toolResult)}
               </pre>
             </div>
@@ -73,11 +134,11 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
 
 export function ToolGroup({ events }: ToolGroupProps) {
   const [isGroupExpanded, setIsGroupExpanded] = useState(false);
-  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
+  const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
 
   const toggleGroup = () => setIsGroupExpanded(!isGroupExpanded);
 
-  const toggleTool = (eventId: string) => {
+  const toggleTool = (eventId: number) => {
     const newExpanded = new Set(expandedTools);
     if (newExpanded.has(eventId)) {
       newExpanded.delete(eventId);
@@ -87,59 +148,67 @@ export function ToolGroup({ events }: ToolGroupProps) {
     setExpandedTools(newExpanded);
   };
 
-  const expandAll = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedTools(new Set(events.map((ev) => ev.id)));
-  };
-
-  const collapseAll = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedTools(new Set());
-  };
-
-  // Get tool names for summary
+  // Get unique tool names for summary
   const toolNames = events.map((ev) => ev.data?.tool_name as string || 'unknown');
-  const uniqueTools = [...new Set(toolNames)];
-  const summary =
-    uniqueTools.length <= 3
-      ? uniqueTools.join(', ')
-      : `${uniqueTools.slice(0, 3).join(', ')} +${uniqueTools.length - 3} more`;
+  const toolCounts: Record<string, number> = {};
+  toolNames.forEach(name => {
+    toolCounts[name] = (toolCounts[name] || 0) + 1;
+  });
+
+  // Format as compact badges
+  const badges = Object.entries(toolCounts).slice(0, 4);
+  const remaining = Object.keys(toolCounts).length - 4;
 
   return (
-    <div className="w-full bg-gray-800 border border-gray-600 rounded-lg overflow-hidden">
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
       {/* Group header */}
       <button
         onClick={toggleGroup}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-750 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/30 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-gray-400">{isGroupExpanded ? '▼' : '▶'}</span>
-          <span className="text-sm font-semibold text-yellow-400">
-            Tools ({events.length})
-          </span>
-          <span className="text-xs text-gray-500 font-mono">{summary}</span>
-        </div>
-        {isGroupExpanded && (
-          <div className="flex gap-2">
-            <button
-              onClick={expandAll}
-              className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-gray-700"
+          <div className="flex items-center gap-1.5">
+            <svg
+              className={`w-4 h-4 text-gray-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Expand All
-            </button>
-            <button
-              onClick={collapseAll}
-              className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-gray-700"
-            >
-              Collapse All
-            </button>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            <span className="text-sm font-medium text-gray-300">
+              Tools
+            </span>
+            <span className="text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">
+              {events.length}
+            </span>
           </div>
-        )}
+
+          {/* Tool badges - only show when collapsed */}
+          {!isGroupExpanded && (
+            <div className="flex items-center gap-1.5 ml-2">
+              {badges.map(([name, count]) => {
+                const style = getToolStyle(name);
+                return (
+                  <span
+                    key={name}
+                    className={`text-xs ${style.color} bg-gray-800/80 px-2 py-0.5 rounded-full font-mono`}
+                  >
+                    {name}{count > 1 && <span className="text-gray-500 ml-1">×{count}</span>}
+                  </span>
+                );
+              })}
+              {remaining > 0 && (
+                <span className="text-xs text-gray-500">+{remaining}</span>
+              )}
+            </div>
+          )}
+        </div>
       </button>
 
       {/* Tool list */}
       {isGroupExpanded && (
-        <div className="border-t border-gray-700 max-h-[800px] overflow-y-auto">
+        <div className="border-t border-gray-800 max-h-[600px] overflow-y-auto">
           {events.map((event) => (
             <ToolItem
               key={event.id}

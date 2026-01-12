@@ -82,12 +82,26 @@ class Database:
     async def get_sessions(
         self, limit: int = 50, offset: int = 0
     ) -> list[dict[str, Any]]:
-        """Get sessions ordered by most recent."""
+        """Get sessions ordered by most recent, including first user prompt."""
         cursor = await self.conn.execute(
             """
-            SELECT id, project_path, started_at, ended_at, metadata
-            FROM sessions
-            ORDER BY started_at DESC
+            SELECT
+                s.id, s.project_path, s.started_at, s.ended_at, s.metadata,
+                (
+                    SELECT COALESCE(
+                        json_extract(e.data, '$.prompt'),
+                        json_extract(e.data, '$.tool_input.prompt')
+                    )
+                    FROM events e
+                    WHERE e.session_id = s.id AND e.event_type = 'user_prompt'
+                    ORDER BY e.timestamp ASC
+                    LIMIT 1
+                ) as first_prompt
+            FROM sessions s
+            WHERE EXISTS (
+                SELECT 1 FROM events e WHERE e.session_id = s.id AND e.event_type = 'user_prompt'
+            )
+            ORDER BY s.started_at DESC
             LIMIT ? OFFSET ?
             """,
             (limit, offset),
@@ -100,6 +114,7 @@ class Database:
                 "started_at": row["started_at"],
                 "ended_at": row["ended_at"],
                 "metadata": json.loads(row["metadata"]) if row["metadata"] else None,
+                "first_prompt": row["first_prompt"],
             }
             for row in rows
         ]
