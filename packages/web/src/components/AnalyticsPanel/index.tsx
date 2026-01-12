@@ -22,9 +22,9 @@ export function AnalyticsPanel({ metrics, loading, expanded, onToggle }: Analyti
   // No session selected
   if (!metrics && !loading) {
     return (
-      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
+      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-zinc-600 px-4">
+          <div className="text-center text-muted-foreground px-4">
             {expanded ? (
               <>
                 <i className="ri-bar-chart-2-line text-3xl mb-2 block" />
@@ -37,9 +37,9 @@ export function AnalyticsPanel({ metrics, loading, expanded, onToggle }: Analyti
         </div>
         <button
           onClick={onToggle}
-          className="p-3 border-t border-zinc-800 hover:bg-zinc-800 transition-colors"
+          className="p-3 border-t border-border hover:bg-accent transition-colors"
         >
-          <i className={`ri-arrow-${expanded ? 'left' : 'right'}-double-line text-zinc-500`} />
+          <i className={`ri-arrow-${expanded ? 'left' : 'right'}-double-line text-muted-foreground`} />
         </button>
       </div>
     );
@@ -48,9 +48,9 @@ export function AnalyticsPanel({ metrics, loading, expanded, onToggle }: Analyti
   // Loading state
   if (loading) {
     return (
-      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-zinc-900 border-x border-zinc-800 flex flex-col transition-all duration-200`}>
+      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
         <div className="flex-1 flex items-center justify-center">
-          <i className="ri-loader-4-line animate-spin text-zinc-500 text-xl" />
+          <i className="ri-loader-4-line animate-spin text-muted-foreground text-xl" />
         </div>
       </div>
     );

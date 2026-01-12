@@ -20,18 +20,18 @@ interface ToolItemProps {
 
 // Tool name to icon/color mapping using Remix Icons
 const TOOL_STYLES: Record<string, { icon: string; color: string }> = {
-  Read: { icon: 'ri-file-text-line', color: 'text-blue-400' },
-  Write: { icon: 'ri-file-edit-line', color: 'text-green-400' },
-  Edit: { icon: 'ri-edit-line', color: 'text-yellow-400' },
-  Bash: { icon: 'ri-terminal-box-line', color: 'text-purple-400' },
-  Glob: { icon: 'ri-folder-search-line', color: 'text-cyan-400' },
-  Grep: { icon: 'ri-search-eye-line', color: 'text-cyan-400' },
-  Task: { icon: 'ri-task-line', color: 'text-orange-400' },
-  WebFetch: { icon: 'ri-global-line', color: 'text-blue-400' },
-  WebSearch: { icon: 'ri-earth-line', color: 'text-blue-400' },
-  TodoWrite: { icon: 'ri-checkbox-circle-line', color: 'text-green-400' },
-  AskUserQuestion: { icon: 'ri-question-line', color: 'text-pink-400' },
-  default: { icon: 'ri-tools-line', color: 'text-gray-400' },
+  Read: { icon: 'ri-file-text-line', color: 'text-[color:var(--info)]' },
+  Write: { icon: 'ri-file-edit-line', color: 'text-[color:var(--success)]' },
+  Edit: { icon: 'ri-edit-line', color: 'text-[color:var(--warning)]' },
+  Bash: { icon: 'ri-terminal-box-line', color: 'text-[color:var(--cost)]' },
+  Glob: { icon: 'ri-folder-search-line', color: 'text-[color:var(--info)]' },
+  Grep: { icon: 'ri-search-eye-line', color: 'text-[color:var(--info)]' },
+  Task: { icon: 'ri-task-line', color: 'text-[color:var(--warning)]' },
+  WebFetch: { icon: 'ri-global-line', color: 'text-[color:var(--info)]' },
+  WebSearch: { icon: 'ri-earth-line', color: 'text-[color:var(--info)]' },
+  TodoWrite: { icon: 'ri-checkbox-circle-line', color: 'text-[color:var(--success)]' },
+  AskUserQuestion: { icon: 'ri-question-line', color: 'text-[color:var(--cost)]' },
+  default: { icon: 'ri-tools-line', color: 'text-muted-foreground' },
 };
 
 function getToolStyle(toolName: string) {
@@ -83,38 +83,38 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   const preview = getInputPreview();
 
   return (
-    <div className="border-b border-gray-800 last:border-b-0">
+    <div className="border-b border-border last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-800/50 transition-colors text-left group"
+        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left group"
       >
         <i className={`${style.icon} ${style.color} text-base`}></i>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className={`font-mono text-sm ${style.color}`}>{toolName}</span>
           {preview && !isExpanded && (
-            <span className="text-xs text-gray-500 truncate">{preview}</span>
+            <span className="text-xs text-muted-foreground truncate">{preview}</span>
           )}
         </div>
-        <span className="text-[11px] text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           {formatTime(event.timestamp)}
         </span>
-        <i className={`ri-arrow-down-s-line text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+        <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
       </button>
 
       {isExpanded && (
         <div className="px-3 pb-3 space-y-3">
           {toolInput && Object.keys(toolInput).length > 0 && (
             <div>
-              <div className="text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Input</div>
-              <pre className="text-xs bg-gray-900/80 p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[300px] text-gray-300 border border-gray-800">
+              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Input</div>
+              <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[300px] text-foreground border border-border">
                 {formatData(toolInput)}
               </pre>
             </div>
           )}
           {toolResult !== null && toolResult !== undefined && (
             <div>
-              <div className="text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Result</div>
-              <pre className="text-xs bg-gray-900/80 p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[400px] text-gray-300 border border-gray-800">
+              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Result</div>
+              <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[400px] text-foreground border border-border">
                 {formatData(toolResult)}
               </pre>
             </div>
@@ -153,20 +153,20 @@ export function ToolGroup({ events }: ToolGroupProps) {
   const remaining = Object.keys(toolCounts).length - 4;
 
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+    <div className="bg-muted/50 border border-border rounded-xl overflow-hidden">
       {/* Group header */}
       <button
         onClick={toggleGroup}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/30 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <i className={`ri-arrow-down-s-line text-gray-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}></i>
-            <i className="ri-tools-line text-gray-400"></i>
-            <span className="text-sm font-medium text-gray-300">
+            <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}></i>
+            <i className="ri-tools-line text-muted-foreground"></i>
+            <span className="text-sm font-medium text-foreground">
               Tools
             </span>
-            <span className="text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {events.length}
             </span>
           </div>
@@ -179,15 +179,15 @@ export function ToolGroup({ events }: ToolGroupProps) {
                 return (
                   <span
                     key={name}
-                    className={`text-xs ${style.color} bg-gray-800/80 px-2 py-0.5 rounded-full font-mono flex items-center gap-1`}
+                    className={`text-xs ${style.color} bg-muted px-2 py-0.5 rounded-full font-mono flex items-center gap-1`}
                   >
                     <i className={`${style.icon} text-[10px]`}></i>
-                    {name}{count > 1 && <span className="text-gray-500">×{count}</span>}
+                    {name}{count > 1 && <span className="text-muted-foreground">×{count}</span>}
                   </span>
                 );
               })}
               {remaining > 0 && (
-                <span className="text-xs text-gray-500">+{remaining}</span>
+                <span className="text-xs text-muted-foreground">+{remaining}</span>
               )}
             </div>
           )}
@@ -196,7 +196,7 @@ export function ToolGroup({ events }: ToolGroupProps) {
 
       {/* Tool list */}
       {isGroupExpanded && (
-        <div className="border-t border-gray-800 max-h-[600px] overflow-y-auto">
+        <div className="border-t border-border max-h-[600px] overflow-y-auto">
           {events.map((event) => (
             <ToolItem
               key={event.id}

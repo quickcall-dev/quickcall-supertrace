@@ -2,7 +2,7 @@
  * Message bubble component for conversation display.
  *
  * Clean, professional design with proper token stats display.
- * Uses Remix Icons.
+ * Uses Remix Icons and QuickCall color system.
  */
 
 import { useState } from 'react';
@@ -36,7 +36,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] bg-blue-600 rounded-2xl rounded-br-md px-4 py-3 shadow-lg">
+        <div className="max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
           {/* Render images if present */}
           {images && images.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -60,7 +60,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
                     <img
                       src={src}
                       alt={`Image ${idx + 1}`}
-                      className="max-w-[200px] max-h-40 rounded-lg border border-blue-400/30 hover:opacity-90 transition-opacity"
+                      className="max-w-[200px] max-h-40 rounded-lg border border-primary-foreground/20 hover:opacity-90 transition-opacity"
                     />
                   </a>
                 );
@@ -68,16 +68,16 @@ export function MessageBubble({ event }: MessageBubbleProps) {
             </div>
           )}
           <div className="relative">
-            <p className="text-white text-sm leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
               {displayPrompt || 'User message'}
             </p>
 
             {/* Gradient fade + Show more button */}
             {isLong && !expanded && (
-              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-blue-600 via-blue-600/90 to-transparent">
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-primary via-primary/90 to-transparent">
                 <button
                   onClick={() => setExpanded(true)}
-                  className="text-sm font-medium text-white hover:underline transition-colors"
+                  className="text-sm font-medium text-primary-foreground/80 hover:text-primary-foreground hover:underline transition-colors"
                 >
                   Show more
                 </button>
@@ -89,14 +89,14 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           {isLong && expanded && (
             <button
               onClick={() => setExpanded(false)}
-              className="mt-2 text-sm font-medium text-white hover:underline transition-colors"
+              className="mt-2 text-sm font-medium text-primary-foreground/80 hover:text-primary-foreground hover:underline transition-colors"
             >
               Show less
             </button>
           )}
 
           <div className="mt-2 text-right">
-            <span className="text-[11px] text-blue-200/70">
+            <span className="text-[11px] text-primary-foreground/60">
               {formatTime(event.timestamp)}
             </span>
           </div>
@@ -147,20 +147,20 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-start">
-        <div className="max-w-[85%] bg-gray-800/80 border border-gray-700/50 rounded-2xl rounded-bl-md px-4 py-3">
+        <div className="max-w-[85%] bg-muted border border-border rounded-2xl rounded-bl-md px-4 py-3">
           <div className="relative">
             <div className="overflow-x-auto max-w-full">
-              <pre className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
+              <pre className="text-foreground text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
                 {displayContent || 'Assistant response'}
               </pre>
             </div>
 
             {/* Gradient fade + Show more button */}
             {isLong && !expanded && (
-              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-gray-800 via-gray-800/90 to-transparent">
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-muted via-muted/90 to-transparent">
                 <button
                   onClick={() => setExpanded(true)}
-                  className="text-sm font-medium text-zinc-200 hover:underline transition-colors"
+                  className="text-sm font-medium text-foreground hover:underline transition-colors"
                 >
                   Show more
                 </button>
@@ -172,30 +172,30 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           {isLong && expanded && (
             <button
               onClick={() => setExpanded(false)}
-              className="mt-2 text-sm font-medium text-zinc-200 hover:underline transition-colors"
+              className="mt-2 text-sm font-medium text-foreground hover:underline transition-colors"
             >
               Show less
             </button>
           )}
 
           {/* Footer with time and tokens */}
-          <div className="mt-3 pt-2 border-t border-gray-700/50 flex items-center justify-between gap-4 flex-wrap">
-            <span className="text-[11px] text-gray-500">
+          <div className="mt-3 pt-2 border-t border-border flex items-center justify-between gap-4 flex-wrap">
+            <span className="text-[11px] text-muted-foreground">
               {formatTime(event.timestamp)}
             </span>
 
             {tokenUsage && tokenUsage.total_tokens && tokenUsage.total_tokens > 0 && (
               <div className="flex items-center gap-3 text-[11px] font-mono">
-                <span className="text-cyan-400/80 flex items-center gap-1">
+                <span className="text-[color:var(--info)] flex items-center gap-1">
                   <i className="ri-arrow-down-line text-[10px]"></i>
                   {formatTokens(tokenUsage.input_tokens || 0)}
                 </span>
-                <span className="text-emerald-400/80 flex items-center gap-1">
+                <span className="text-[color:var(--success)] flex items-center gap-1">
                   <i className="ri-arrow-up-line text-[10px]"></i>
                   {formatTokens(tokenUsage.output_tokens || 0)}
                 </span>
                 {tokenUsage.cache_read_input_tokens && tokenUsage.cache_read_input_tokens > 0 && (
-                  <span className="text-purple-400/80 flex items-center gap-1">
+                  <span className="text-[color:var(--cost)] flex items-center gap-1">
                     <i className="ri-database-2-line text-[10px]"></i>
                     {formatTokens(tokenUsage.cache_read_input_tokens)}
                   </span>
@@ -212,11 +212,11 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     const toolName = event.data?.tool_name as string;
     return (
       <div className="flex justify-start">
-        <div className="text-xs text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-800 flex items-center gap-2">
+        <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-lg border border-border flex items-center gap-2">
           <i className="ri-tools-line"></i>
           <span>{toolName || 'unknown'}</span>
-          <span className="text-gray-600">·</span>
-          <span className="text-gray-600">{formatTime(event.timestamp)}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span className="text-muted-foreground/70">{formatTime(event.timestamp)}</span>
         </div>
       </div>
     );
@@ -226,11 +226,11 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     const isStart = event.event_type === 'session_start';
     return (
       <div className="flex justify-center py-2">
-        <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800">
-          <i className={`${isStart ? 'ri-play-circle-line text-green-500' : 'ri-stop-circle-line text-red-500'}`}></i>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/50 px-4 py-1.5 rounded-full border border-border">
+          <i className={`${isStart ? 'ri-play-circle-line text-[color:var(--success)]' : 'ri-stop-circle-line text-destructive'}`}></i>
           <span>{isStart ? 'Session started' : 'Session ended'}</span>
-          <span className="text-gray-600">·</span>
-          <span className="text-gray-600">{formatTime(event.timestamp)}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span className="text-muted-foreground/70">{formatTime(event.timestamp)}</span>
         </div>
       </div>
     );
@@ -251,16 +251,16 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-center py-2">
-        <div className="flex items-center gap-2 text-[11px] text-purple-400 bg-purple-900/20 px-4 py-1.5 rounded-full border border-purple-800/50">
+        <div className="flex items-center gap-2 text-[11px] text-[color:var(--info)] bg-[color:var(--info)]/10 px-4 py-1.5 rounded-full border border-[color:var(--info)]/30">
           <i className="ri-refresh-line"></i>
           <span className="font-medium">{command}</span>
           {tokenUsage && tokenUsage.total_tokens && (
-            <span className="text-purple-300/70">
+            <span className="opacity-70">
               {formatTokens(tokenUsage.total_tokens)} tokens
             </span>
           )}
-          <span className="text-purple-600">·</span>
-          <span className="text-purple-600">{formatTime(event.timestamp)}</span>
+          <span className="opacity-50">·</span>
+          <span className="opacity-50">{formatTime(event.timestamp)}</span>
         </div>
       </div>
     );
@@ -270,11 +270,11 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     const notification = event.data?.notification as string || 'Notification';
     return (
       <div className="flex justify-center py-2">
-        <div className="flex items-center gap-2 text-[11px] text-orange-400 bg-orange-900/20 px-4 py-1.5 rounded-full border border-orange-800/50">
+        <div className="flex items-center gap-2 text-[11px] text-[color:var(--warning)] bg-[color:var(--warning)]/10 px-4 py-1.5 rounded-full border border-[color:var(--warning)]/30">
           <i className="ri-notification-3-line"></i>
           <span>{notification}</span>
-          <span className="text-orange-600">·</span>
-          <span className="text-orange-600">{formatTime(event.timestamp)}</span>
+          <span className="opacity-50">·</span>
+          <span className="opacity-50">{formatTime(event.timestamp)}</span>
         </div>
       </div>
     );
@@ -296,7 +296,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
       return renderNotification();
     default:
       return (
-        <div className="text-xs text-gray-600 text-center py-2">
+        <div className="text-xs text-muted-foreground text-center py-2">
           Unknown event: {event.event_type}
         </div>
       );

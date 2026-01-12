@@ -13,6 +13,7 @@ import { SessionView } from './components/SessionView';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useSessionMetrics } from './hooks/useSessionMetrics';
+import { useTheme } from './hooks/useTheme';
 import {
   getSessions,
   getSession,
@@ -29,6 +30,9 @@ function App() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
+
+  // Theme
+  const { isDark, toggleTheme } = useTheme();
 
   // Session metrics
   const { metrics, loading: metricsLoading, updateMetrics } = useSessionMetrics({
@@ -132,13 +136,15 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex bg-zinc-950">
+    <div className="h-screen flex bg-background text-foreground">
       {/* Sessions list - narrow left panel */}
       <SessionList
         sessions={sessions}
         selectedId={selectedSessionId}
         onSelect={setSelectedSessionId}
         onSearch={handleSearch}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Analytics - center panel (the hero) */}

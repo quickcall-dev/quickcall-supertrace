@@ -72,45 +72,45 @@ export function ExpandedView({ metrics, onCollapse }: ExpandedViewProps) {
   const toolDistribution = byCategory.tools?.tool_distribution?.value as Record<string, number> ?? {};
 
   return (
-    <div className="w-[calc(50%-7rem)] bg-zinc-900 border-x border-zinc-800 flex flex-col overflow-hidden shrink-0">
+    <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-zinc-700 flex items-center justify-between">
-        <span className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Analytics</span>
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground uppercase tracking-wider">Analytics</span>
         <button
           onClick={onCollapse}
-          className="p-1.5 hover:bg-zinc-700 rounded transition-colors"
+          className="p-1.5 hover:bg-accent rounded transition-colors"
           title="Collapse"
         >
-          <i className="ri-arrow-left-double-line text-zinc-400" />
+          <i className="ri-arrow-left-double-line text-muted-foreground" />
         </button>
       </div>
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
         {/* Hero: Cost */}
-        <div className="px-5 py-8 border-b border-zinc-700 bg-gradient-to-b from-zinc-800/80 to-transparent">
+        <div className="px-5 py-8 border-b border-border bg-gradient-to-b from-muted/50 to-transparent">
           <div className="text-center">
-            <div className="text-5xl font-bold text-amber-400 mb-2">
+            <div className="text-5xl font-bold text-[color:var(--cost)] mb-2">
               ${cost.toFixed(2)}
             </div>
-            <div className="text-sm text-zinc-400 uppercase tracking-wider font-medium">Session Cost</div>
+            <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Session Cost</div>
           </div>
 
           {/* Cost breakdown */}
           <div className="mt-6 grid grid-cols-2 gap-4 text-center">
-            <div className="bg-zinc-800/50 rounded-lg py-3 px-4">
-              <div className="text-lg font-semibold text-zinc-100">${inputCost.toFixed(2)}</div>
-              <div className="text-xs text-zinc-400 mt-1">Input</div>
+            <div className="bg-muted/50 rounded-lg py-3 px-4">
+              <div className="text-lg font-semibold text-foreground">${inputCost.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Input</div>
             </div>
-            <div className="bg-zinc-800/50 rounded-lg py-3 px-4">
-              <div className="text-lg font-semibold text-zinc-100">${outputCost.toFixed(2)}</div>
-              <div className="text-xs text-zinc-400 mt-1">Output</div>
+            <div className="bg-muted/50 rounded-lg py-3 px-4">
+              <div className="text-lg font-semibold text-foreground">${outputCost.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Output</div>
             </div>
           </div>
 
           {cacheSavings > 0 && (
             <div className="mt-4 text-center">
-              <span className="text-sm text-emerald-400 font-medium">
+              <span className="text-sm text-[color:var(--success)] font-medium">
                 <i className="ri-discount-percent-line mr-1" />
                 ${cacheSavings.toFixed(2)} saved with cache
               </span>
@@ -119,60 +119,60 @@ export function ExpandedView({ metrics, onCollapse }: ExpandedViewProps) {
         </div>
 
         {/* Work Output */}
-        <div className="px-5 py-5 border-b border-zinc-700">
-          <div className="text-xs text-zinc-400 uppercase tracking-wider mb-4 font-semibold">Work Output</div>
+        <div className="px-5 py-5 border-b border-border">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-4 font-semibold">Work Output</div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-zinc-800/50 rounded-lg p-4">
-              <div className="text-3xl font-bold text-blue-400">{filesChanged}</div>
-              <div className="text-sm text-zinc-300 mt-1">Files changed</div>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="text-3xl font-bold text-[color:var(--info)]">{filesChanged}</div>
+              <div className="text-sm text-foreground mt-1">Files changed</div>
             </div>
-            <div className="bg-zinc-800/50 rounded-lg p-4">
-              <div className={`text-3xl font-bold ${netLines >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className={`text-3xl font-bold ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`}>
                 {formatWithSign(netLines)}
               </div>
-              <div className="text-sm text-zinc-300 mt-1">Net lines</div>
+              <div className="text-sm text-foreground mt-1">Net lines</div>
             </div>
           </div>
 
           <div className="mt-4 flex items-center gap-6 text-base">
             <div className="flex items-center gap-2">
-              <i className="ri-add-line text-emerald-400" />
-              <span className="text-zinc-200 font-medium">{linesAdded.toLocaleString()}</span>
+              <i className="ri-add-line text-[color:var(--success)]" />
+              <span className="text-foreground font-medium">{linesAdded.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-2">
-              <i className="ri-subtract-line text-red-400" />
-              <span className="text-zinc-200 font-medium">{linesRemoved.toLocaleString()}</span>
+              <i className="ri-subtract-line text-destructive" />
+              <span className="text-foreground font-medium">{linesRemoved.toLocaleString()}</span>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-6 text-sm text-zinc-400">
-            <span><strong className="text-zinc-200">{edits}</strong> edits</span>
-            <span><strong className="text-zinc-200">{filesRead}</strong> files read</span>
+          <div className="mt-4 flex items-center gap-6 text-sm text-muted-foreground">
+            <span><strong className="text-foreground">{edits}</strong> edits</span>
+            <span><strong className="text-foreground">{filesRead}</strong> files read</span>
           </div>
         </div>
 
         {/* Efficiency */}
-        <div className="px-5 py-5 border-b border-zinc-700">
-          <div className="text-xs text-zinc-400 uppercase tracking-wider mb-4 font-semibold">Efficiency</div>
+        <div className="px-5 py-5 border-b border-border">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-4 font-semibold">Efficiency</div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-300">Prompts</span>
-              <span className="text-base font-semibold text-zinc-100">{prompts}</span>
+              <span className="text-sm text-foreground">Prompts</span>
+              <span className="text-base font-semibold text-foreground">{prompts}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-300">Edits per prompt</span>
-              <span className="text-base font-semibold text-zinc-100">{editsPerPrompt}</span>
+              <span className="text-sm text-foreground">Edits per prompt</span>
+              <span className="text-base font-semibold text-foreground">{editsPerPrompt}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-300">Completion rate</span>
-              <span className="text-base font-semibold text-zinc-100">{completionRate}%</span>
+              <span className="text-sm text-foreground">Completion rate</span>
+              <span className="text-base font-semibold text-foreground">{completionRate}%</span>
             </div>
             {duration !== null && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-300">Duration</span>
-                <span className="text-base font-semibold text-zinc-100">
+                <span className="text-sm text-foreground">Duration</span>
+                <span className="text-base font-semibold text-foreground">
                   {formatValue(duration, 'duration')}
                 </span>
               </div>
@@ -183,16 +183,16 @@ export function ExpandedView({ metrics, onCollapse }: ExpandedViewProps) {
         {/* Tool Distribution */}
         {Object.keys(toolDistribution).length > 0 && (
           <div className="px-5 py-5">
-            <div className="text-xs text-zinc-400 uppercase tracking-wider mb-4 font-semibold">Tools Used</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-4 font-semibold">Tools Used</div>
             <div className="space-y-3">
               {Object.entries(toolDistribution).slice(0, 8).map(([tool, count]) => (
                 <div key={tool} className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-300 truncate max-w-[180px]">{tool}</span>
-                  <span className="text-sm font-mono text-zinc-100 font-medium">{count}</span>
+                  <span className="text-sm text-foreground truncate max-w-[180px]">{tool}</span>
+                  <span className="text-sm font-mono text-foreground font-medium">{count}</span>
                 </div>
               ))}
               {Object.keys(toolDistribution).length > 8 && (
-                <div className="text-sm text-zinc-500">
+                <div className="text-sm text-muted-foreground">
                   +{Object.keys(toolDistribution).length - 8} more
                 </div>
               )}

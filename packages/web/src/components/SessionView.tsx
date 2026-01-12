@@ -55,12 +55,12 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
 
   if (!session) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-950">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-900 rounded-2xl flex items-center justify-center">
-            <i className="ri-chat-3-line text-gray-700 text-2xl"></i>
+          <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-2xl flex items-center justify-center">
+            <i className="ri-chat-3-line text-muted-foreground text-2xl"></i>
           </div>
-          <p className="text-gray-500 text-sm">Select a session to view</p>
+          <p className="text-muted-foreground text-sm">Select a session to view</p>
         </div>
       </div>
     );
@@ -68,8 +68,8 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-950">
-        <div className="flex items-center gap-3 text-gray-500">
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="flex items-center gap-3 text-muted-foreground">
           <i className="ri-loader-4-line animate-spin text-xl"></i>
           <span className="text-sm">Loading session...</span>
         </div>
@@ -106,35 +106,35 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
   const toolCalls = events.filter(e => e.event_type === 'tool_use').length;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-gray-950">
+    <div className="flex-1 flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-800 bg-gray-950/95 backdrop-blur-sm">
+      <div className="px-6 py-4 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-100">
+              <h2 className="text-lg font-semibold text-foreground">
                 {getProjectName(session.project_path)}
               </h2>
               {isActive && (
-                <span className="flex items-center gap-1.5 text-[11px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                <span className="flex items-center gap-1.5 text-[11px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-2 py-0.5 rounded-full border border-[color:var(--success)]/30">
+                  <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
                   Live
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-500">
+            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <i className="ri-calendar-line text-xs"></i>
                 {formatDate(session.started_at)}
               </span>
-              <span className="text-gray-700">·</span>
+              <span className="text-muted-foreground/50">·</span>
               <span className="flex items-center gap-1">
                 <i className="ri-time-line text-xs"></i>
                 {formatTime(session.started_at)}
               </span>
               {session.ended_at && (
                 <>
-                  <i className="ri-arrow-right-line text-gray-700 text-xs"></i>
+                  <i className="ri-arrow-right-line text-muted-foreground/50 text-xs"></i>
                   <span>{formatTime(session.ended_at)}</span>
                 </>
               )}
@@ -146,7 +146,7 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
             <a
               href={getExportUrl(session.id, 'json')}
               download
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted hover:bg-accent border border-border rounded-lg transition-colors"
             >
               <i className="ri-download-2-line"></i>
               JSON
@@ -154,7 +154,7 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
             <a
               href={getExportUrl(session.id, 'md')}
               download
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted hover:bg-accent border border-border rounded-lg transition-colors"
             >
               <i className="ri-markdown-line"></i>
               Markdown
@@ -168,10 +168,10 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
         <div className="max-w-4xl mx-auto space-y-4">
           {groupedEvents.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 bg-gray-900 rounded-full flex items-center justify-center">
-                <i className="ri-chat-3-line text-gray-700 text-xl"></i>
+              <div className="w-12 h-12 mx-auto mb-3 bg-muted rounded-full flex items-center justify-center">
+                <i className="ri-chat-3-line text-muted-foreground text-xl"></i>
               </div>
-              <p className="text-sm text-gray-500">No messages yet</p>
+              <p className="text-sm text-muted-foreground">No messages yet</p>
             </div>
           ) : (
             groupedEvents.map((item, idx) => {
@@ -185,19 +185,19 @@ export function SessionView({ session, events, isLoading }: SessionViewProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-gray-800 bg-gray-950/95 backdrop-blur-sm">
-        <div className="flex items-center justify-between text-[11px] text-gray-600">
+      <div className="px-6 py-3 border-t border-border bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <div className="flex items-center gap-4">
             <span className="font-mono flex items-center gap-1">
               <i className="ri-fingerprint-line"></i>
               {session.id.slice(0, 12)}
             </span>
-            <span className="text-gray-700">·</span>
+            <span className="text-muted-foreground/50">·</span>
             <span className="flex items-center gap-1">
               <i className="ri-chat-1-line"></i>
               {userPrompts}
             </span>
-            <span className="text-gray-700">·</span>
+            <span className="text-muted-foreground/50">·</span>
             <span className="flex items-center gap-1">
               <i className="ri-tools-line"></i>
               {toolCalls}
