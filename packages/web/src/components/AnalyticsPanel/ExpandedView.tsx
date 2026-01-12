@@ -119,7 +119,7 @@ export function ExpandedView({
       {/* Header - compact single row matching SessionView */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">SuperTrace</span>
+          <span className="font-semibold text-foreground">QuickCall <span className="text-primary">SuperTrace</span></span>
           {loading && (
             <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
           )}

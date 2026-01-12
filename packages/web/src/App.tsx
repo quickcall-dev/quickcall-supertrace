@@ -275,51 +275,74 @@ function App() {
         />
 
         {/* Welcome screen spanning main area */}
-        <div className="flex-1 flex items-center justify-center bg-background border-l border-border">
-          <div className="text-center max-w-lg px-8">
-            {/* Logo/Icon */}
-            <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-teal-500/20 to-primary/20 rounded-3xl flex items-center justify-center border border-border shadow-sm">
-              <i className="ri-line-chart-line text-teal-500 text-4xl"></i>
+        <div className="flex-1 flex items-center justify-center bg-background border-l border-border relative overflow-hidden">
+          {/* Subtle background pattern */}
+          <div className="absolute inset-0 opacity-[0.03]">
+            <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary rounded-full blur-3xl" />
+            <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-teal-500 rounded-full blur-3xl" />
+          </div>
+
+          <div className="text-center max-w-xl px-8 relative z-10">
+            {/* Logo */}
+            <div className="mb-10">
+              <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 shadow-lg">
+                <img src="/favicon.svg" alt="QuickCall" className="w-10 h-10 rounded-xl shadow-md" />
+                <div className="text-left">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">QuickCall</div>
+                  <div className="text-lg font-bold text-foreground -mt-0.5">SuperTrace</div>
+                </div>
+              </div>
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl font-semibold text-foreground mb-3">
-              Welcome to SuperTrace
+            <h1 className="text-3xl font-bold text-foreground mb-4">
+              Welcome to QuickCall - SuperTrace
             </h1>
 
             {/* Description */}
-            <p className="text-muted-foreground mb-8 leading-relaxed">
-              Monitor your Claude Code sessions with detailed analytics, token usage tracking, and conversation history.
+            <p className="text-muted-foreground mb-10 leading-relaxed text-lg">
+              Real-time session monitoring for Claude Code. Track token usage, analyze tool patterns, and optimize your AI workflows.
             </p>
 
-            {/* Quick tips */}
-            <div className="text-left bg-muted/30 rounded-xl p-5 space-y-3 border border-border/50">
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <i className="ri-cursor-line text-primary"></i>
+            {/* Feature cards */}
+            <div className="grid grid-cols-3 gap-4 mb-10">
+              <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-primary/30 transition-colors group">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="ri-coins-line text-primary text-lg"></i>
                 </div>
-                <span className="text-foreground">Select a session from the sidebar to begin</span>
+                <div className="text-sm font-semibold text-foreground">Cost Tracking</div>
+                <div className="text-xs text-muted-foreground mt-1">Monitor API spend</div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0">
-                  <i className="ri-bar-chart-2-line text-teal-500"></i>
+              <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-teal-500/30 transition-colors group">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-teal-500/20 to-teal-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="ri-tools-line text-teal-500 text-lg"></i>
                 </div>
-                <span className="text-foreground">View token costs, tool usage, and timing metrics</span>
+                <div className="text-sm font-semibold text-foreground">Tool Analytics</div>
+                <div className="text-xs text-muted-foreground mt-1">Usage patterns</div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <i className="ri-time-line text-amber-500"></i>
+              <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-amber-500/30 transition-colors group">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="ri-time-line text-amber-500 text-lg"></i>
                 </div>
-                <span className="text-foreground">Filter by time range to focus on recent activity</span>
+                <div className="text-sm font-semibold text-foreground">Time Analysis</div>
+                <div className="text-xs text-muted-foreground mt-1">Performance insights</div>
               </div>
             </div>
 
-            {/* Session count hint */}
+            {/* Call to action */}
+            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
+              <i className="ri-arrow-left-line"></i>
+              <span>Select a session from the sidebar to get started</span>
+            </div>
+
+            {/* Session count */}
             {sessions.length > 0 && (
-              <p className="mt-6 text-sm text-muted-foreground">
-                <i className="ri-folder-3-line mr-1"></i>
-                {sessions.length} session{sessions.length !== 1 ? 's' : ''} available
-              </p>
+              <div className="mt-6 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full font-medium">
+                  <i className="ri-stack-line"></i>
+                  {sessions.length} session{sessions.length !== 1 ? 's' : ''} available
+                </span>
+              </div>
             )}
           </div>
         </div>
