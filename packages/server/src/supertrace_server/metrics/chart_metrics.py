@@ -129,13 +129,19 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                 "durationSeconds": None,
             }
 
-            # Collect tools and find assistant_stop
+            # Collect ALL tools and assistant_stops until next user_prompt
+            # Tools may come before OR after assistant_stop events
             tool_counts: dict[str, int] = {}
             end_time = None
+            total_output_tokens = 0
 
             j = i + 1
             while j < len(events):
                 e = events[j]
+
+                # Stop at next user prompt
+                if e.get("event_type") == "user_prompt":
+                    break
 
                 if e.get("event_type") == "tool_use":
                     tool_name = e.get("data", {}).get("tool_name", "unknown")
@@ -152,20 +158,24 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                             turn["hasCommit"] = True
                             total_commits += 1
 
-                if e.get("event_type") == "assistant_stop":
+                elif e.get("event_type") == "assistant_stop":
+                    # Track the last assistant_stop for end time and tokens
                     turn["responseEventId"] = e.get("id")
                     turn["endTime"] = e.get("timestamp")
                     end_time = parse_timestamp(e.get("timestamp"))
                     token_usage = e.get("data", {}).get("token_usage", {})
                     if token_usage:
-                        turn["inputTokens"] = token_usage.get("input_tokens", 0)
-                        turn["outputTokens"] = token_usage.get("output_tokens", 0)
-                    break
-
-                if e.get("event_type") == "user_prompt":
-                    break
+                        # Total context = input + cache_read + cache_create
+                        input_tok = token_usage.get("input_tokens", 0)
+                        cache_read = token_usage.get("cache_read_input_tokens", 0)
+                        cache_create = token_usage.get("cache_creation_input_tokens", 0)
+                        turn["inputTokens"] = input_tok + cache_read + cache_create
+                        # Sum output tokens from all assistant_stops in this turn
+                        total_output_tokens += token_usage.get("output_tokens", 0)
 
                 j += 1
+
+            turn["outputTokens"] = total_output_tokens
 
             # Calculate duration
             if start_time and end_time:
