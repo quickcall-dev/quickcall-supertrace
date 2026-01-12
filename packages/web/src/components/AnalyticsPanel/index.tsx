@@ -10,6 +10,7 @@
 import type { MetricsResponse } from '../../api/client';
 import { ExpandedView } from './ExpandedView';
 import { CollapsedView } from './CollapsedView';
+import { SkeletonView } from './SkeletonView';
 
 interface AnalyticsPanelProps {
   metrics: MetricsResponse | null;
@@ -48,15 +49,22 @@ export function AnalyticsPanel({
     );
   }
 
-  // Loading state - show spinner overlay if we have metrics, full spinner otherwise
+  // Loading state - show skeleton structure instead of spinner
   if (loading && !metrics) {
+    if (expanded) {
+      return (
+        <SkeletonView
+          onCollapse={onToggle}
+          hoursBack={hoursBack}
+          onTimeRangeChange={onTimeRangeChange}
+        />
+      );
+    }
+    // Collapsed loading - just show slim bar with spinner
     return (
-      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
+      <div className="w-16 bg-card border-x border-border flex flex-col transition-all duration-200">
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <i className="ri-loader-4-line animate-spin text-xl" />
-            {expanded && <span className="text-sm">Loading metrics...</span>}
-          </div>
+          <i className="ri-loader-4-line animate-spin text-xl text-muted-foreground" />
         </div>
       </div>
     );

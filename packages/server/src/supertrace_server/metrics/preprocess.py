@@ -5,18 +5,35 @@ Extracts commonly needed data from events in one iteration,
 avoiding repeated filtering in individual metric functions.
 """
 
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# Patterns to detect git commits
+GIT_COMMIT_PATTERNS = [
+    re.compile(r"\bgit\s+commit\b", re.IGNORECASE),
+    re.compile(r"\bgit\s+.*\s+commit\b", re.IGNORECASE),  # git -c ... commit
+]
+
+
+def is_git_commit(command: str) -> bool:
+    """Check if a bash command is a git commit."""
+    return any(p.search(command) for p in GIT_COMMIT_PATTERNS)
+
 
 def parse_timestamp(ts: str | None) -> datetime | None:
-    """Parse ISO timestamp string to datetime."""
+    """Parse ISO timestamp string to datetime (always returns naive UTC)."""
     if not ts:
         return None
     try:
+        # Normalize to naive UTC datetime for consistent comparison
         ts = ts.replace("Z", "+00:00")
-        return datetime.fromisoformat(ts)
+        dt = datetime.fromisoformat(ts)
+        # Convert to naive UTC by removing tzinfo
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
     except (ValueError, TypeError):
         return None
 
@@ -51,6 +68,17 @@ class PreprocessedEvents:
     total_cache_read_tokens: int = 0
     total_cache_creation_tokens: int = 0
 
+    # Interrupt tracking
+    user_interrupts: int = 0  # "[Request interrupted by user]" messages
+    tool_interrupts: int = 0  # Tools with interrupted=true
+
+    # Hero metrics tracking
+    commit_count: int = 0  # Successful git commits
+    tool_successes: int = 0  # Tools that completed without error
+    tool_failures: int = 0  # Tools with is_error=true or interrupted
+    images_sent: int = 0  # Images pasted/sent by user
+    thinking_enabled_prompts: int = 0  # Prompts with thinking mode on
+
 
 def preprocess_events(events: list[dict]) -> PreprocessedEvents:
     """
@@ -76,6 +104,19 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
         # Categorize by event type
         if event_type == "user_prompt":
             result.user_prompts.append(event)
+            # Check for user interrupt - "[Request interrupted by user]"
+            prompt = data.get("prompt", "")
+            if "[Request interrupted by user]" in prompt:
+                result.user_interrupts += 1
+            # Count images from imagePasteIds
+            image_paste_ids = data.get("imagePasteIds") or []
+            result.images_sent += len(image_paste_ids)
+            # Check thinking mode - enabled if not disabled or level is not "none"
+            thinking_meta = data.get("thinkingMetadata") or {}
+            thinking_disabled = thinking_meta.get("disabled", True)
+            thinking_level = thinking_meta.get("level", "none")
+            if not thinking_disabled or thinking_level != "none":
+                result.thinking_enabled_prompts += 1
 
         elif event_type == "assistant_stop":
             result.assistant_stops.append(event)
@@ -96,6 +137,30 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
             result.tool_uses.append(event)
             tool_name = data.get("tool_name", "unknown")
             result.tool_counts[tool_name] += 1
+
+            tool_result = data.get("tool_result")
+            tool_input = data.get("tool_input") or {}
+
+            # Track tool success/failure
+            is_error = False
+            is_interrupted = False
+
+            if isinstance(tool_result, dict):
+                is_error = tool_result.get("is_error", False)
+                is_interrupted = tool_result.get("interrupted", False)
+
+            if is_error or is_interrupted:
+                result.tool_failures += 1
+                if is_interrupted:
+                    result.tool_interrupts += 1
+            else:
+                result.tool_successes += 1
+
+            # Detect git commits - Bash tool with "git commit" command
+            if tool_name == "Bash" and not is_error and not is_interrupted:
+                command = tool_input.get("command", "")
+                if is_git_commit(command):
+                    result.commit_count += 1
 
         elif event_type == "session_start":
             result.session_starts.append(event)

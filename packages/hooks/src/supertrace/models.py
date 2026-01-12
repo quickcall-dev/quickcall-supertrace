@@ -39,6 +39,10 @@ class HookInput(BaseModel):
     # Images field - proposed feature for future Claude Code versions
     # See: https://github.com/anthropics/claude-code/issues/16592
     images: list[dict[str, Any]] | None = None
+    # Image paste IDs - tracks images pasted/sent by user
+    imagePasteIds: list[int] | None = None
+    # Thinking metadata - extended thinking mode settings
+    thinkingMetadata: dict[str, Any] | None = None
 
 
 class TracingEvent(BaseModel):

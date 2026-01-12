@@ -11,13 +11,17 @@ from .registry import MetricCategory, MetricFormat, metric
 
 
 def parse_timestamp(ts: str | None) -> datetime | None:
-    """Parse ISO timestamp string to datetime."""
+    """Parse ISO timestamp string to datetime (always returns naive UTC)."""
     if not ts:
         return None
     try:
-        # Handle various ISO formats
+        # Normalize to naive UTC datetime for consistent comparison
         ts = ts.replace("Z", "+00:00")
-        return datetime.fromisoformat(ts)
+        dt = datetime.fromisoformat(ts)
+        # Convert to naive UTC by removing tzinfo
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
     except (ValueError, TypeError):
         return None
 

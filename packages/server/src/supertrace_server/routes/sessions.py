@@ -62,6 +62,7 @@ def _slim_event(event: dict) -> dict:
             "token_usage": data.get("token_usage"),
             "stop_reason": data.get("stop_reason"),
             "transcript": slimmed_transcript,
+            "message": data.get("message"),  # Direct message from reimport
         }
     # For compact events
     elif event_type == "compact":

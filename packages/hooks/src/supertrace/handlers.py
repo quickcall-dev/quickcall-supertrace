@@ -115,58 +115,29 @@ def read_transcript(path: str | None) -> list[dict] | None:
 
 def extract_token_usage(transcript: list[dict] | None) -> dict[str, Any] | None:
     """
-    Extract token usage statistics from the transcript.
+    Extract token usage from the LAST assistant message in the transcript.
 
-    Claude Code stores token usage in entries with type "usage" or in message metadata.
-    The format varies but typically includes:
-    - input_tokens: tokens in the prompt
-    - output_tokens: tokens in the response
-    - cache_creation_input_tokens: tokens used for cache creation
-    - cache_read_input_tokens: tokens read from cache
+    Each stop event should only report the usage for that specific response,
+    not cumulative usage from all messages.
     """
     if not transcript:
         return None
 
-    total_input = 0
-    total_output = 0
-    total_cache_creation = 0
-    total_cache_read = 0
-
-    for entry in transcript:
-        # Check for explicit usage entries
-        if entry.get("type") == "usage":
-            usage = entry.get("usage", entry)
-            total_input += usage.get("input_tokens", 0)
-            total_output += usage.get("output_tokens", 0)
-            total_cache_creation += usage.get("cache_creation_input_tokens", 0)
-            total_cache_read += usage.get("cache_read_input_tokens", 0)
-
-        # Check for usage in assistant message metadata
+    # Find the last assistant message (iterate backwards)
+    for entry in reversed(transcript):
         if entry.get("type") == "assistant":
             message = entry.get("message", {})
             usage = message.get("usage", {})
             if usage:
-                total_input += usage.get("input_tokens", 0)
-                total_output += usage.get("output_tokens", 0)
-                total_cache_creation += usage.get("cache_creation_input_tokens", 0)
-                total_cache_read += usage.get("cache_read_input_tokens", 0)
+                return {
+                    "input_tokens": usage.get("input_tokens", 0),
+                    "output_tokens": usage.get("output_tokens", 0),
+                    "cache_creation_input_tokens": usage.get("cache_creation_input_tokens", 0),
+                    "cache_read_input_tokens": usage.get("cache_read_input_tokens", 0),
+                    "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+                }
 
-        # Check for costUSD field (some versions include direct cost)
-        cost_usd = entry.get("costUSD")
-        if cost_usd is not None:
-            # Store latest cost
-            pass  # We'll calculate from tokens instead
-
-    if total_input == 0 and total_output == 0:
-        return None
-
-    return {
-        "input_tokens": total_input,
-        "output_tokens": total_output,
-        "cache_creation_input_tokens": total_cache_creation,
-        "cache_read_input_tokens": total_cache_read,
-        "total_tokens": total_input + total_output,
-    }
+    return None
 
 
 def handle_session_start(hook_input: HookInput) -> None:
@@ -214,6 +185,8 @@ def handle_prompt(hook_input: HookInput) -> None:
         data={
             "prompt": hook_input.prompt,
             "images": images if images else None,
+            "imagePasteIds": hook_input.imagePasteIds,
+            "thinkingMetadata": hook_input.thinkingMetadata,
         },
     )
     send_event(event)

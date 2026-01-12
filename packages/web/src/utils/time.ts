@@ -11,8 +11,13 @@
  */
 export function parseUTCTimestamp(timestamp: string | null): Date | null {
   if (!timestamp) return null;
-  // Append Z if not present to indicate UTC
-  const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+  // Handle various UTC formats: Z suffix, +00:00 suffix, or no suffix
+  let utcTimestamp = timestamp;
+  if (timestamp.endsWith('+00:00')) {
+    utcTimestamp = timestamp.replace('+00:00', 'Z');
+  } else if (!timestamp.endsWith('Z')) {
+    utcTimestamp = timestamp + 'Z';
+  }
   return new Date(utcTimestamp);
 }
 

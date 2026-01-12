@@ -115,7 +115,12 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     let content = '';
 
-    if (transcript && Array.isArray(transcript)) {
+    // First try to get message directly (from reimport)
+    if (event.data?.message && typeof event.data.message === 'string') {
+      content = event.data.message;
+    }
+    // Fallback: extract from transcript (from live hooks)
+    else if (transcript && Array.isArray(transcript)) {
       for (let i = transcript.length - 1; i >= 0; i--) {
         const msg = transcript[i];
         if (msg?.type === 'assistant') {

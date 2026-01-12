@@ -107,9 +107,12 @@ export function ExpandedView({
 
   const duration = byCategory.timing?.session_duration?.value as number | null;
 
-  const prompts = byCategory.interaction?.prompt_count?.value as number ?? 0;
-  const editsPerPrompt = byCategory.interaction?.edits_per_prompt?.value as number ?? 0;
-  const completionRate = byCategory.interaction?.completion_rate?.value as number ?? 0;
+  const commits = byCategory.interaction?.commit_count?.value as number ?? 0;
+  const turnsPerCommit = byCategory.interaction?.turns_per_commit?.value as number ?? 0;
+  const toolSuccessRate = byCategory.interaction?.tool_success_rate?.value as number ?? 100;
+  const linesPerHour = byCategory.interaction?.lines_per_hour?.value as number ?? 0;
+  const imagesPerHour = byCategory.interaction?.images_per_hour?.value as number ?? 0;
+  const thinkingUsage = byCategory.interaction?.thinking_usage?.value as string ?? '0/0';
 
   // Get chart data from metrics (pre-computed by backend)
   const chartData = byCategory.charts?.prompt_turns?.value as PromptTurnsData | null;
@@ -119,7 +122,7 @@ export function ExpandedView({
       {/* Header - compact single row matching SessionView */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">QuickCall <span className="text-primary">SuperTrace</span></span>
+          <span className="font-semibold text-foreground">Analytics</span>
           {loading && (
             <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
           )}
@@ -186,6 +189,61 @@ export function ExpandedView({
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
+        {/* Hero Metrics - 2x2 Bento Grid at top */}
+        <div className="px-5 py-4 border-b border-border">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Session Overview</div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${commits > 0 ? 'text-[color:var(--success)]' : 'text-muted-foreground'}`}>
+                {commits}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Commits</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Shipped output</div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${turnsPerCommit === 0 ? 'text-muted-foreground' : turnsPerCommit <= 5 ? 'text-[color:var(--success)]' : turnsPerCommit <= 10 ? 'text-amber-500' : 'text-destructive'}`}>
+                {turnsPerCommit || '—'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Turns / Commit</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Lower = faster</div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${toolSuccessRate >= 95 ? 'text-[color:var(--success)]' : toolSuccessRate >= 80 ? 'text-amber-500' : 'text-destructive'}`}>
+                {toolSuccessRate}%
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Tool Success</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Smooth session</div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${linesPerHour >= 500 ? 'text-[color:var(--success)]' : linesPerHour >= 100 ? 'text-amber-500' : 'text-primary'}`}>
+                {linesPerHour.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Lines / Hour</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Productivity</div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${imagesPerHour > 0 ? 'text-[color:var(--info)]' : 'text-muted-foreground'}`}>
+                {imagesPerHour}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Images / Hour</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Visual context</div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <div className={`text-2xl font-bold ${thinkingUsage.startsWith('0/') ? 'text-muted-foreground' : 'text-purple-500'}`}>
+                {thinkingUsage}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Thinking</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Extended reasoning</div>
+            </div>
+          </div>
+        </div>
+
         {/* Unified Prompt Metrics Chart */}
         <div className="px-5 py-4 border-b border-border">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
@@ -211,19 +269,19 @@ export function ExpandedView({
         </div>
 
         {/* Work Output */}
-        <div className="px-5 py-4 border-b border-border">
+        <div className="px-5 py-4">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Work Output</div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div className="bg-muted/50 rounded-lg p-3">
               <div className="text-2xl font-bold text-[color:var(--info)]">{filesChanged}</div>
-              <div className="text-xs text-foreground mt-1">Files changed</div>
+              <div className="text-xs text-muted-foreground mt-1">Files changed</div>
             </div>
             <div className="bg-muted/50 rounded-lg p-3">
               <div className={`text-2xl font-bold ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`}>
                 {formatWithSign(netLines)}
               </div>
-              <div className="text-xs text-foreground mt-1">Net lines</div>
+              <div className="text-xs text-muted-foreground mt-1">Net lines</div>
             </div>
           </div>
 
@@ -241,26 +299,6 @@ export function ExpandedView({
           <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
             <span><strong className="text-foreground">{edits}</strong> edits</span>
             <span><strong className="text-foreground">{filesRead}</strong> files read</span>
-          </div>
-        </div>
-
-        {/* Efficiency */}
-        <div className="px-5 py-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Efficiency</div>
-
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground">Prompts</span>
-              <span className="text-sm font-semibold text-foreground">{prompts}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground">Edits per prompt</span>
-              <span className="text-sm font-semibold text-foreground">{editsPerPrompt}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground">Completion rate</span>
-              <span className="text-sm font-semibold text-foreground">{completionRate}%</span>
-            </div>
           </div>
         </div>
       </div>
