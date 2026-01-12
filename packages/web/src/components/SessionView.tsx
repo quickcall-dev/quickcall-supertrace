@@ -109,9 +109,13 @@ export function SessionView({
     };
   }, [onScrollToEventRef, scrollToEvent]);
 
+  // Scroll to bottom only on initial load
+  const hasScrolledRef = useRef<boolean>(false);
+
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && events.length > 0 && !hasScrolledRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      hasScrolledRef.current = true;
     }
   }, [events]);
 
