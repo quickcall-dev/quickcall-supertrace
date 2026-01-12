@@ -29,6 +29,36 @@ export interface SearchResult extends Event {
   snippet: string;
 }
 
+// Metrics types
+export type MetricFormat = 'number' | 'currency' | 'duration' | 'percentage' | 'distribution';
+export type MetricCategory = 'tokens' | 'tools' | 'timing' | 'interaction';
+
+export interface MetricConfig {
+  name: string;
+  category: MetricCategory;
+  label: string;
+  description?: string;
+  format: MetricFormat;
+  icon: string;
+  order: number;
+  mini_bar: boolean;
+}
+
+export interface MetricValue {
+  value: number | string | Record<string, number> | Array<Record<string, unknown>> | null;
+  config: MetricConfig;
+}
+
+export interface MetricsResponse {
+  by_category: Record<MetricCategory, Record<string, MetricValue>>;
+  mini_bar: Array<{ name: string } & MetricValue>;
+}
+
+export interface SessionMetricsResponse {
+  session_id: string;
+  metrics: MetricsResponse;
+}
+
 const BASE_URL = '/api';
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -73,4 +103,10 @@ export async function searchEvents(
 
 export function getExportUrl(sessionId: string, format: 'json' | 'md'): string {
   return `${BASE_URL}/sessions/${sessionId}/export?format=${format}`;
+}
+
+export async function getSessionMetrics(
+  sessionId: string
+): Promise<SessionMetricsResponse> {
+  return fetchJson(`${BASE_URL}/metrics/session/${sessionId}`);
 }

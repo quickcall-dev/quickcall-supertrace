@@ -14,7 +14,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import get_db
-from .routes import events_router, media_router, sessions_router
+from .routes import events_router, media_router, metrics_router, sessions_router
 from .ws import manager
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.add_middleware(
 app.include_router(events_router)
 app.include_router(sessions_router)
 app.include_router(media_router)
+app.include_router(metrics_router)
 
 
 @app.on_event("startup")

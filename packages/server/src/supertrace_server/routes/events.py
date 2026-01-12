@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..db import get_db
+from ..metrics import compute_metrics
 from ..ws import manager
 from .media import process_images_in_event
 
@@ -83,6 +84,17 @@ async def create_event(event: EventCreate) -> dict[str, Any]:
                 "timestamp": timestamp.isoformat(),
                 "data": processed_data,
             },
+        }
+    )
+
+    # Compute and broadcast updated metrics
+    all_events = await db.get_events(event.session_id, limit=10000)
+    metrics = compute_metrics(all_events)
+    await manager.broadcast(
+        {
+            "type": "metrics_update",
+            "session_id": event.session_id,
+            "metrics": metrics,
         }
     )
 

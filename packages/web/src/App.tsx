@@ -1,22 +1,25 @@
 /**
  * Main application component.
  *
- * Manages global state for sessions and events, handles WebSocket
- * updates, and renders the two-panel layout.
+ * Three-panel layout: Sessions | Analytics | Chat
+ * Analytics is the hero - center of the screen, collapsible.
  *
- * Related: components/ (UI), hooks/useWebSocket.ts (realtime), api/client.ts
+ * Related: components/ (UI), hooks/ (data), api/client.ts
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { SessionList } from './components/SessionList';
 import { SessionView } from './components/SessionView';
+import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useSessionMetrics } from './hooks/useSessionMetrics';
 import {
   getSessions,
   getSession,
   searchEvents,
   type Session,
   type Event,
+  type MetricsResponse,
 } from './api/client';
 
 function App() {
@@ -25,6 +28,12 @@ function App() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
+
+  // Session metrics
+  const { metrics, loading: metricsLoading, updateMetrics } = useSessionMetrics({
+    sessionId: selectedSessionId,
+  });
 
   // Handle new events from WebSocket
   const handleNewEvent = useCallback((event: Event) => {
@@ -45,7 +54,20 @@ function App() {
     });
   }, [selectedSessionId]);
 
-  const { isConnected } = useWebSocket({ onEvent: handleNewEvent });
+  // Handle metrics updates from WebSocket
+  const handleMetricsUpdate = useCallback(
+    (sessionId: string, newMetrics: MetricsResponse) => {
+      if (sessionId === selectedSessionId) {
+        updateMetrics(newMetrics);
+      }
+    },
+    [selectedSessionId, updateMetrics]
+  );
+
+  useWebSocket({
+    onEvent: handleNewEvent,
+    onMetricsUpdate: handleMetricsUpdate,
+  });
 
   // Load sessions on mount
   useEffect(() => {
@@ -110,13 +132,24 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen flex bg-zinc-950">
+      {/* Sessions list - narrow left panel */}
       <SessionList
         sessions={sessions}
         selectedId={selectedSessionId}
         onSelect={setSelectedSessionId}
         onSearch={handleSearch}
       />
+
+      {/* Analytics - center panel (the hero) */}
+      <AnalyticsPanel
+        metrics={metrics}
+        loading={metricsLoading}
+        expanded={analyticsExpanded}
+        onToggle={() => setAnalyticsExpanded(!analyticsExpanded)}
+      />
+
+      {/* Chat/Events - right panel */}
       <SessionView
         session={selectedSession}
         events={events}
