@@ -68,7 +68,6 @@ export function SessionList({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    // Debounced search on type
     if (value === '') {
       onSearch('');
     }
@@ -110,9 +109,7 @@ export function SessionList({
       <div className="p-4 border-b border-gray-800">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <i className="ri-flashlight-line text-white text-sm"></i>
           </div>
           <span className="font-semibold text-gray-100">SuperTrace</span>
         </div>
@@ -120,9 +117,7 @@ export function SessionList({
         {/* Search */}
         <form onSubmit={handleSearch}>
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
             <input
               type="text"
               placeholder="Search..."
@@ -139,9 +134,7 @@ export function SessionList({
         {sessions.length === 0 ? (
           <div className="p-8 text-center">
             <div className="w-12 h-12 mx-auto mb-3 bg-gray-900 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
+              <i className="ri-chat-3-line text-gray-600 text-xl"></i>
             </div>
             <p className="text-sm text-gray-500">No sessions yet</p>
             <p className="text-xs text-gray-600 mt-1">Start a Claude session to see it here</p>

@@ -2,6 +2,7 @@
  * Message bubble component for conversation display.
  *
  * Clean, professional design with proper token stats display.
+ * Uses Remix Icons.
  */
 
 import type { Event } from '../api/client';
@@ -120,20 +121,19 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
             {tokenUsage && tokenUsage.total_tokens && tokenUsage.total_tokens > 0 && (
               <div className="flex items-center gap-3 text-[11px] font-mono">
-                <span className="text-cyan-400/80">
-                  {formatTokens(tokenUsage.input_tokens || 0)} in
+                <span className="text-cyan-400/80 flex items-center gap-1">
+                  <i className="ri-arrow-down-line text-[10px]"></i>
+                  {formatTokens(tokenUsage.input_tokens || 0)}
                 </span>
-                <span className="text-gray-600">/</span>
-                <span className="text-emerald-400/80">
-                  {formatTokens(tokenUsage.output_tokens || 0)} out
+                <span className="text-emerald-400/80 flex items-center gap-1">
+                  <i className="ri-arrow-up-line text-[10px]"></i>
+                  {formatTokens(tokenUsage.output_tokens || 0)}
                 </span>
                 {tokenUsage.cache_read_input_tokens && tokenUsage.cache_read_input_tokens > 0 && (
-                  <>
-                    <span className="text-gray-600">·</span>
-                    <span className="text-purple-400/80">
-                      {formatTokens(tokenUsage.cache_read_input_tokens)} cached
-                    </span>
-                  </>
+                  <span className="text-purple-400/80 flex items-center gap-1">
+                    <i className="ri-database-2-line text-[10px]"></i>
+                    {formatTokens(tokenUsage.cache_read_input_tokens)}
+                  </span>
                 )}
               </div>
             )}
@@ -147,8 +147,11 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     const toolName = event.data?.tool_name as string;
     return (
       <div className="flex justify-start">
-        <div className="text-xs text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-800">
-          Tool: {toolName || 'unknown'} · {formatTime(event.timestamp)}
+        <div className="text-xs text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-800 flex items-center gap-2">
+          <i className="ri-tools-line"></i>
+          <span>{toolName || 'unknown'}</span>
+          <span className="text-gray-600">·</span>
+          <span className="text-gray-600">{formatTime(event.timestamp)}</span>
         </div>
       </div>
     );
@@ -159,7 +162,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     return (
       <div className="flex justify-center py-2">
         <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-gray-900/50 px-4 py-1.5 rounded-full border border-gray-800">
-          <div className={`w-1.5 h-1.5 rounded-full ${isStart ? 'bg-green-500' : 'bg-red-500'}`} />
+          <i className={`${isStart ? 'ri-play-circle-line text-green-500' : 'ri-stop-circle-line text-red-500'}`}></i>
           <span>{isStart ? 'Session started' : 'Session ended'}</span>
           <span className="text-gray-600">·</span>
           <span className="text-gray-600">{formatTime(event.timestamp)}</span>
@@ -184,9 +187,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     return (
       <div className="flex justify-center py-2">
         <div className="flex items-center gap-2 text-[11px] text-purple-400 bg-purple-900/20 px-4 py-1.5 rounded-full border border-purple-800/50">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
+          <i className="ri-refresh-line"></i>
           <span className="font-medium">{command}</span>
           {tokenUsage && tokenUsage.total_tokens && (
             <span className="text-purple-300/70">
@@ -205,9 +206,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
     return (
       <div className="flex justify-center py-2">
         <div className="flex items-center gap-2 text-[11px] text-orange-400 bg-orange-900/20 px-4 py-1.5 rounded-full border border-orange-800/50">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
+          <i className="ri-notification-3-line"></i>
           <span>{notification}</span>
           <span className="text-orange-600">·</span>
           <span className="text-orange-600">{formatTime(event.timestamp)}</span>

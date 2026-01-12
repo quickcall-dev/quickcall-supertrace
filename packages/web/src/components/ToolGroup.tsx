@@ -2,7 +2,7 @@
  * Tool group component for displaying multiple tool calls.
  *
  * Clean, compact design that doesn't overflow. Shows tool count
- * and names in a constrained layout.
+ * and names in a constrained layout. Uses Remix Icons.
  */
 
 import { useState } from 'react';
@@ -18,19 +18,20 @@ interface ToolItemProps {
   onToggle: () => void;
 }
 
-// Tool name to icon/color mapping
+// Tool name to icon/color mapping using Remix Icons
 const TOOL_STYLES: Record<string, { icon: string; color: string }> = {
-  Read: { icon: '📄', color: 'text-blue-400' },
-  Write: { icon: '✏️', color: 'text-green-400' },
-  Edit: { icon: '🔧', color: 'text-yellow-400' },
-  Bash: { icon: '💻', color: 'text-purple-400' },
-  Glob: { icon: '🔍', color: 'text-cyan-400' },
-  Grep: { icon: '🔎', color: 'text-cyan-400' },
-  Task: { icon: '📋', color: 'text-orange-400' },
-  WebFetch: { icon: '🌐', color: 'text-blue-400' },
-  WebSearch: { icon: '🔍', color: 'text-blue-400' },
-  TodoWrite: { icon: '✅', color: 'text-green-400' },
-  default: { icon: '⚡', color: 'text-gray-400' },
+  Read: { icon: 'ri-file-text-line', color: 'text-blue-400' },
+  Write: { icon: 'ri-file-edit-line', color: 'text-green-400' },
+  Edit: { icon: 'ri-edit-line', color: 'text-yellow-400' },
+  Bash: { icon: 'ri-terminal-box-line', color: 'text-purple-400' },
+  Glob: { icon: 'ri-folder-search-line', color: 'text-cyan-400' },
+  Grep: { icon: 'ri-search-eye-line', color: 'text-cyan-400' },
+  Task: { icon: 'ri-task-line', color: 'text-orange-400' },
+  WebFetch: { icon: 'ri-global-line', color: 'text-blue-400' },
+  WebSearch: { icon: 'ri-earth-line', color: 'text-blue-400' },
+  TodoWrite: { icon: 'ri-checkbox-circle-line', color: 'text-green-400' },
+  AskUserQuestion: { icon: 'ri-question-line', color: 'text-pink-400' },
+  default: { icon: 'ri-tools-line', color: 'text-gray-400' },
 };
 
 function getToolStyle(toolName: string) {
@@ -56,7 +57,6 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   const getInputPreview = (): string => {
     if (!toolInput) return '';
 
-    // Special handling for common tools
     if (toolName === 'Read' && toolInput.file_path) {
       return String(toolInput.file_path).split('/').slice(-2).join('/');
     }
@@ -88,7 +88,7 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-800/50 transition-colors text-left group"
       >
-        <span className="text-sm">{style.icon}</span>
+        <i className={`${style.icon} ${style.color} text-base`}></i>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className={`font-mono text-sm ${style.color}`}>{toolName}</span>
           {preview && !isExpanded && (
@@ -98,14 +98,7 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
         <span className="text-[11px] text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
           {formatTime(event.timestamp)}
         </span>
-        <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <i className={`ri-arrow-down-s-line text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
       </button>
 
       {isExpanded && (
@@ -168,14 +161,8 @@ export function ToolGroup({ events }: ToolGroupProps) {
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <svg
-              className={`w-4 h-4 text-gray-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <i className={`ri-arrow-down-s-line text-gray-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}></i>
+            <i className="ri-tools-line text-gray-400"></i>
             <span className="text-sm font-medium text-gray-300">
               Tools
             </span>
@@ -192,9 +179,10 @@ export function ToolGroup({ events }: ToolGroupProps) {
                 return (
                   <span
                     key={name}
-                    className={`text-xs ${style.color} bg-gray-800/80 px-2 py-0.5 rounded-full font-mono`}
+                    className={`text-xs ${style.color} bg-gray-800/80 px-2 py-0.5 rounded-full font-mono flex items-center gap-1`}
                   >
-                    {name}{count > 1 && <span className="text-gray-500 ml-1">×{count}</span>}
+                    <i className={`${style.icon} text-[10px]`}></i>
+                    {name}{count > 1 && <span className="text-gray-500">×{count}</span>}
                   </span>
                 );
               })}
