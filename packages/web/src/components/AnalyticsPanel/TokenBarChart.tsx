@@ -1,10 +1,11 @@
 /**
  * Token Line Chart - shows input/output tokens for each prompt/response pair.
  *
- * Horizontal scrolling line chart with markers and Y-axis scale.
- * Clickable to scroll to message.
+ * Fixed Y-axis with horizontally scrolling chart area.
+ * Auto-scrolls to latest data. Clickable to scroll to message.
  */
 
+import { useEffect, useRef } from 'react';
 import type { Event } from '../../api/client';
 
 interface TokenBarChartProps {
@@ -22,6 +23,8 @@ interface TokenPair {
 }
 
 export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   // Extract prompt/response pairs with token data
   const pairs: TokenPair[] = [];
   let promptIndex = 0;
@@ -58,6 +61,13 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
     }
   }
 
+  // Auto-scroll to latest
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [pairs.length]);
+
   if (pairs.length === 0) {
     return (
       <div className="text-center py-4 text-muted-foreground text-sm">
@@ -85,11 +95,10 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
 
   const chartHeight = 100;
   const yAxisWidth = 32;
-  const graphAreaWidth = Math.max(pairs.length * 48, 180);
-  const chartWidth = graphAreaWidth + yAxisWidth;
-  const padding = { left: yAxisWidth, right: 8, top: 12, bottom: 24 };
+  const pointSpacing = 48;
+  const graphWidth = Math.max(pairs.length * pointSpacing, 150);
+  const padding = { left: 16, right: 16, top: 12, bottom: 24 };
   const graphHeight = chartHeight - padding.top - padding.bottom;
-  const graphWidth = graphAreaWidth - padding.right;
 
   // Calculate points for each line
   const getY = (value: number) => {
@@ -98,8 +107,8 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
   };
 
   const getX = (index: number) => {
-    if (pairs.length === 1) return padding.left + graphWidth / 2;
-    return padding.left + (index / (pairs.length - 1)) * graphWidth;
+    if (pairs.length === 1) return padding.left + (graphWidth - padding.left - padding.right) / 2;
+    return padding.left + (index / (pairs.length - 1)) * (graphWidth - padding.left - padding.right);
   };
 
   // Build path strings
@@ -109,7 +118,7 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
   const inputPath = `M ${inputPoints.join(' L ')}`;
   const outputPath = `M ${outputPoints.join(' L ')}`;
 
-  // Area fill paths (for subtle gradient effect)
+  // Area fill paths
   const inputAreaPath = `${inputPath} L ${getX(pairs.length - 1)},${chartHeight - padding.bottom} L ${getX(0)},${chartHeight - padding.bottom} Z`;
   const outputAreaPath = `${outputPath} L ${getX(pairs.length - 1)},${chartHeight - padding.bottom} L ${getX(0)},${chartHeight - padding.bottom} Z`;
 
@@ -121,17 +130,14 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
 
   return (
     <div className="space-y-2">
-      {/* Chart container */}
-      <div className="overflow-x-auto">
-        <svg
-          width={chartWidth}
-          height={chartHeight}
-          className="block"
-        >
-          {/* Y-axis labels */}
-          {yTicks.map((tick, idx) => (
-            <g key={idx}>
+      {/* Chart container with fixed Y-axis */}
+      <div className="flex">
+        {/* Fixed Y-axis */}
+        <div className="shrink-0" style={{ width: yAxisWidth }}>
+          <svg width={yAxisWidth} height={chartHeight} className="block">
+            {yTicks.map((tick, idx) => (
               <text
+                key={idx}
                 x={yAxisWidth - 4}
                 y={tick.y + 3}
                 textAnchor="end"
@@ -139,126 +145,128 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
               >
                 {formatTokensShort(tick.value)}
               </text>
-              {/* Horizontal grid line */}
+            ))}
+          </svg>
+        </div>
+
+        {/* Scrollable chart area */}
+        <div ref={scrollRef} className="flex-1 overflow-x-auto">
+          <svg
+            width={graphWidth}
+            height={chartHeight}
+            className="block"
+          >
+            {/* Horizontal grid lines */}
+            {yTicks.map((tick, idx) => (
               <line
-                x1={padding.left}
+                key={idx}
+                x1={0}
                 y1={tick.y}
-                x2={chartWidth - padding.right}
+                x2={graphWidth}
                 y2={tick.y}
                 stroke="currentColor"
                 strokeOpacity={idx === 0 ? 0.15 : 0.08}
                 strokeDasharray={idx === 0 ? "0" : "2,2"}
               />
-            </g>
-          ))}
+            ))}
 
-          {/* Area fills */}
-          <path
-            d={inputAreaPath}
-            fill="var(--info)"
-            fillOpacity={0.08}
-          />
-          <path
-            d={outputAreaPath}
-            fill="var(--success)"
-            fillOpacity={0.08}
-          />
+            {/* Area fills */}
+            <path
+              d={inputAreaPath}
+              fill="var(--info)"
+              fillOpacity={0.08}
+            />
+            <path
+              d={outputAreaPath}
+              fill="var(--success)"
+              fillOpacity={0.08}
+            />
 
-          {/* Lines */}
-          <path
-            d={inputPath}
-            fill="none"
-            stroke="var(--info)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d={outputPath}
-            fill="none"
-            stroke="var(--success)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+            {/* Lines */}
+            <path
+              d={inputPath}
+              fill="none"
+              stroke="var(--info)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d={outputPath}
+              fill="none"
+              stroke="var(--success)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
 
-          {/* Markers and labels */}
-          {pairs.map((pair, idx) => {
-            const x = getX(idx);
-            const inputY = getY(pair.inputTokens);
-            const outputY = getY(pair.outputTokens);
+            {/* Markers and labels */}
+            {pairs.map((pair, idx) => {
+              const x = getX(idx);
+              const inputY = getY(pair.inputTokens);
+              const outputY = getY(pair.outputTokens);
 
-            return (
-              <g key={idx}>
-                {/* Clickable area */}
-                <rect
-                  x={x - 20}
-                  y={padding.top}
-                  width={40}
-                  height={graphHeight + padding.bottom}
-                  fill="transparent"
-                  className="cursor-pointer hover:fill-accent/20 transition-colors"
-                  onClick={() => onBarClick?.(pair.responseEventId)}
-                >
-                  <title>Prompt {pair.promptIndex}: {formatTokens(pair.inputTokens)} in / {formatTokens(pair.outputTokens)} out</title>
-                </rect>
+              return (
+                <g key={idx}>
+                  {/* Clickable area */}
+                  <rect
+                    x={x - 20}
+                    y={padding.top}
+                    width={40}
+                    height={graphHeight + padding.bottom}
+                    fill="transparent"
+                    className="cursor-pointer hover:fill-accent/20 transition-colors"
+                    onClick={() => onBarClick?.(pair.responseEventId)}
+                  >
+                    <title>Prompt {pair.promptIndex}: {formatTokens(pair.inputTokens)} in / {formatTokens(pair.outputTokens)} out</title>
+                  </rect>
 
-                {/* Vertical hover line indicator */}
-                <line
-                  x1={x}
-                  y1={padding.top}
-                  x2={x}
-                  y2={chartHeight - padding.bottom}
-                  stroke="currentColor"
-                  strokeOpacity={0}
-                  className="pointer-events-none"
-                />
+                  {/* Input marker */}
+                  <circle
+                    cx={x}
+                    cy={inputY}
+                    r={5}
+                    fill="var(--info)"
+                    className="pointer-events-none"
+                  />
+                  <circle
+                    cx={x}
+                    cy={inputY}
+                    r={2}
+                    fill="white"
+                    className="pointer-events-none"
+                  />
 
-                {/* Input marker */}
-                <circle
-                  cx={x}
-                  cy={inputY}
-                  r={5}
-                  fill="var(--info)"
-                  className="pointer-events-none"
-                />
-                <circle
-                  cx={x}
-                  cy={inputY}
-                  r={2}
-                  fill="white"
-                  className="pointer-events-none"
-                />
+                  {/* Output marker */}
+                  <circle
+                    cx={x}
+                    cy={outputY}
+                    r={5}
+                    fill="var(--success)"
+                    className="pointer-events-none"
+                  />
+                  <circle
+                    cx={x}
+                    cy={outputY}
+                    r={2}
+                    fill="white"
+                    className="pointer-events-none"
+                  />
 
-                {/* Output marker */}
-                <circle
-                  cx={x}
-                  cy={outputY}
-                  r={5}
-                  fill="var(--success)"
-                  className="pointer-events-none"
-                />
-                <circle
-                  cx={x}
-                  cy={outputY}
-                  r={2}
-                  fill="white"
-                  className="pointer-events-none"
-                />
-
-                {/* X-axis label */}
-                <text
-                  x={x}
-                  y={chartHeight - 6}
-                  textAnchor="middle"
-                  className="text-[9px] fill-muted-foreground pointer-events-none"
-                >
-                  {pair.promptIndex}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  {/* X-axis label */}
+                  <text
+                    x={x}
+                    y={chartHeight - 6}
+                    textAnchor="middle"
+                    className="text-[9px] fill-muted-foreground pointer-events-none"
+                  >
+                    {pair.promptIndex}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       </div>
 
       {/* Legend and Totals row */}
