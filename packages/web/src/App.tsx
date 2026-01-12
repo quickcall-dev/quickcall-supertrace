@@ -30,6 +30,7 @@ function App() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [totalEvents, setTotalEvents] = useState<number>(0);
+  const [hasMoreEvents, setHasMoreEvents] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
@@ -129,8 +130,12 @@ function App() {
       setSelectedSession(null);
       setEvents([]);
       setMetrics(null);
+      setHasMoreEvents(true);
       return;
     }
+
+    // Reset hasMoreEvents when selecting a new session
+    setHasMoreEvents(true);
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
@@ -212,7 +217,7 @@ function App() {
   // Load more (older) events
   const handleLoadMore = useCallback(async () => {
     if (!selectedSessionId || isLoadingMore || events.length === 0) return;
-    if (events.length >= totalEvents) return; // Already have all events
+    if (!hasMoreEvents) return; // Already loaded all events
 
     setIsLoadingMore(true);
     try {
@@ -224,13 +229,16 @@ function App() {
       if (data.events.length > 0) {
         // Prepend older events to the beginning
         setEvents((prev) => [...data.events, ...prev]);
+      } else {
+        // No more events to load
+        setHasMoreEvents(false);
       }
     } catch (error) {
       console.error('Failed to load more events:', error);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [selectedSessionId, isLoadingMore, events, totalEvents]);
+  }, [selectedSessionId, isLoadingMore, events, hasMoreEvents]);
 
   // Handle search
   const handleSearch = async (query: string) => {
@@ -350,6 +358,7 @@ function App() {
         isLoading={isLoading}
         onScrollToEventRef={scrollToEventRef}
         totalEvents={totalEvents}
+        hasMoreEvents={hasMoreEvents}
         isLoadingMore={isLoadingMore}
         onLoadMore={handleLoadMore}
       />

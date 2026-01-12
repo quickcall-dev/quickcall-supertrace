@@ -18,6 +18,7 @@ interface SessionViewProps {
   isLoading: boolean;
   onScrollToEventRef?: MutableRefObject<((eventId: number) => void) | null>;
   totalEvents?: number;
+  hasMoreEvents?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
 }
@@ -55,6 +56,7 @@ export function SessionView({
   isLoading,
   onScrollToEventRef,
   totalEvents = 0,
+  hasMoreEvents = true,
   isLoadingMore = false,
   onLoadMore,
 }: SessionViewProps) {
@@ -66,12 +68,12 @@ export function SessionView({
   // Infinite scroll - load more when scrolling to top
   useEffect(() => {
     const trigger = loadMoreTriggerRef.current;
-    if (!trigger || !onLoadMore) return;
+    if (!trigger || !onLoadMore || !hasMoreEvents) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry.isIntersecting && !isLoadingMore && events.length < totalEvents) {
+        if (entry.isIntersecting && !isLoadingMore && hasMoreEvents) {
           onLoadMore();
         }
       },
@@ -80,7 +82,7 @@ export function SessionView({
 
     observer.observe(trigger);
     return () => observer.disconnect();
-  }, [onLoadMore, isLoadingMore, events.length, totalEvents]);
+  }, [onLoadMore, isLoadingMore, hasMoreEvents]);
 
   // Scroll to event function
   const scrollToEvent = useCallback((eventId: number) => {
@@ -219,7 +221,7 @@ export function SessionView({
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-4xl mx-auto space-y-4">
           {/* Infinite scroll trigger at top */}
-          {events.length > 0 && events.length < totalEvents && (
+          {events.length > 0 && hasMoreEvents && (
             <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
               {isLoadingMore ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
