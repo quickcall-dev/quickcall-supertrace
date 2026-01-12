@@ -142,7 +142,15 @@ def calc_tool_success_rate(events: list[dict], pre: PreprocessedEvents = None) -
     order=5,
 )
 def calc_lines_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> int:
-    """Productivity - lines of output per hour."""
+    """
+    Productivity - lines of output per hour.
+
+    WHY RAW COUNT BEFORE 1 HOUR:
+    Extrapolating rates from short sessions is misleading. If someone writes
+    50 lines in 10 minutes, showing "300 lines/hour" is not useful - they
+    might be done for the day. We show raw counts until a full hour passes,
+    then switch to per-hour rate for longer sessions.
+    """
     # Import here to avoid circular dependency
     from .timing_metrics import calc_session_duration
     from .work_metrics import calc_net_lines
@@ -150,8 +158,10 @@ def calc_lines_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> i
     duration_seconds = calc_session_duration(events, pre)
     net_lines = abs(calc_net_lines(events, pre))  # Use absolute value
 
-    if duration_seconds is None or duration_seconds < 60:
-        return net_lines  # Less than a minute, just return lines
+    # Only extrapolate per-hour after a full hour has passed
+    # Before that, show raw count - extrapolation from short sessions is misleading
+    if duration_seconds is None or duration_seconds < 3600:
+        return net_lines  # Less than an hour, just return raw lines
 
     hours = duration_seconds / 3600
     return round(net_lines / hours)
@@ -166,7 +176,18 @@ def calc_lines_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> i
     order=6,
 )
 def calc_images_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> float:
-    """Images shared per hour - indicates visual communication."""
+    """
+    Images shared per hour - indicates visual communication.
+
+    HOW IMAGES ARE COUNTED:
+    Claude Code stores imagePasteIds as an array like [1, 2, 3] where each number
+    is a paste ID. We count len(imagePasteIds) to get the number of images per prompt.
+    The actual values in the array are IDs, not counts - we count the array LENGTH.
+
+    WHY RAW COUNT BEFORE 1 HOUR:
+    Same reasoning as lines_per_hour - extrapolating from short sessions is misleading.
+    Show raw count until a full hour passes.
+    """
     from .timing_metrics import calc_session_duration
 
     if pre:
@@ -176,12 +197,16 @@ def calc_images_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> 
         for e in events:
             if e.get("event_type") == "user_prompt":
                 data = e.get("data") or {}
+                # imagePasteIds is an array of paste IDs like [1, 2, 3]
+                # len() gives us the count of images, NOT the sum of IDs
                 image_paste_ids = data.get("imagePasteIds") or []
                 images += len(image_paste_ids)
 
     duration_seconds = calc_session_duration(events, pre)
-    if duration_seconds is None or duration_seconds < 60:
-        return float(images)
+    # Only extrapolate per-hour after a full hour has passed
+    # Before that, show raw count - extrapolation from short sessions is misleading
+    if duration_seconds is None or duration_seconds < 3600:
+        return float(images)  # Less than an hour, just return raw count
 
     hours = duration_seconds / 3600
     return round(images / hours, 1)

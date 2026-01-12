@@ -8,6 +8,7 @@ Related: models.py (data structures), client.py (sends events), cli.py (dispatch
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -91,6 +92,60 @@ def extract_images_from_hook(hook_input: HookInput) -> list[dict[str, Any]]:
     return images
 
 
+def extract_image_paste_ids_from_transcript(transcript: list[dict] | None) -> list[int] | None:
+    """
+    Extract imagePasteIds from the LAST user message in the transcript.
+
+    WHY THIS IS NEEDED:
+    Claude Code does NOT send imagePasteIds in the UserPromptSubmit hook input.
+    It only stores imagePasteIds in the transcript JSONL file. Without this
+    fallback, we would never capture image counts for the images_per_hour metric.
+
+    The transcript entry looks like:
+    {"type": "user", "message": {...}, "imagePasteIds": [1, 2, 3], ...}
+
+    We read the last user entry and extract imagePasteIds from there.
+    """
+    if not transcript:
+        return None
+
+    # Find the last user message (iterate backwards)
+    for entry in reversed(transcript):
+        if entry.get("type") == "user":
+            image_paste_ids = entry.get("imagePasteIds")
+            if image_paste_ids:
+                return image_paste_ids
+
+    return None
+
+
+def extract_thinking_metadata_from_transcript(transcript: list[dict] | None) -> dict[str, Any] | None:
+    """
+    Extract thinkingMetadata from the LAST user message in the transcript.
+
+    WHY THIS IS NEEDED:
+    Claude Code does NOT send thinkingMetadata in the UserPromptSubmit hook input.
+    It only stores thinkingMetadata in the transcript JSONL file. Without this
+    fallback, we would never capture thinking mode usage for the thinking_usage metric.
+
+    The transcript entry looks like:
+    {"type": "user", "message": {...}, "thinkingMetadata": {"level": "high", ...}, ...}
+
+    We read the last user entry and extract thinkingMetadata from there.
+    """
+    if not transcript:
+        return None
+
+    # Find the last user message (iterate backwards)
+    for entry in reversed(transcript):
+        if entry.get("type") == "user":
+            thinking_meta = entry.get("thinkingMetadata")
+            if thinking_meta:
+                return thinking_meta
+
+    return None
+
+
 def read_transcript(path: str | None) -> list[dict] | None:
     """Read and parse the JSONL transcript file."""
     if not path:
@@ -165,17 +220,57 @@ def handle_session_end(hook_input: HookInput) -> None:
 
 
 def handle_prompt(hook_input: HookInput) -> None:
-    """Handle UserPromptSubmit hook - user sent a message."""
+    """
+    Handle UserPromptSubmit hook - user sent a message.
+
+    IMPORTANT: Claude Code's hook input does NOT include all fields stored in the transcript.
+    Specifically, imagePasteIds and thinkingMetadata are stored in the transcript JSONL
+    but NOT passed to hooks. We must read the transcript as a fallback to capture this data.
+
+    Without this fallback:
+    - images_per_hour metric would always be 0
+    - thinking_usage metric would always be 0/0
+    """
     # prompt is passed directly in the hook input (field name is 'prompt')
+
+    # Read transcript for fallback data extraction
+    # This is necessary because Claude Code doesn't pass all fields to hooks
+    transcript = read_transcript(hook_input.transcript_path)
 
     # Extract images from hook input (future feature) or transcript
     images = extract_images_from_hook(hook_input)
-
-    # If no images from hook, try to extract from transcript
-    # This is a fallback for when images are in the transcript but not in hook
+    images_source = "hook" if images else None
     if not images:
-        transcript = read_transcript(hook_input.transcript_path)
         images = extract_images_from_transcript(transcript)
+        if images:
+            images_source = "transcript"
+
+    # Get imagePasteIds - Claude Code does NOT send this in hook input
+    # Must fall back to transcript to get image counts for metrics
+    image_paste_ids = hook_input.imagePasteIds
+    image_paste_ids_source = "hook" if image_paste_ids else None
+    if not image_paste_ids:
+        image_paste_ids = extract_image_paste_ids_from_transcript(transcript)
+        if image_paste_ids:
+            image_paste_ids_source = "transcript"
+
+    # Get thinkingMetadata - Claude Code does NOT send this in hook input
+    # Must fall back to transcript to track thinking mode usage
+    thinking_metadata = hook_input.thinkingMetadata
+    thinking_source = "hook" if thinking_metadata else None
+    if not thinking_metadata:
+        thinking_metadata = extract_thinking_metadata_from_transcript(transcript)
+        if thinking_metadata:
+            thinking_source = "transcript"
+
+    # Debug logging to file
+    log_path = Path.home() / ".supertrace" / "hooks.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a") as f:
+        f.write(f"[handle_prompt] session={hook_input.session_id}\n")
+        f.write(f"  images: {len(images) if images else 0} (source: {images_source})\n")
+        f.write(f"  imagePasteIds: {image_paste_ids} (source: {image_paste_ids_source})\n")
+        f.write(f"  thinkingMetadata: {thinking_metadata is not None} (source: {thinking_source})\n")
 
     event = TracingEvent(
         event_type="user_prompt",
@@ -185,8 +280,8 @@ def handle_prompt(hook_input: HookInput) -> None:
         data={
             "prompt": hook_input.prompt,
             "images": images if images else None,
-            "imagePasteIds": hook_input.imagePasteIds,
-            "thinkingMetadata": hook_input.thinkingMetadata,
+            "imagePasteIds": image_paste_ids,
+            "thinkingMetadata": thinking_metadata,
         },
     )
     send_event(event)

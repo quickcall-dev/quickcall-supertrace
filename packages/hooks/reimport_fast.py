@@ -95,35 +95,71 @@ def process_transcript(transcript_path: str) -> None:
                 event_count += 1
                 user_prompts += 1
 
-            # Case 2: content is array → tool results
+            # Case 2: content is array → could be user prompt with images OR tool results
             elif isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "tool_result":
-                        tool_use_id = block.get("tool_use_id")
-                        result_content = block.get("content")
-                        is_error = block.get("is_error", False)
+                # Check if this is a user prompt (has text blocks) or tool results (has tool_result blocks)
+                has_text = any(
+                    isinstance(b, dict) and b.get("type") == "text"
+                    for b in content
+                )
+                has_tool_result = any(
+                    isinstance(b, dict) and b.get("type") == "tool_result"
+                    for b in content
+                )
 
-                        if tool_use_id and tool_use_id in pending_tools:
-                            tool_info = pending_tools.pop(tool_use_id)
+                # User prompt with text/images (not tool results)
+                if has_text and not has_tool_result:
+                    # Extract text from text blocks
+                    text_parts = []
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text_parts.append(block.get("text", ""))
+                    prompt_text = "\n".join(text_parts)
 
-                            # Format tool_result properly
-                            tool_result = result_content
-                            if is_error:
-                                tool_result = {"content": result_content, "is_error": True}
+                    if prompt_text.strip():
+                        send_event({
+                            "event_type": "user_prompt",
+                            "session_id": session_id,
+                            "timestamp": ts,
+                            "project_path": project_path,
+                            "data": {
+                                "prompt": prompt_text,
+                                "imagePasteIds": entry.get("imagePasteIds"),
+                                "thinkingMetadata": entry.get("thinkingMetadata"),
+                            },
+                        })
+                        event_count += 1
+                        user_prompts += 1
 
-                            send_event({
-                                "event_type": "tool_use",
-                                "session_id": session_id,
-                                "timestamp": ts,
-                                "project_path": project_path,
-                                "data": {
-                                    "tool_name": tool_info["name"],
-                                    "tool_input": tool_info["input"],
-                                    "tool_result": tool_result,
-                                },
-                            })
-                            event_count += 1
-                            tool_uses += 1
+                # Tool results
+                elif has_tool_result:
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            tool_use_id = block.get("tool_use_id")
+                            result_content = block.get("content")
+                            is_error = block.get("is_error", False)
+
+                            if tool_use_id and tool_use_id in pending_tools:
+                                tool_info = pending_tools.pop(tool_use_id)
+
+                                # Format tool_result properly
+                                tool_result = result_content
+                                if is_error:
+                                    tool_result = {"content": result_content, "is_error": True}
+
+                                send_event({
+                                    "event_type": "tool_use",
+                                    "session_id": session_id,
+                                    "timestamp": ts,
+                                    "project_path": project_path,
+                                    "data": {
+                                        "tool_name": tool_info["name"],
+                                        "tool_input": tool_info["input"],
+                                        "tool_result": tool_result,
+                                    },
+                                })
+                                event_count += 1
+                                tool_uses += 1
 
         elif entry_type == "assistant":
             message = entry.get("message", {})

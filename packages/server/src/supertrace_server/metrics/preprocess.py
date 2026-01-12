@@ -109,6 +109,8 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
             if "[Request interrupted by user]" in prompt:
                 result.user_interrupts += 1
             # Count images from imagePasteIds
+            # imagePasteIds is an array of paste IDs like [1, 2, 3] - we count LENGTH not sum
+            # Each ID represents one image pasted by the user in that prompt
             image_paste_ids = data.get("imagePasteIds") or []
             result.images_sent += len(image_paste_ids)
             # Check thinking mode - enabled if not disabled or level is not "none"
