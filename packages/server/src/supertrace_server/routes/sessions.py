@@ -181,7 +181,6 @@ async def get_session(
 async def get_session_events(
     session_id: str,
     limit: int = 100,
-    offset: int = 0,
     slim: bool = True,
     before_id: int | None = None,
 ) -> dict[str, Any]:
@@ -196,13 +195,17 @@ async def get_session_events(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    events = await db.get_events(session_id, limit=limit, offset=offset)
+    # Get all events first, then filter - needed for before_id to work correctly
+    all_events = await db.get_events(session_id, limit=10000)
 
     # Filter to events before the given ID (for loading older events)
     if before_id is not None:
-        events = [e for e in events if e.get("id", 0) < before_id]
+        events = [e for e in all_events if e.get("id", 0) < before_id]
         # Take the last `limit` events (most recent before the cutoff)
         events = events[-limit:] if len(events) > limit else events
+    else:
+        # No before_id, just return the last `limit` events
+        events = all_events[-limit:] if len(all_events) > limit else all_events
 
     if slim:
         events = [_slim_event(e) for e in events]

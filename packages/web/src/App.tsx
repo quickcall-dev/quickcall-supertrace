@@ -147,8 +147,8 @@ function App() {
       setIsLoading(true);
       setMetricsLoading(true);
 
-      // Start both requests simultaneously - load only last 10 events initially
-      const sessionPromise = getSession(selectedSessionId, 10);
+      // Start both requests simultaneously - load only last 30 events initially
+      const sessionPromise = getSession(selectedSessionId, 30);
       const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
 
       // Handle session data
