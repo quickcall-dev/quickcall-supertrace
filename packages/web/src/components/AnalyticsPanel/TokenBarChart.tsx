@@ -27,13 +27,16 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
 
   // Extract prompt/response pairs with token data
   const pairs: TokenPair[] = [];
-  let promptIndex = 0;
+  let fallbackIndex = 0;
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
 
     if (event.event_type === 'user_prompt') {
-      promptIndex++;
+      fallbackIndex++;
+      // Use actual promptIndex from event data, fallback to counted value
+      const actualPromptIndex = (event.data?.promptIndex as number) ?? fallbackIndex;
+
       // Find the next assistant_stop event
       for (let j = i + 1; j < events.length; j++) {
         const responseEvent = events[j];
@@ -47,7 +50,7 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
             pairs.push({
               promptEventId: event.id,
               responseEventId: responseEvent.id,
-              promptIndex,
+              promptIndex: actualPromptIndex,
               inputTokens: tokenUsage.input_tokens || 0,
               outputTokens: tokenUsage.output_tokens || 0,
               timestamp: event.timestamp,
@@ -216,7 +219,7 @@ export function TokenBarChart({ events, onBarClick }: TokenBarChartProps) {
                     height={graphHeight + padding.bottom}
                     fill="transparent"
                     className="cursor-pointer hover:fill-accent/20 transition-colors"
-                    onClick={() => onBarClick?.(pair.responseEventId)}
+                    onClick={() => onBarClick?.(pair.promptEventId)}
                   >
                     <title>Prompt {pair.promptIndex}: {formatTokens(pair.inputTokens)} in / {formatTokens(pair.outputTokens)} out</title>
                   </rect>

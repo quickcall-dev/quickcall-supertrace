@@ -31,22 +31,42 @@ GIT_COMMIT_PATTERNS = [
     re.compile(r"\bgit\s+.*\s+commit\b", re.IGNORECASE),  # git -c ... commit
 ]
 
-# Tool colors matching frontend
+# Tool colors - distinctive palette for each tool type
+# Using colors that are visually distinct from each other and from token lines
 TOOL_COLORS = {
-    "Read": "#60a5fa",
-    "Glob": "#60a5fa",
-    "Grep": "#60a5fa",
-    "Write": "#34d399",
-    "Edit": "#fbbf24",
-    "Bash": "#f97316",
-    "Task": "#a78bfa",
-    "TodoWrite": "#34d399",
-    "WebFetch": "#38bdf8",
-    "WebSearch": "#38bdf8",
-    "AskUserQuestion": "#f472b6",
+    # File reading tools - shades of blue/cyan
+    "Read": "#3b82f6",       # Blue
+    "Glob": "#06b6d4",       # Cyan
+    "Grep": "#6366f1",       # Indigo
+
+    # File writing tools - warm colors
+    "Write": "#10b981",      # Emerald
+    "Edit": "#f59e0b",       # Amber
+    "TodoWrite": "#84cc16",  # Lime
+
+    # System tools - orange/red spectrum
+    "Bash": "#f97316",       # Orange
+    "KillShell": "#ef4444",  # Red
+    "TaskOutput": "#fb923c", # Light orange
+
+    # Agent tools - purple spectrum
+    "Task": "#a855f7",       # Purple
+    "EnterPlanMode": "#8b5cf6",  # Violet
+    "ExitPlanMode": "#7c3aed",   # Dark violet
+
+    # Web tools - teal/sky
+    "WebFetch": "#14b8a6",   # Teal
+    "WebSearch": "#0ea5e9",  # Sky blue
+
+    # Interaction tools - pink/rose
+    "AskUserQuestion": "#ec4899",  # Pink
+    "Skill": "#f43f5e",      # Rose
+
+    # MCP tools
+    "mcp__ide__getDiagnostics": "#64748b",  # Slate
 }
 
-DEFAULT_TOOL_COLOR = "#94a3b8"
+DEFAULT_TOOL_COLOR = "#94a3b8"  # Slate gray for unknown tools
 
 
 @metric(
@@ -113,10 +133,18 @@ def calc_prompt_turns(events: list[dict]) -> dict:
         event = events[i]
 
         if event.get("event_type") == "user_prompt":
-            prompt_index += 1
+            # Use the actual promptIndex from event data (set by get_messages_as_events)
+            # This preserves correct numbering even when time-filtered
+            event_data = event.get("data", {})
+            actual_prompt_index = event_data.get("promptIndex")
+            if actual_prompt_index is None:
+                # Fallback for legacy events without promptIndex
+                prompt_index += 1
+                actual_prompt_index = prompt_index
+
             start_time = parse_timestamp(event.get("timestamp"))
             turn = {
-                "promptIndex": prompt_index,
+                "promptIndex": actual_prompt_index,
                 "promptEventId": event.get("id"),
                 "responseEventId": event.get("id"),
                 "inputTokens": 0,
