@@ -111,7 +111,7 @@ export function ExpandedView({
   const turnsPerCommit = byCategory.interaction?.turns_per_commit?.value as number ?? 0;
   const toolSuccessRate = byCategory.interaction?.tool_success_rate?.value as number ?? 100;
   const linesPerHour = byCategory.interaction?.lines_per_hour?.value as number ?? 0;
-  const imagesPerHour = byCategory.interaction?.images_per_hour?.value as number ?? 0;
+  const imagesSent = byCategory.interaction?.images_sent?.value as number ?? 0;
   const thinkingUsage = byCategory.interaction?.thinking_usage?.value as string ?? '0/0';
 
   // Get chart data from metrics (pre-computed by backend)
@@ -227,10 +227,10 @@ export function ExpandedView({
             </div>
 
             <div className="bg-muted/50 rounded-lg p-3">
-              <div className={`text-2xl font-bold ${imagesPerHour > 0 ? 'text-[color:var(--info)]' : 'text-muted-foreground'}`}>
-                {imagesPerHour}
+              <div className={`text-2xl font-bold ${imagesSent > 0 ? 'text-[color:var(--info)]' : 'text-muted-foreground'}`}>
+                {imagesSent}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">Images / Hour</div>
+              <div className="text-xs text-muted-foreground mt-1">Images</div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">Visual context</div>
             </div>
 
