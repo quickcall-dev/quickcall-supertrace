@@ -185,7 +185,7 @@ export function TimingChart({ data, onPromptClick }: TimingChartProps) {
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredPrompt(idx)}
                       onMouseLeave={() => setHoveredPrompt(null)}
-                      onClick={() => onPromptClick?.(turn.responseEventId)}
+                      onClick={() => onPromptClick?.(turn.promptEventId)}
                     />
 
                     {/* Vertical hover indicator */}

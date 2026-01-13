@@ -181,7 +181,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <path
                 d={inputPath}
                 fill="none"
-                stroke="var(--info)"
+                stroke="var(--token-input)"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -189,7 +189,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <path
                 d={outputPath}
                 fill="none"
-                stroke="var(--success)"
+                stroke="var(--token-output)"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -201,9 +201,9 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                 const isHovered = hoveredPrompt === idx;
                 return (
                   <g key={idx}>
-                    <circle cx={x} cy={getTokenY(turn.inputTokens)} r={isHovered ? 6 : 4} fill="var(--info)" />
+                    <circle cx={x} cy={getTokenY(turn.inputTokens)} r={isHovered ? 6 : 4} fill="var(--token-input)" />
                     <circle cx={x} cy={getTokenY(turn.inputTokens)} r={isHovered ? 3 : 2} fill="white" />
-                    <circle cx={x} cy={getTokenY(turn.outputTokens)} r={isHovered ? 6 : 4} fill="var(--success)" />
+                    <circle cx={x} cy={getTokenY(turn.outputTokens)} r={isHovered ? 6 : 4} fill="var(--token-output)" />
                     <circle cx={x} cy={getTokenY(turn.outputTokens)} r={isHovered ? 3 : 2} fill="white" />
                   </g>
                 );
@@ -308,7 +308,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredPrompt(idx)}
                       onMouseLeave={() => setHoveredPrompt(null)}
-                      onClick={() => onPromptClick?.(turn.responseEventId)}
+                      onClick={() => onPromptClick?.(turn.promptEventId)}
                     />
 
                     {/* Vertical hover indicator */}
@@ -360,11 +360,11 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
             </div>
             <div className="flex items-center gap-3 mb-1.5">
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-[color:var(--info)]" />
+                <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
                 <span className="text-muted-foreground">{formatTokens(hoveredTurn.inputTokens)}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-[color:var(--success)]" />
+                <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
                 <span className="text-muted-foreground">{formatTokens(hoveredTurn.outputTokens)}</span>
               </div>
             </div>
@@ -399,11 +399,11 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
           {/* Token legend */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[color:var(--info)]" />
+              <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
               <span className="text-muted-foreground">In</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[color:var(--success)]" />
+              <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
               <span className="text-muted-foreground">Out</span>
             </div>
           </div>
