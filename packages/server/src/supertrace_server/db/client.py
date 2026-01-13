@@ -259,13 +259,20 @@ class Database:
                 # Parse raw_data to get full content
                 raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
 
-                # Get prompt text - try raw_data first, then prompt_text column
+                # Get prompt text - try prompt_text column first, then raw_data
                 prompt_text = row["prompt_text"]
                 if not prompt_text:
-                    # Try to extract from raw_data
+                    # Try to extract from raw_data.message.content
                     msg_content = raw.get("message", {}).get("content")
                     if isinstance(msg_content, str):
                         prompt_text = msg_content
+                    elif isinstance(msg_content, list):
+                        # Content can be a list of blocks (e.g., [{"type": "text", "text": "..."}])
+                        # This happens for system injected prompts, skill expansions, etc.
+                        for block in msg_content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                prompt_text = block.get("text", "")
+                                break
 
                 events.append({
                     "id": row["id"],
