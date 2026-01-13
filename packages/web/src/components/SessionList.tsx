@@ -2,11 +2,13 @@
  * Session list sidebar component.
  *
  * Displays sessions grouped by date with first prompt as identifier.
+ * Includes Import Sessions button for manual JSONL ingestion.
  * Clean, professional design matching QuickCall styling.
  */
 
 import { useState, useMemo } from 'react';
 import type { Session } from '../api/client';
+import { triggerIngest } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
 
 interface SessionListProps {
@@ -14,6 +16,7 @@ interface SessionListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSearch: (query: string) => void;
+  onSessionsImported: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
 }
@@ -75,11 +78,38 @@ export function SessionList({
   selectedId,
   onSelect,
   onSearch,
+  onSessionsImported,
   isDark,
   onToggleTheme,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  const handleImportSessions = async () => {
+    if (isImporting) return;
+
+    setIsImporting(true);
+    setImportStatus('Importing...');
+
+    try {
+      const result = await triggerIngest(50);
+      if (result.imported > 0) {
+        setImportStatus(`Imported ${result.new_sessions} new, ${result.imported} updated`);
+        onSessionsImported();
+      } else {
+        setImportStatus('Already up to date');
+      }
+    } catch (error) {
+      setImportStatus('Import failed');
+      console.error('Import error:', error);
+    } finally {
+      setIsImporting(false);
+      // Clear status after 3 seconds
+      setTimeout(() => setImportStatus(null), 3000);
+    }
+  };
 
   const handleCopyPath = (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
@@ -170,6 +200,36 @@ export function SessionList({
             />
           </div>
         </form>
+
+        {/* Import Sessions Button */}
+        <button
+          onClick={handleImportSessions}
+          disabled={isImporting}
+          className={`
+            mt-3 w-full py-2 px-3 rounded-lg text-sm font-medium transition-all
+            flex items-center justify-center gap-2
+            ${isImporting
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }
+          `}
+        >
+          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'}`}></i>
+          {isImporting ? 'Importing...' : 'Import Sessions'}
+        </button>
+
+        {/* Import Status */}
+        {importStatus && (
+          <div className={`
+            mt-2 text-xs text-center py-1.5 px-2 rounded
+            ${importStatus.includes('failed')
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-primary/10 text-primary'
+            }
+          `}>
+            {importStatus}
+          </div>
+        )}
       </div>
 
       {/* Session List */}

@@ -270,6 +270,7 @@ function App() {
           selectedId={selectedSessionId}
           onSelect={setSelectedSessionId}
           onSearch={handleSearch}
+          onSessionsImported={handleNewSession}
           isDark={isDark}
           onToggleTheme={toggleTheme}
         />
@@ -358,6 +359,7 @@ function App() {
         selectedId={selectedSessionId}
         onSelect={setSelectedSessionId}
         onSearch={handleSearch}
+        onSessionsImported={handleNewSession}
         isDark={isDark}
         onToggleTheme={toggleTheme}
       />

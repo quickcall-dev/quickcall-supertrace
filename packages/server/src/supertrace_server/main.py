@@ -1,26 +1,73 @@
 """
 FastAPI application entry point.
 
-Sets up routes, WebSocket endpoint, CORS, and runs the server.
+Sets up routes, WebSocket endpoint, CORS, background poller, and runs the server.
 Use `supertrace-server` CLI or `uvicorn supertrace_server.main:app`.
 
-Related: routes/ (API endpoints), ws/ (WebSocket), db/ (storage)
+Related: routes/ (API endpoints), ws/ (WebSocket), db/ (storage), ingest/ (session import)
 """
 
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import get_db
-from .routes import events_router, media_router, metrics_router, sessions_router
+from .ingest.poller import polling_loop
+from .routes import (
+    events_router,
+    ingest_router,
+    media_router,
+    metrics_router,
+    sessions_router,
+)
 from .ws import manager
+
+logger = logging.getLogger(__name__)
+
+# Background task reference
+_poller_task: asyncio.Task | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - startup and shutdown."""
+    global _poller_task
+
+    # Startup
+    logger.info("Starting SuperTrace server...")
+    await get_db()
+
+    # Start background poller if enabled
+    enable_poller = os.environ.get("SUPERTRACE_ENABLE_POLLER", "true").lower() == "true"
+    if enable_poller:
+        poll_interval = int(os.environ.get("SUPERTRACE_POLL_INTERVAL", "120"))
+        logger.info(f"Starting session poller (interval: {poll_interval}s)")
+        _poller_task = asyncio.create_task(polling_loop(interval=poll_interval))
+
+    yield
+
+    # Shutdown
+    if _poller_task:
+        logger.info("Stopping session poller...")
+        _poller_task.cancel()
+        try:
+            await _poller_task
+        except asyncio.CancelledError:
+            pass
+
+    logger.info("SuperTrace server stopped")
+
 
 app = FastAPI(
     title="SuperTrace",
     description="Tracing server for AI coding assistant sessions",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS for frontend
@@ -34,15 +81,10 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(events_router)
+app.include_router(ingest_router)
 app.include_router(sessions_router)
 app.include_router(media_router)
 app.include_router(metrics_router)
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize database on startup."""
-    await get_db()
 
 
 @app.get("/")

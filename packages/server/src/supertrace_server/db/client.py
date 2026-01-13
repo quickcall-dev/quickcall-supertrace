@@ -54,11 +54,19 @@ class Database:
         self,
         session_id: str,
         project_path: str | None = None,
-        started_at: datetime | None = None,
-        ended_at: datetime | None = None,
+        started_at: datetime | str | None = None,
+        ended_at: datetime | str | None = None,
         metadata: dict | None = None,
     ) -> None:
         """Insert or update a session."""
+        # Handle both datetime objects and ISO strings
+        started_at_str = (
+            started_at.isoformat() if isinstance(started_at, datetime) else started_at
+        )
+        ended_at_str = (
+            ended_at.isoformat() if isinstance(ended_at, datetime) else ended_at
+        )
+
         await self.conn.execute(
             """
             INSERT INTO sessions (id, project_path, started_at, ended_at, metadata)
@@ -72,8 +80,8 @@ class Database:
             (
                 session_id,
                 project_path,
-                started_at.isoformat() if started_at else None,
-                ended_at.isoformat() if ended_at else None,
+                started_at_str,
+                ended_at_str,
                 json.dumps(metadata) if metadata else None,
             ),
         )
@@ -88,18 +96,18 @@ class Database:
             SELECT
                 s.id, s.project_path, s.started_at, s.ended_at, s.metadata,
                 (
-                    SELECT COALESCE(
-                        json_extract(e.data, '$.prompt'),
-                        json_extract(e.data, '$.tool_input.prompt')
-                    )
-                    FROM events e
-                    WHERE e.session_id = s.id AND e.event_type = 'user_prompt'
-                    ORDER BY e.timestamp ASC
+                    SELECT m.prompt_text
+                    FROM messages m
+                    WHERE m.session_id = s.id
+                      AND m.msg_type = 'user'
+                      AND m.prompt_text IS NOT NULL
+                      AND m.prompt_text NOT LIKE '<%'
+                    ORDER BY m.timestamp ASC
                     LIMIT 1
                 ) as first_prompt
             FROM sessions s
             WHERE EXISTS (
-                SELECT 1 FROM events e WHERE e.session_id = s.id AND e.event_type = 'user_prompt'
+                SELECT 1 FROM messages m WHERE m.session_id = s.id AND m.msg_type = 'user'
             )
             ORDER BY s.started_at DESC
             LIMIT ? OFFSET ?

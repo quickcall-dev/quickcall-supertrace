@@ -143,3 +143,47 @@ export async function getSessionMetrics(
 ): Promise<SessionMetricsResponse> {
   return fetchJson(`${BASE_URL}/metrics/session/${sessionId}?hours_back=${hoursBack}`);
 }
+
+// Ingest API types
+export interface IngestResult {
+  session_id: string;
+  messages_imported: number;
+  is_new: boolean;
+  is_incremental: boolean;
+  error: string | null;
+}
+
+export interface IngestResponse {
+  status: string;
+  imported: number;
+  new_sessions: number;
+  total_messages: number;
+  sessions: IngestResult[];
+}
+
+export interface IngestStatusResponse {
+  tracked_files: number;
+  files: Array<{
+    id: number;
+    file_path: string;
+    session_id: string;
+    file_mtime: number;
+    file_size: number;
+    last_line_number: number;
+    status: string;
+  }>;
+}
+
+export async function triggerIngest(limit = 50): Promise<IngestResponse> {
+  const response = await fetch(`${BASE_URL}/ingest?limit=${limit}`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function getIngestStatus(): Promise<IngestStatusResponse> {
+  return fetchJson(`${BASE_URL}/ingest/status`);
+}
