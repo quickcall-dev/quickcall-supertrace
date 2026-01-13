@@ -33,3 +33,9 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[dependency-groups]
+dev = [
+    "pandas>=2.3.3",
+    "pytest>=9.0.2",
+]

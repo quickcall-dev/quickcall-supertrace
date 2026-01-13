@@ -71,8 +71,11 @@ async def get_session_metrics(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get all events for metric computation
-    events = await db.get_events(session_id, limit=10000)
+    # Get events for metric computation
+    # Try messages table first (new ingestion), fall back to events (legacy hooks)
+    events = await db.get_messages_as_events(session_id, limit=10000)
+    if not events:
+        events = await db.get_events(session_id, limit=10000)
 
     # Filter by time if requested
     if hours_back is not None and hours_back > 0:

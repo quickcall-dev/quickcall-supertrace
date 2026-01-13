@@ -105,7 +105,7 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
         if event_type == "user_prompt":
             result.user_prompts.append(event)
             # Check for user interrupt - "[Request interrupted by user]"
-            prompt = data.get("prompt", "")
+            prompt = data.get("prompt") or ""
             if "[Request interrupted by user]" in prompt:
                 result.user_interrupts += 1
             # Count images from imagePasteIds
@@ -126,14 +126,15 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
             if token_usage := data.get("token_usage"):
                 result.token_usages.append(token_usage)
                 # Aggregate tokens
-                result.total_input_tokens += token_usage.get("input_tokens", 0)
+                # NOTE: input_tokens from API can be 0 when all context is cached
+                # Total context = input_tokens + cache_read + cache_creation
+                input_tok = token_usage.get("input_tokens", 0)
+                cache_read = token_usage.get("cache_read_input_tokens", 0)
+                cache_create = token_usage.get("cache_creation_input_tokens", 0)
+                result.total_input_tokens += input_tok + cache_read + cache_create
                 result.total_output_tokens += token_usage.get("output_tokens", 0)
-                result.total_cache_read_tokens += token_usage.get(
-                    "cache_read_input_tokens", 0
-                )
-                result.total_cache_creation_tokens += token_usage.get(
-                    "cache_creation_input_tokens", 0
-                )
+                result.total_cache_read_tokens += cache_read
+                result.total_cache_creation_tokens += cache_create
 
         elif event_type == "tool_use":
             result.tool_uses.append(event)

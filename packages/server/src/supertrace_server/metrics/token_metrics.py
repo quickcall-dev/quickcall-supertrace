@@ -31,9 +31,19 @@ CACHE_WRITE_COST_PER_M = 3.75
     mini_bar_order=0,
 )
 def calc_estimated_cost(events: list[dict], pre: PreprocessedEvents = None) -> float:
-    """Estimated USD cost based on Claude pricing."""
+    """
+    Estimated USD cost based on Claude pricing.
+
+    TOKEN STRUCTURE FROM ANTHROPIC API:
+    - input_tokens: Can be 0 when all context is cached
+    - cache_read_input_tokens: Tokens read from cache (cheaper)
+    - cache_creation_input_tokens: Tokens used to create cache (1.25x input cost)
+    - Total context = input_tokens + cache_read + cache_create
+    - Billable input = total context - cache tokens (the non-cached portion)
+    """
     if pre:
-        input_tokens = pre.total_input_tokens
+        # pre.total_input_tokens already includes cache tokens (total context)
+        total_context = pre.total_input_tokens
         output_tokens = pre.total_output_tokens
         cache_read = pre.total_cache_read_tokens
         cache_create = pre.total_cache_creation_tokens
@@ -44,12 +54,15 @@ def calc_estimated_cost(events: list[dict], pre: PreprocessedEvents = None) -> f
             for e in events
             if e.get("event_type") == "assistant_stop"
         ]
-        input_tokens = sum(u.get("input_tokens", 0) for u in usages)
-        output_tokens = sum(u.get("output_tokens", 0) for u in usages)
+        # Total context = input + cache_read + cache_create
+        raw_input = sum(u.get("input_tokens", 0) for u in usages)
         cache_read = sum(u.get("cache_read_input_tokens", 0) for u in usages)
         cache_create = sum(u.get("cache_creation_input_tokens", 0) for u in usages)
+        total_context = raw_input + cache_read + cache_create
+        output_tokens = sum(u.get("output_tokens", 0) for u in usages)
 
-    billable_input = max(0, input_tokens - cache_read - cache_create)
+    # Billable input = non-cached tokens (total context minus cached portions)
+    billable_input = max(0, total_context - cache_read - cache_create)
 
     cost = (
         (billable_input / 1_000_000) * INPUT_COST_PER_M
@@ -71,9 +84,10 @@ def calc_estimated_cost(events: list[dict], pre: PreprocessedEvents = None) -> f
     order=1,
 )
 def calc_input_cost(events: list[dict], pre: PreprocessedEvents = None) -> float:
-    """Cost for input tokens only."""
+    """Cost for input tokens only (context sent to model)."""
     if pre:
-        input_tokens = pre.total_input_tokens
+        # pre.total_input_tokens already includes cache tokens (total context)
+        total_context = pre.total_input_tokens
         cache_read = pre.total_cache_read_tokens
         cache_create = pre.total_cache_creation_tokens
     else:
@@ -82,11 +96,12 @@ def calc_input_cost(events: list[dict], pre: PreprocessedEvents = None) -> float
             for e in events
             if e.get("event_type") == "assistant_stop"
         ]
-        input_tokens = sum(u.get("input_tokens", 0) for u in usages)
+        raw_input = sum(u.get("input_tokens", 0) for u in usages)
         cache_read = sum(u.get("cache_read_input_tokens", 0) for u in usages)
         cache_create = sum(u.get("cache_creation_input_tokens", 0) for u in usages)
+        total_context = raw_input + cache_read + cache_create
 
-    billable_input = max(0, input_tokens - cache_read - cache_create)
+    billable_input = max(0, total_context - cache_read - cache_create)
 
     cost = (
         (billable_input / 1_000_000) * INPUT_COST_PER_M

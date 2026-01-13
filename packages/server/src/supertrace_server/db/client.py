@@ -202,6 +202,87 @@ class Database:
             for row in rows
         ]
 
+    async def get_messages_as_events(
+        self, session_id: str, limit: int = 10000
+    ) -> list[dict[str, Any]]:
+        """
+        Get messages for a session, converted to event format for metrics.
+
+        This bridges the new messages table to the existing metrics system.
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
+                   prompt_text, image_count, thinking_level, thinking_enabled,
+                   model, input_tokens, output_tokens, cache_read_tokens,
+                   cache_create_tokens, stop_reason, tool_use_count, tool_names
+            FROM messages
+            WHERE session_id = ?
+            ORDER BY timestamp ASC
+            LIMIT ?
+            """,
+            (session_id, limit),
+        )
+        rows = await cursor.fetchall()
+
+        events = []
+        for row in rows:
+            msg_type = row["msg_type"]
+
+            # Convert message types to event types
+            if msg_type == "user":
+                # Parse raw_data to get full content
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                events.append({
+                    "id": row["id"],
+                    "session_id": row["session_id"],
+                    "event_type": "user_prompt",
+                    "timestamp": row["timestamp"],
+                    "data": {
+                        "prompt": row["prompt_text"],
+                        "imagePasteIds": raw.get("imagePasteIds", []),
+                        "thinkingMetadata": raw.get("thinkingMetadata", {}),
+                    },
+                })
+            elif msg_type == "assistant":
+                # Convert to assistant_stop with token usage
+                events.append({
+                    "id": row["id"],
+                    "session_id": row["session_id"],
+                    "event_type": "assistant_stop",
+                    "timestamp": row["timestamp"],
+                    "data": {
+                        "model": row["model"],
+                        "stop_reason": row["stop_reason"],
+                        "token_usage": {
+                            "input_tokens": row["input_tokens"] or 0,
+                            "output_tokens": row["output_tokens"] or 0,
+                            "cache_read_input_tokens": row["cache_read_tokens"] or 0,
+                            "cache_creation_input_tokens": row["cache_create_tokens"] or 0,
+                        },
+                    },
+                })
+                # Also add tool_use events for each tool used
+                tool_names = json.loads(row["tool_names"]) if row["tool_names"] else []
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                content = raw.get("message", {}).get("content", [])
+
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "tool_use":
+                        events.append({
+                            "id": row["id"],
+                            "session_id": row["session_id"],
+                            "event_type": "tool_use",
+                            "timestamp": row["timestamp"],
+                            "data": {
+                                "tool_name": item.get("name", "unknown"),
+                                "tool_input": item.get("input", {}),
+                                "tool_result": {},  # Results come in user messages
+                            },
+                        })
+
+        return events
+
     # =====================
     # Search operations
     # =====================
