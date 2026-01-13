@@ -147,17 +147,27 @@ function App() {
       setIsLoading(true);
       setMetricsLoading(true);
 
-      // Start both requests simultaneously - load only last 30 events initially
+      // First, get session to check if it's old
       const sessionPromise = getSession(selectedSessionId, 30);
-      const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
 
-      // Handle session data
+      // Handle session data first to determine time filter
+      let effectiveHoursBack = metricsHoursBack;
       try {
         const data = await sessionPromise;
         if (!cancelled) {
           setSelectedSession(data.session);
           setEvents(data.events);
           setTotalEvents(data.total_events || data.events.length);
+
+          // Auto-set to "All" for older sessions (started > 2 hours ago)
+          if (data.session?.started_at) {
+            const sessionStart = new Date(data.session.started_at);
+            const hoursAgo = (Date.now() - sessionStart.getTime()) / (1000 * 60 * 60);
+            if (hoursAgo > 2) {
+              effectiveHoursBack = 0; // "All"
+              setMetricsHoursBack(0);
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load session:', error);
@@ -171,6 +181,9 @@ function App() {
           setIsLoading(false);
         }
       }
+
+      // Now load metrics with the correct time filter
+      const metricsPromise = getSessionMetrics(selectedSessionId, effectiveHoursBack);
 
       // Handle metrics data
       try {
