@@ -168,48 +168,35 @@ def calc_lines_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> i
 
 
 @metric(
-    name="images_per_hour",
+    name="images_sent",
     category=MetricCategory.INTERACTION,
-    label="Images/Hour",
-    description="Visual context shared per hour",
+    label="Images",
+    description="Total images shared in this session",
     icon="ri-image-line",
     order=6,
 )
-def calc_images_per_hour(events: list[dict], pre: PreprocessedEvents = None) -> float:
+def calc_images_sent(events: list[dict], pre: PreprocessedEvents = None) -> int:
     """
-    Images shared per hour - indicates visual communication.
+    Total images shared - indicates visual communication.
 
     HOW IMAGES ARE COUNTED:
     Claude Code stores imagePasteIds as an array like [1, 2, 3] where each number
     is a paste ID. We count len(imagePasteIds) to get the number of images per prompt.
     The actual values in the array are IDs, not counts - we count the array LENGTH.
-
-    WHY RAW COUNT BEFORE 1 HOUR:
-    Same reasoning as lines_per_hour - extrapolating from short sessions is misleading.
-    Show raw count until a full hour passes.
     """
-    from .timing_metrics import calc_session_duration
-
     if pre:
-        images = pre.images_sent
-    else:
-        images = 0
-        for e in events:
-            if e.get("event_type") == "user_prompt":
-                data = e.get("data") or {}
-                # imagePasteIds is an array of paste IDs like [1, 2, 3]
-                # len() gives us the count of images, NOT the sum of IDs
-                image_paste_ids = data.get("imagePasteIds") or []
-                images += len(image_paste_ids)
+        return pre.images_sent
 
-    duration_seconds = calc_session_duration(events, pre)
-    # Only extrapolate per-hour after a full hour has passed
-    # Before that, show raw count - extrapolation from short sessions is misleading
-    if duration_seconds is None or duration_seconds < 3600:
-        return float(images)  # Less than an hour, just return raw count
+    images = 0
+    for e in events:
+        if e.get("event_type") == "user_prompt":
+            data = e.get("data") or {}
+            # imagePasteIds is an array of paste IDs like [1, 2, 3]
+            # len() gives us the count of images, NOT the sum of IDs
+            image_paste_ids = data.get("imagePasteIds") or []
+            images += len(image_paste_ids)
 
-    hours = duration_seconds / 3600
-    return round(images / hours, 1)
+    return images
 
 
 @metric(
