@@ -53,6 +53,7 @@ def _slim_event(event: dict) -> dict:
         slim["data"] = {
             "prompt": prompt,
             "images": images or [],
+            "promptIndex": data.get("promptIndex"),  # Preserve prompt number for display
         }
     # For assistant_stop, need to keep transcript for display but slim it down
     elif event_type == "assistant_stop":
@@ -157,8 +158,22 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get total count first
-    all_events = await db.get_events(session_id, limit=10000)
+    # =========================================================================
+    # CRITICAL: Must use get_messages_as_events for sessions with ingested data
+    # =========================================================================
+    # This ensures event IDs match between session viewer and metrics/charts.
+    # If IDs don't match, clicking on a chart prompt won't scroll to the right
+    # message in the session viewer.
+    #
+    # get_messages_as_events also handles:
+    # - Skipping empty assistant messages (tool-only responses)
+    # - Extracting text content for assistant message display
+    # - Filtering out tool_result user messages (not real prompts)
+    # =========================================================================
+    all_events = await db.get_messages_as_events(session_id, limit=10000)
+    if not all_events:
+        all_events = await db.get_events(session_id, limit=10000)
+
     total_events = len(all_events)
 
     # Limit events for initial load (get most recent)
@@ -196,8 +211,10 @@ async def get_session_events(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get all events first, then filter - needed for before_id to work correctly
-    all_events = await db.get_events(session_id, limit=10000)
+    # CRITICAL: Must use get_messages_as_events - see get_session for details
+    all_events = await db.get_messages_as_events(session_id, limit=10000)
+    if not all_events:
+        all_events = await db.get_events(session_id, limit=10000)
 
     # Filter to events before the given ID (for loading older events)
     if before_id is not None:

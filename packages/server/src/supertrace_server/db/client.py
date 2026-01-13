@@ -206,16 +206,31 @@ class Database:
         self, session_id: str, limit: int = 10000
     ) -> list[dict[str, Any]]:
         """
-        Get messages for a session, converted to event format for metrics.
+        Get messages for a session, converted to event format for metrics AND display.
 
-        This bridges the new messages table to the existing metrics system.
+        ╔══════════════════════════════════════════════════════════════════════════════╗
+        ║ WARNING: This function is CRITICAL for both metrics AND session display!    ║
+        ║                                                                              ║
+        ║ The events returned here are used by:                                        ║
+        ║   1. routes/sessions.py - SessionView display in frontend                    ║
+        ║   2. routes/metrics.py - Metrics calculation and charts                      ║
+        ║                                                                              ║
+        ║ CRITICAL RULES:                                                              ║
+        ║   - Tool result messages (is_tool_result=1) must be SKIPPED for user_prompt  ║
+        ║   - Assistant messages with ONLY tool_use blocks must NOT emit assistant_stop║
+        ║   - Assistant messages with text content MUST include 'message' in data      ║
+        ║   - Event IDs must match between session view and metrics (for scroll-to)    ║
+        ║                                                                              ║
+        ║ If you break this, the UI will show empty "Assistant response" bubbles!     ║
+        ╚══════════════════════════════════════════════════════════════════════════════╝
         """
         cursor = await self.conn.execute(
             """
             SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
                    prompt_text, image_count, thinking_level, thinking_enabled,
                    model, input_tokens, output_tokens, cache_read_tokens,
-                   cache_create_tokens, stop_reason, tool_use_count, tool_names
+                   cache_create_tokens, stop_reason, tool_use_count, tool_names,
+                   is_tool_result
             FROM messages
             WHERE session_id = ?
             ORDER BY timestamp ASC
@@ -226,58 +241,103 @@ class Database:
         rows = await cursor.fetchall()
 
         events = []
+        prompt_index = 0  # Track actual prompt number across all messages
+
         for row in rows:
             msg_type = row["msg_type"]
 
             # Convert message types to event types
             if msg_type == "user":
+                # Skip tool_result messages - they're NOT separate prompts
+                # They're part of the assistant's tool execution flow
+                if row["is_tool_result"]:
+                    continue
+
+                # This is a real user prompt - increment counter
+                prompt_index += 1
+
                 # Parse raw_data to get full content
                 raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+
+                # Get prompt text - try raw_data first, then prompt_text column
+                prompt_text = row["prompt_text"]
+                if not prompt_text:
+                    # Try to extract from raw_data
+                    msg_content = raw.get("message", {}).get("content")
+                    if isinstance(msg_content, str):
+                        prompt_text = msg_content
+
                 events.append({
                     "id": row["id"],
                     "session_id": row["session_id"],
                     "event_type": "user_prompt",
                     "timestamp": row["timestamp"],
                     "data": {
-                        "prompt": row["prompt_text"],
+                        "prompt": prompt_text or "",
+                        "promptIndex": prompt_index,  # Backend provides true index
                         "imagePasteIds": raw.get("imagePasteIds", []),
                         "thinkingMetadata": raw.get("thinkingMetadata", {}),
                     },
                 })
             elif msg_type == "assistant":
-                # Convert to assistant_stop with token usage
-                events.append({
-                    "id": row["id"],
-                    "session_id": row["session_id"],
-                    "event_type": "assistant_stop",
-                    "timestamp": row["timestamp"],
-                    "data": {
-                        "model": row["model"],
-                        "stop_reason": row["stop_reason"],
-                        "token_usage": {
-                            "input_tokens": row["input_tokens"] or 0,
-                            "output_tokens": row["output_tokens"] or 0,
-                            "cache_read_input_tokens": row["cache_read_tokens"] or 0,
-                            "cache_creation_input_tokens": row["cache_create_tokens"] or 0,
-                        },
-                    },
-                })
-                # Also add tool_use events for each tool used
-                tool_names = json.loads(row["tool_names"]) if row["tool_names"] else []
+                # =========================================================================
+                # CRITICAL: Assistant message to event conversion
+                # =========================================================================
+                # Assistant messages contain content blocks that can be:
+                # - "text" blocks: actual response text to display
+                # - "tool_use" blocks: tool calls (rendered separately as ToolGroup)
+                #
+                # IMPORTANT: Only emit assistant_stop event if there's text content.
+                # Messages with ONLY tool_use blocks should NOT show an empty
+                # "Assistant response" bubble - they should only show the ToolGroup.
+                # =========================================================================
                 raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
-                content = raw.get("message", {}).get("content", [])
+                message_obj = raw.get("message", {})
+                content_blocks = message_obj.get("content", [])
 
-                for item in content:
-                    if isinstance(item, dict) and item.get("type") == "tool_use":
+                # Extract text content for display
+                text_content = ""
+                has_tool_use = False
+                for block in content_blocks:
+                    if isinstance(block, dict):
+                        if block.get("type") == "text":
+                            text_content = block.get("text", "")
+                        elif block.get("type") == "tool_use":
+                            has_tool_use = True
+
+                # Only emit assistant_stop if there's actual text content to display
+                # Skip empty assistant bubbles that only contain tool calls
+                if text_content.strip():
+                    events.append({
+                        "id": row["id"],
+                        "session_id": row["session_id"],
+                        "event_type": "assistant_stop",
+                        "timestamp": row["timestamp"],
+                        "data": {
+                            "model": row["model"],
+                            "stop_reason": row["stop_reason"],
+                            "message": text_content,
+                            "token_usage": {
+                                "input_tokens": row["input_tokens"] or 0,
+                                "output_tokens": row["output_tokens"] or 0,
+                                "cache_read_input_tokens": row["cache_read_tokens"] or 0,
+                                "cache_creation_input_tokens": row["cache_create_tokens"] or 0,
+                            },
+                        },
+                    })
+
+                # Add tool_use events for each tool used
+                for block in content_blocks:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
                         events.append({
                             "id": row["id"],
                             "session_id": row["session_id"],
                             "event_type": "tool_use",
                             "timestamp": row["timestamp"],
                             "data": {
-                                "tool_name": item.get("name", "unknown"),
-                                "tool_input": item.get("input", {}),
-                                "tool_result": {},  # Results come in user messages
+                                "tool_name": block.get("name", "unknown"),
+                                "tool_input": block.get("input", {}),
+                                "tool_result": {},
                             },
                         })
 

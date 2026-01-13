@@ -20,6 +20,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
   const renderUserPrompt = () => {
     const prompt = event.data?.prompt as string;
+    const promptIndex = event.data?.promptIndex as number | undefined;
     const images = event.data?.images as Array<{
       id?: string;
       url?: string;
@@ -33,7 +34,13 @@ export function MessageBubble({ event }: MessageBubbleProps) {
       : prompt?.slice(0, MAX_COLLAPSED_LENGTH);
 
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end items-start gap-2">
+        {/* Prompt number badge - from backend to ensure correct numbering */}
+        {promptIndex && (
+          <div className="shrink-0 w-6 h-6 mt-3 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-semibold" title={`Prompt ${promptIndex}`}>
+            {promptIndex}
+          </div>
+        )}
         <div className="max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
           {/* Render images if present */}
           {images && images.length > 0 && (
