@@ -1,14 +1,16 @@
 # Installation
 
-Complete guide to installing SuperTrace and its dependencies.
+Install SuperTrace server and frontend.
 
 ## Prerequisites
 
-- **Python 3.10+** - For hooks and server
-- **Node.js 18+** - For frontend
-- **[uv](https://github.com/astral-sh/uv)** - Python package manager
+| Requirement | Version | Check |
+|-------------|---------|-------|
+| Python | 3.10+ | `python --version` |
+| Node.js | 18+ | `node --version` |
+| uv | latest | `uv --version` |
 
-### Installing uv
+### Install uv (if needed)
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -16,102 +18,59 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Installation Steps
 
-### 1. Clone the Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/quickcall-dev/quickcall-supertrace.git
 cd quickcall-supertrace
 ```
 
-### 2. Install Python Packages
+### 2. Install Server
 
 ```bash
-# Install hooks package
-cd packages/hooks
-uv sync
-
-# Install server package
-cd ../server
+cd packages/server
 uv sync
 ```
 
-### 3. Install Frontend Dependencies
+### 3. Install Frontend
 
 ```bash
 cd ../web
 npm install
 ```
 
-### 4. Configure Claude Code Hooks
-
-Add the following to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace prompt"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace stop"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-start"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-end"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Important:** Replace `/path/to/quickcall-supertrace` with your actual installation path.
-
 ## Verify Installation
 
 ```bash
-# Test the server
+# Start server (from packages/server/)
 cd packages/server
-uv run supertrace-server &
+uv run supertrace-server
 
-# Check health endpoint
+# In another terminal, check health
 curl http://localhost:3456/api/health
-# Should return: {"status":"healthy"}
+# Expected: {"status":"healthy"}
 ```
+
+## Directory Structure After Install
+
+```
+quickcall-supertrace/
+├── packages/
+│   ├── server/          # FastAPI backend
+│   │   └── .venv/       # Python virtual environment
+│   └── web/             # React frontend
+│       └── node_modules/
+└── docs/
+```
+
+## Data Locations
+
+| Path | Purpose |
+|------|---------|
+| `~/.supertrace/data.db` | SQLite database (created on first run) |
+| `~/.supertrace/media/` | Stored images |
+| `~/.claude/projects/` | Claude Code JSONL files (read-only) |
 
 ## Next Steps
 
-- [Quick Start](quickstart.md) - Run SuperTrace and view your first session
-- [Configure Hooks](../guides/configure-hooks.md) - Customize hook behavior
+- [Quick Start](quickstart.md) - Run SuperTrace and view sessions

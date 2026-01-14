@@ -114,10 +114,14 @@ def calc_prompt_turns(events: list[dict]) -> dict:
     prompt_index = 0
 
     total_input = 0
+    total_input_no_cache = 0
+    total_cache_read = 0
+    total_cache_create = 0
     total_output = 0
     total_tools = 0
     total_commits = 0
     max_tokens = 0
+    max_tokens_no_cache = 0
     max_tools = 0
     max_duration = 0
 
@@ -147,7 +151,10 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                 "promptIndex": actual_prompt_index,
                 "promptEventId": event.get("id"),
                 "responseEventId": event.get("id"),
-                "inputTokens": 0,
+                "inputTokens": 0,        # Total context (input + cache_read + cache_create)
+                "inputTokensNoCache": 0, # Just input_tokens (new tokens, not from cache)
+                "cacheReadTokens": 0,    # Tokens read from cache
+                "cacheCreateTokens": 0,  # Tokens written to cache
                 "outputTokens": 0,
                 "tools": [],
                 "totalTools": 0,
@@ -193,11 +200,18 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                     end_time = parse_timestamp(e.get("timestamp"))
                     token_usage = e.get("data", {}).get("token_usage", {})
                     if token_usage:
-                        # Total context = input + cache_read + cache_create
+                        # Extract all token values
                         input_tok = token_usage.get("input_tokens", 0)
                         cache_read = token_usage.get("cache_read_input_tokens", 0)
                         cache_create = token_usage.get("cache_creation_input_tokens", 0)
+
+                        # Total context = input + cache_read + cache_create
                         turn["inputTokens"] = input_tok + cache_read + cache_create
+                        # Individual components for toggle
+                        turn["inputTokensNoCache"] = input_tok
+                        turn["cacheReadTokens"] = cache_read
+                        turn["cacheCreateTokens"] = cache_create
+
                         # Sum output tokens from all assistant_stops in this turn
                         total_output_tokens += token_usage.get("output_tokens", 0)
 
@@ -227,9 +241,13 @@ def calc_prompt_turns(events: list[dict]) -> dict:
 
             # Update totals and maxes
             total_input += turn["inputTokens"]
+            total_input_no_cache += turn["inputTokensNoCache"]
+            total_cache_read += turn["cacheReadTokens"]
+            total_cache_create += turn["cacheCreateTokens"]
             total_output += turn["outputTokens"]
             total_tools += turn["totalTools"]
             max_tokens = max(max_tokens, turn["inputTokens"], turn["outputTokens"])
+            max_tokens_no_cache = max(max_tokens_no_cache, turn["inputTokensNoCache"], turn["outputTokens"])
             max_tools = max(max_tools, turn["totalTools"])
 
             turns.append(turn)
@@ -253,10 +271,14 @@ def calc_prompt_turns(events: list[dict]) -> dict:
     return {
         "turns": turns,
         "maxTokens": max_tokens,
+        "maxTokensNoCache": max_tokens_no_cache,
         "maxTools": max_tools,
         "maxDuration": round(max_duration, 1) if max_duration else 0,
         "totals": {
             "inputTokens": total_input,
+            "inputTokensNoCache": total_input_no_cache,
+            "cacheReadTokens": total_cache_read,
+            "cacheCreateTokens": total_cache_create,
             "outputTokens": total_output,
             "tools": total_tools,
             "commits": total_commits,

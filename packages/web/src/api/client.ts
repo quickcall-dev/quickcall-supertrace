@@ -38,7 +38,10 @@ export interface PromptTurn {
   promptIndex: number;
   promptEventId: number;
   responseEventId: number;
-  inputTokens: number;
+  inputTokens: number;        // Total context (input + cache_read + cache_create)
+  inputTokensNoCache: number; // Just new tokens (not from cache)
+  cacheReadTokens: number;    // Tokens read from cache
+  cacheCreateTokens: number;  // Tokens written to cache
   outputTokens: number;
   tools: Array<{ name: string; count: number; color: string }>;
   totalTools: number;
@@ -51,10 +54,14 @@ export interface PromptTurn {
 export interface PromptTurnsData {
   turns: PromptTurn[];
   maxTokens: number;
+  maxTokensNoCache: number;
   maxTools: number;
   maxDuration: number;
   totals: {
     inputTokens: number;
+    inputTokensNoCache: number;
+    cacheReadTokens: number;
+    cacheCreateTokens: number;
     outputTokens: number;
     tools: number;
     commits: number;

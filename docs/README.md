@@ -1,47 +1,72 @@
 # SuperTrace Documentation
 
-Documentation for SuperTrace - a monitoring and observability tool for AI coding assistant sessions.
+> Session monitoring and analytics dashboard for Claude Code
+
+SuperTrace automatically captures Claude Code sessions from JSONL transcript files and provides real-time analytics including token usage, costs, tool metrics, and timing analysis.
+
+## Quick Reference
+
+| What | Where |
+|------|-------|
+| Server | `packages/server/` - FastAPI backend |
+| Frontend | `packages/web/` - React dashboard |
+| Database | `~/.supertrace/data.db` (SQLite) |
+| Source data | `~/.claude/projects/*/*.jsonl` |
+| Default ports | Server: 3456, Frontend: 5173 |
 
 ## Documentation Structure
 
-This documentation follows the [Diátaxis framework](https://diataxis.fr/), organizing content into four categories based on user needs:
+```
+docs/
+├── getting-started/     # Setup and first run
+│   ├── installation.md  # Prerequisites and install steps
+│   └── quickstart.md    # 5-minute guide to first session
+├── concepts/            # How things work
+│   └── architecture.md  # System design and data flow
+├── guides/              # Task-oriented how-tos
+│   ├── export-sessions.md
+│   ├── token-usage.md
+│   └── file-suggestion.md
+└── reference/           # Technical specifications
+    ├── api.md           # REST API endpoints
+    └── configuration.md # Environment variables and schema
+```
 
-| Folder | Type | Purpose |
-|--------|------|---------|
-| `getting-started/` | Tutorials | Step-by-step guides for new users |
-| `guides/` | How-to | Task-oriented instructions for specific goals |
-| `reference/` | Reference | Technical specifications and API details |
-| `concepts/` | Explanation | Background knowledge and architecture |
+## Start Here
 
-## Quick Links
+1. **[Installation](getting-started/installation.md)** - Install server and frontend
+2. **[Quick Start](getting-started/quickstart.md)** - View your first session
+3. **[Architecture](concepts/architecture.md)** - Understand data flow
 
-### Getting Started
-- [Installation](getting-started/installation.md) - Set up SuperTrace
-- [Quick Start](getting-started/quickstart.md) - Get running in 5 minutes
+## Key Features
 
-### How-to Guides
-- [Configure Hooks](guides/configure-hooks.md) - Set up Claude Code hooks
-- [Export Sessions](guides/export-sessions.md) - Export data to JSON/Markdown
-- [Token Usage Tracking](guides/token-usage.md) - Monitor token consumption and costs
-- [Optimize File Suggestions](guides/file-suggestion.md) - Speed up `@` file autocomplete
+- **Zero configuration** - Reads existing Claude Code JSONL files automatically
+- **Real-time updates** - WebSocket-based live session monitoring
+- **Rich analytics** - Token costs, tool usage, timing metrics, charts
+- **Session export** - JSON and Markdown formats
+- **Full-text search** - Search across all session content
 
-### Reference
-- [API Reference](reference/api.md) - REST API endpoints
-- [Hook Events](reference/hook-events.md) - Available hook types and data
-- [Configuration](reference/configuration.md) - Environment variables
+## How It Works
 
-### Concepts
-- [Architecture](concepts/architecture.md) - System design overview
-- [How Hooks Work](concepts/how-hooks-work.md) - Understanding the capture mechanism
+```
+~/.claude/projects/*.jsonl  →  Poller (2min)  →  SQLite  →  REST API  →  React UI
+                                    ↓
+                               WebSocket broadcast
+```
 
-## Contributing to Docs
+SuperTrace polls Claude Code's transcript files, parses messages, computes metrics, and serves them via REST API with real-time WebSocket updates.
 
-When adding documentation:
+## For LLMs
 
-1. **Choose the right category** - Is it a tutorial, how-to, reference, or explanation?
-2. **One topic per page** - Keep documents focused
-3. **Use clear headings** - Enable scanning and navigation
-4. **Include examples** - Show, don't just tell
-5. **Link related docs** - Help users navigate
+When helping users with SuperTrace:
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for more details.
+- **No hooks required** - The system reads JSONL files directly, no Claude Code configuration needed
+- **Sessions appear automatically** - After ~2 minutes of Claude Code activity
+- **Manual import available** - Click "Import Sessions" in UI or `POST /api/ingest`
+- **Database location** - `~/.supertrace/data.db` (SQLite with WAL mode)
+- **Logs** - Server outputs to stdout, check terminal running `supertrace-server`
+
+Common troubleshooting:
+- Sessions not appearing → Check if `~/.claude/projects/` has JSONL files
+- Empty metrics → Session may be too new, wait for assistant responses
+- Port conflict → Change with `SUPERTRACE_PORT=8080`

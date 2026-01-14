@@ -1,92 +1,117 @@
 # Quick Start
 
-Get SuperTrace running and view your first captured session in 5 minutes.
+Get SuperTrace running in 5 minutes.
 
 ## Prerequisites
 
-Complete the [Installation](installation.md) steps first.
+Complete [Installation](installation.md) first.
 
-## Start the Services
+## Start Services
 
-You need two terminal windows (or use tmux):
+Open two terminals:
 
-### Terminal 1: Start the Server
+### Terminal 1: Server
 
 ```bash
 cd quickcall-supertrace/packages/server
 uv run supertrace-server
 ```
 
-You should see:
+Output:
 ```
 INFO:     Uvicorn running on http://127.0.0.1:3456
+INFO:     Poller started (interval: 120s)
 ```
 
-### Terminal 2: Start the Frontend
+### Terminal 2: Frontend
 
 ```bash
 cd quickcall-supertrace/packages/web
 npm run dev
 ```
 
-You should see:
+Output:
 ```
 VITE ready in 500ms
 ➜  Local:   http://localhost:5173/
 ```
 
+## View Dashboard
+
+1. Open http://localhost:5173
+2. Sessions appear automatically from `~/.claude/projects/`
+
+### Dashboard Layout
+
+```
+┌──────────────┬──────────────────┬────────────────────────┐
+│  Sessions    │    Analytics     │    Conversation        │
+│  (sidebar)   │    (center)      │    (right panel)       │
+│              │                  │                        │
+│  - Session 1 │  Cost: $0.45     │  User: Hello...        │
+│  - Session 2 │  Files: 12       │  Assistant: I'll...    │
+│  - Session 3 │  Tools: 47       │  [Tool: Read]          │
+│              │                  │  [Tool: Edit]          │
+└──────────────┴──────────────────┴────────────────────────┘
+```
+
+## Import Sessions Manually
+
+Sessions auto-import every 2 minutes. To import immediately:
+
+- **UI**: Click "Import Sessions" button in sidebar
+- **API**: `curl -X POST http://localhost:3456/api/ingest`
+
 ## Using tmux (Optional)
 
-For convenience, you can run both in tmux sessions:
+Run both services in background:
 
 ```bash
-# Start server in background
+# Start server
 tmux new-session -d -s supertrace-server \
   "cd packages/server && uv run supertrace-server"
 
-# Start frontend in background
+# Start frontend
 tmux new-session -d -s supertrace-web \
   "cd packages/web && npm run dev"
 
 # View logs
 tmux attach -t supertrace-server  # Ctrl+B, D to detach
-tmux attach -t supertrace-web
 
 # Stop services
 tmux kill-session -t supertrace-server
 tmux kill-session -t supertrace-web
 ```
 
-## View the Dashboard
-
-1. Open http://localhost:5173 in your browser
-2. You'll see an empty session list (left panel)
-
-## Capture Your First Session
-
-1. **Restart Claude Code** - New sessions are needed to pick up hook changes
-2. **Send a message** to Claude Code
-3. **Refresh the dashboard** - Your session should appear
-
-The dashboard shows:
-- **Left panel**: List of sessions with project name and timestamp
-- **Right panel**: Conversation view with user messages (blue) and assistant responses (gray)
-
 ## Troubleshooting
 
-### No sessions appearing?
+### No sessions appearing
 
-1. Check the server is running: `curl http://localhost:3456/api/health`
-2. Verify hooks are configured: `cat ~/.claude/settings.json | grep supertrace`
-3. Restart Claude Code after adding hooks
+1. Check Claude Code has JSONL files:
+   ```bash
+   ls ~/.claude/projects/
+   ```
+2. Trigger manual import:
+   ```bash
+   curl -X POST http://localhost:3456/api/ingest
+   ```
+3. Check server logs for errors
 
-### Sessions appear but messages are empty?
+### Sessions appear but no events
 
-This was a known issue. Make sure you have the latest code:
+Session may only have metadata. Use Claude Code to generate some activity, then reimport.
+
+### Port already in use
+
 ```bash
-git pull
-cd packages/hooks && uv sync
+SUPERTRACE_PORT=8080 uv run supertrace-server
 ```
+
+Update frontend proxy in `packages/web/vite.config.ts` to match.
+
+### WebSocket not connecting
+
+Check browser console for errors. Ensure both server and frontend are running.
 
 ## Next Steps
 

@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Environment variables and configuration options for SuperTrace.
+Environment variables and file locations for SuperTrace.
 
 ## Environment Variables
 
@@ -8,90 +8,52 @@ Environment variables and configuration options for SuperTrace.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SUPERTRACE_PORT` | `3456` | Port for the HTTP/WebSocket server |
-| `SUPERTRACE_HOST` | `127.0.0.1` | Host to bind to |
+| `SUPERTRACE_PORT` | `3456` | HTTP/WebSocket server port |
+| `SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
+| `SUPERTRACE_ENABLE_POLLER` | `true` | Enable background JSONL polling |
+| `SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
+| `SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage directory |
 
-**Example:**
+**Examples:**
+
 ```bash
+# Change server port
 SUPERTRACE_PORT=8080 uv run supertrace-server
-```
 
-### Hooks
+# Disable background poller (manual import only)
+SUPERTRACE_ENABLE_POLLER=false uv run supertrace-server
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SUPERTRACE_URL` | `http://localhost:3456` | Server URL for hook HTTP requests |
-
-**Example:**
-```bash
-export SUPERTRACE_URL=http://192.168.1.100:3456
+# Faster polling (every 30 seconds)
+SUPERTRACE_POLL_INTERVAL=30 uv run supertrace-server
 ```
 
 ## File Locations
 
-### Database
+### SuperTrace Data
 
 | Path | Description |
 |------|-------------|
 | `~/.supertrace/data.db` | SQLite database |
 | `~/.supertrace/data.db-wal` | Write-ahead log |
 | `~/.supertrace/data.db-shm` | Shared memory file |
+| `~/.supertrace/media/` | Stored images |
 
-### Claude Code Files
+### Claude Code Data (Read-Only)
 
 | Path | Description |
 |------|-------------|
-| `~/.claude/settings.json` | Hook configuration |
-| `~/.claude/projects/*/` | Session transcripts |
-
-## Claude Code Settings
-
-### Hook Configuration Schema
-
-```json
-{
-  "hooks": {
-    "<EventName>": [
-      {
-        "matcher": "<glob-pattern>",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "<shell-command>"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### Event Names
-
-- `SessionStart`
-- `SessionEnd`
-- `UserPromptSubmit`
-- `Stop`
-- `PreToolUse`
-- `PostToolUse`
-- `Notification`
-
-### Matcher Patterns
-
-| Pattern | Matches |
-|---------|---------|
-| `""` | All projects (empty = match all) |
-| `/work/*` | Projects under /work/ |
-| `!*/node_modules/*` | Exclude node_modules |
+| `~/.claude/projects/` | Session transcript directories |
+| `~/.claude/projects/*/*.jsonl` | Individual session transcripts |
+| `~/.claude/settings.json` | Claude Code settings (not used by SuperTrace) |
 
 ## Frontend Configuration
 
 ### Vite Proxy
 
-The frontend dev server proxies API calls to the backend:
+The frontend proxies API and WebSocket connections:
 
 ```typescript
-// vite.config.ts
+// packages/web/vite.config.ts
 export default defineConfig({
   server: {
     port: 5173,
@@ -109,12 +71,20 @@ export default defineConfig({
 })
 ```
 
-### Production Deployment
+To use a different server port, update `target` to match.
 
-For production, configure your reverse proxy (nginx, caddy) to:
-1. Serve static files from `packages/web/dist/`
+### Production Build
+
+```bash
+cd packages/web
+npm run build
+# Output: packages/web/dist/
+```
+
+For production deployment, configure your reverse proxy (nginx, caddy) to:
+1. Serve static files from `dist/`
 2. Proxy `/api/*` to the Python server
-3. Proxy `/ws` WebSocket connections to the Python server
+3. Proxy `/ws` WebSocket connections
 
 ## Database Schema
 
@@ -126,20 +96,43 @@ CREATE TABLE sessions (
     project_path TEXT,
     started_at TEXT,
     ended_at TEXT,
-    metadata TEXT  -- JSON
+    git_branch TEXT,
+    cwd TEXT
 );
 ```
 
-### Events Table
+### Messages Table
 
 ```sql
-CREATE TABLE events (
+CREATE TABLE messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    data TEXT,  -- JSON
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    uuid TEXT UNIQUE,
+    msg_type TEXT,              -- user, assistant, summary
+    timestamp TEXT,
+    prompt_text TEXT,
+    model TEXT,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cache_read_tokens INTEGER,
+    cache_create_tokens INTEGER,
+    tool_use_count INTEGER,
+    tool_names TEXT,            -- JSON array
+    stop_reason TEXT,
+    raw_data TEXT,              -- Full JSON for reprocessing
+    line_number INTEGER,
+    FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+```
+
+### Transcript Files Table
+
+```sql
+CREATE TABLE transcript_files (
+    path TEXT PRIMARY KEY,
+    session_id TEXT,
+    mtime REAL,
+    last_byte_offset INTEGER,
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 ```
@@ -147,9 +140,41 @@ CREATE TABLE events (
 ### Full-Text Search
 
 ```sql
-CREATE VIRTUAL TABLE events_fts USING fts5(
+CREATE VIRTUAL TABLE messages_fts USING fts5(
     content,
     session_id UNINDEXED,
-    event_id UNINDEXED
+    message_id UNINDEXED
 );
+```
+
+## Logging
+
+Server logs to stdout. Set log level via uvicorn:
+
+```bash
+# More verbose
+uv run uvicorn supertrace.main:app --log-level debug
+
+# Default
+uv run supertrace-server  # INFO level
+```
+
+## Backup
+
+```bash
+# Stop server first for consistency, or use SQLite backup API
+cp ~/.supertrace/data.db ~/.supertrace/data.db.backup
+
+# Or while running (WAL mode safe)
+sqlite3 ~/.supertrace/data.db ".backup backup.db"
+```
+
+## Reset Database
+
+```bash
+# Delete database to start fresh
+rm ~/.supertrace/data.db*
+
+# Restart server - new database created automatically
+uv run supertrace-server
 ```

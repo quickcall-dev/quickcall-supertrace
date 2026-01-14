@@ -1,10 +1,8 @@
 # Export Sessions
 
-How to export captured sessions for backup, sharing, or analysis.
+Export captured sessions for backup, sharing, or analysis.
 
 ## Export Formats
-
-SuperTrace supports two export formats:
 
 | Format | Best For |
 |--------|----------|
@@ -13,9 +11,9 @@ SuperTrace supports two export formats:
 
 ## Export via UI
 
-1. Open the dashboard at http://localhost:5173
-2. Select a session from the left panel
-3. Click **Export JSON** or **Export MD** in the session header
+1. Open http://localhost:5173
+2. Select a session from the sidebar
+3. Click **Export JSON** or **Export MD** in the header
 4. File downloads automatically
 
 ## Export via API
@@ -31,23 +29,16 @@ curl "http://localhost:3456/api/sessions/{session_id}/export?format=json" \
 ```json
 {
   "session": {
-    "id": "abc-123",
+    "id": "abc123",
     "project_path": "/path/to/project",
-    "started_at": "2026-01-12T10:00:00",
-    "ended_at": "2026-01-12T11:00:00",
-    "metadata": null
+    "started_at": "2026-01-14T10:00:00",
+    "ended_at": "2026-01-14T11:00:00"
   },
   "events": [
     {
       "id": 1,
-      "event_type": "session_start",
-      "timestamp": "2026-01-12T10:00:00",
-      "data": null
-    },
-    {
-      "id": 2,
       "event_type": "user_prompt",
-      "timestamp": "2026-01-12T10:00:05",
+      "timestamp": "2026-01-14T10:00:05",
       "data": {
         "prompt": "Help me write a function..."
       }
@@ -65,11 +56,11 @@ curl "http://localhost:3456/api/sessions/{session_id}/export?format=md" \
 
 **Output structure:**
 ```markdown
-# Session: abc-123
+# Session: abc123
 
 **Project:** myproject
-**Started:** 2026-01-12T10:00:00
-**Ended:** 2026-01-12T11:00:00
+**Started:** 2026-01-14T10:00:00
+**Ended:** 2026-01-14T11:00:00
 
 ---
 
@@ -79,7 +70,7 @@ curl "http://localhost:3456/api/sessions/{session_id}/export?format=md" \
 
 ## [10:00:15] assistant_stop
 
-I'll help you write that function. Here's an implementation...
+I'll help you write that function...
 ```
 
 ## Bulk Export
@@ -88,21 +79,22 @@ I'll help you write that function. Here's an implementation...
 
 ```bash
 # Get all session IDs
-session_ids=$(curl -s http://localhost:3456/api/sessions | \
+session_ids=$(curl -s http://localhost:3456/api/sessions?limit=1000 | \
   jq -r '.sessions[].id')
 
 # Export each as JSON
+mkdir -p exports
 for id in $session_ids; do
   curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \
     -o "exports/$id.json"
 done
 ```
 
-### Export Sessions from Date Range
+### Export by Date Range
 
 ```bash
-# Get sessions and filter by date
-curl -s http://localhost:3456/api/sessions?limit=1000 | \
+# Export sessions from 2026
+curl -s "http://localhost:3456/api/sessions?limit=1000" | \
   jq -r '.sessions[] | select(.started_at > "2026-01-01") | .id' | \
   while read id; do
     curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \
@@ -112,25 +104,28 @@ curl -s http://localhost:3456/api/sessions?limit=1000 | \
 
 ## Database Direct Access
 
-For advanced use cases, access SQLite directly:
+For advanced use cases, query SQLite directly:
 
 ```bash
-# Location
+# Database location
 ~/.supertrace/data.db
 
-# Query sessions
-sqlite3 ~/.supertrace/data.db "SELECT * FROM sessions LIMIT 10"
+# List sessions
+sqlite3 ~/.supertrace/data.db "SELECT id, project_path, started_at FROM sessions LIMIT 10"
 
 # Export to CSV
 sqlite3 -header -csv ~/.supertrace/data.db \
-  "SELECT * FROM events" > events.csv
+  "SELECT * FROM messages WHERE session_id='abc123'" > messages.csv
+
+# Full database backup
+sqlite3 ~/.supertrace/data.db ".backup backup.db"
 ```
 
 ## Use Cases
 
 ### Code Review Documentation
 
-Export a session as Markdown and include in a PR:
+Include session export in PR:
 
 ```bash
 curl -s "http://localhost:3456/api/sessions/$SESSION_ID/export?format=md" \
@@ -139,13 +134,11 @@ curl -s "http://localhost:3456/api/sessions/$SESSION_ID/export?format=md" \
 
 ### Training Data Collection
 
-Export JSON for fine-tuning or analysis:
-
 ```python
 import json
 import requests
 
-sessions = requests.get("http://localhost:3456/api/sessions").json()
+sessions = requests.get("http://localhost:3456/api/sessions?limit=1000").json()
 
 training_data = []
 for session in sessions["sessions"]:
@@ -155,10 +148,10 @@ for session in sessions["sessions"]:
     training_data.append(data)
 
 with open("training_data.json", "w") as f:
-    json.dump(training_data, f)
+    json.dump(training_data, f, indent=2)
 ```
 
-### Backup Script
+### Daily Backup Script
 
 ```bash
 #!/bin/bash
@@ -168,10 +161,10 @@ BACKUP_DIR="$HOME/backups/supertrace/$(date +%Y-%m-%d)"
 mkdir -p "$BACKUP_DIR"
 
 # Backup database
-cp ~/.supertrace/data.db "$BACKUP_DIR/"
+sqlite3 ~/.supertrace/data.db ".backup $BACKUP_DIR/data.db"
 
-# Export all sessions as JSON
-curl -s http://localhost:3456/api/sessions?limit=10000 | \
+# Export recent sessions as JSON
+curl -s "http://localhost:3456/api/sessions?limit=100" | \
   jq -r '.sessions[].id' | \
   while read id; do
     curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \

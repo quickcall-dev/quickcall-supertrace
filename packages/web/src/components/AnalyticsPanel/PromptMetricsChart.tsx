@@ -19,6 +19,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredPrompt, setHoveredPrompt] = useState<number | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [showCache, setShowCache] = useState(true); // Toggle for cache visibility
 
   // Auto-scroll to latest
   useEffect(() => {
@@ -35,7 +36,14 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
     );
   }
 
-  const { turns, maxTokens, maxTools, totals, toolLegend } = data;
+  const { turns, maxTokens, maxTokensNoCache, maxTools, totals, toolLegend } = data;
+
+  // Use appropriate max based on cache toggle
+  const effectiveMaxTokens = showCache ? maxTokens : maxTokensNoCache;
+
+  // Helper to get input tokens for a turn based on cache toggle
+  const getInputTokens = (turn: typeof turns[0]) =>
+    showCache ? turn.inputTokens : (turn.inputTokensNoCache ?? turn.inputTokens);
 
   const formatTokens = (n: number): string => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -72,7 +80,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
     return 12 + (index / (turns.length - 1)) * (graphWidth - 24);
   };
 
-  const safeMaxTokens = maxTokens || 1;
+  const safeMaxTokens = effectiveMaxTokens || 1;
   const safeMaxTools = maxTools || 1;
 
   const getTokenY = (value: number) => {
@@ -80,8 +88,8 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
     return tokenPadding.top + tokenGraphHeight - (normalized * tokenGraphHeight);
   };
 
-  // Build token line paths
-  const inputPoints = turns.map((t, i) => `${getX(i)},${getTokenY(t.inputTokens)}`);
+  // Build token line paths (use getInputTokens for cache toggle)
+  const inputPoints = turns.map((t, i) => `${getX(i)},${getTokenY(getInputTokens(t))}`);
   const outputPoints = turns.map((t, i) => `${getX(i)},${getTokenY(t.outputTokens)}`);
   const inputPath = `M ${inputPoints.join(' L ')}`;
   const outputPath = `M ${outputPoints.join(' L ')}`;
@@ -201,8 +209,8 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                 const isHovered = hoveredPrompt === idx;
                 return (
                   <g key={idx}>
-                    <circle cx={x} cy={getTokenY(turn.inputTokens)} r={isHovered ? 6 : 4} fill="var(--token-input)" />
-                    <circle cx={x} cy={getTokenY(turn.inputTokens)} r={isHovered ? 3 : 2} fill="white" />
+                    <circle cx={x} cy={getTokenY(getInputTokens(turn))} r={isHovered ? 6 : 4} fill="var(--token-input)" />
+                    <circle cx={x} cy={getTokenY(getInputTokens(turn))} r={isHovered ? 3 : 2} fill="white" />
                     <circle cx={x} cy={getTokenY(turn.outputTokens)} r={isHovered ? 6 : 4} fill="var(--token-output)" />
                     <circle cx={x} cy={getTokenY(turn.outputTokens)} r={isHovered ? 3 : 2} fill="white" />
                   </g>
@@ -361,7 +369,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
             <div className="flex items-center gap-3 mb-1.5">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
-                <span className="text-muted-foreground">{formatTokens(hoveredTurn.inputTokens)}</span>
+                <span className="text-muted-foreground">{formatTokens(getInputTokens(hoveredTurn))}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
@@ -396,7 +404,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
       {/* Combined legend */}
       <div className="flex items-center justify-between text-xs pt-2 border-t border-border">
         <div className="flex items-center gap-4">
-          {/* Token legend */}
+          {/* Token legend with cache toggle */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
@@ -406,6 +414,18 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
               <span className="text-muted-foreground">Out</span>
             </div>
+            {/* Cache toggle */}
+            <button
+              onClick={() => setShowCache(!showCache)}
+              className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                showCache
+                  ? 'bg-primary/20 text-primary'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+              title={showCache ? 'Showing total context (with cache)' : 'Showing new tokens only (no cache)'}
+            >
+              {showCache ? '+cache' : 'no cache'}
+            </button>
           </div>
 
           <span className="text-muted-foreground/30">|</span>

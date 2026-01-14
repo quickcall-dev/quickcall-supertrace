@@ -1,253 +1,255 @@
 # Architecture
 
-Understanding how SuperTrace captures and displays AI coding assistant sessions.
+How SuperTrace captures and displays Claude Code sessions.
 
 ## System Overview
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Claude Code   │────▶│  Python Hooks   │────▶│  FastAPI Server │
-│   (CLI/IDE)     │     │  (via stdin)    │     │  (REST + WS)    │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                         │
-                        ┌─────────────────┐              │
-                        │    SQLite DB    │◀─────────────┘
-                        │  (WAL mode)     │              │
-                        └─────────────────┘              │
-                                                         ▼
-                                                ┌─────────────────┐
-                                                │   React UI      │
-                                                │   (WebSocket)   │
-                                                └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SuperTrace System                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ~/.claude/projects/                                                    │
+│       │                                                                 │
+│       ▼                                                                 │
+│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                │
+│  │   Scanner   │───▶│    Parser    │───▶│  Importer   │                │
+│  │  (JSONL)    │    │  (Messages)  │    │  (SQLite)   │                │
+│  └─────────────┘    └──────────────┘    └──────┬──────┘                │
+│                                                 │                       │
+│       ┌─────────────────────────────────────────┘                       │
+│       │                                                                 │
+│       ▼                                                                 │
+│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                │
+│  │   SQLite    │◀──▶│  REST API    │───▶│  React UI   │                │
+│  │   (WAL)     │    │  (FastAPI)   │    │  (Vite)     │                │
+│  └─────────────┘    └──────┬───────┘    └─────────────┘                │
+│                            │                    ▲                       │
+│                            │   WebSocket        │                       │
+│                            └────────────────────┘                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Components
 
-### 1. Claude Code (Source)
+### 1. Data Source: Claude Code JSONL Files
 
-Claude Code is the AI coding assistant. It provides a **hooks system** that executes shell commands at specific lifecycle events:
+Claude Code writes all interactions to JSONL files at `~/.claude/projects/{project-hash}/{session-id}.jsonl`.
 
-- When a session starts/ends
-- When the user sends a message
-- When Claude finishes responding
-- Before/after tool execution
+Each line is a JSON object representing a message:
 
-### 2. Python Hooks (Capture Layer)
+```jsonl
+{"type":"summary","timestamp":"2026-01-14T10:00:00Z","summary":"Started session"}
+{"type":"user","message":{"content":"Hello"},"timestamp":"2026-01-14T10:00:05Z"}
+{"type":"assistant","message":{"content":[...],"usage":{...}},"timestamp":"2026-01-14T10:00:10Z"}
+```
 
-**Package:** `packages/hooks/`
+### 2. Ingestion Pipeline
 
-A lightweight Python CLI that:
-1. Receives JSON data via stdin from Claude Code
-2. Parses the event data using Pydantic models
-3. Extracts additional data (images, token usage) from transcript
-4. Sends an HTTP POST to the server
-5. Fails silently to avoid blocking Claude Code
+**Scanner** (`packages/server/supertrace/ingest/scanner.py`)
+- Finds all JSONL files in `~/.claude/projects/`
+- Returns file metadata (path, mtime, size)
+- Sorted by modification time (newest first)
 
-**Key Design Decisions:**
-- Uses `httpx` with short timeout (2s) to avoid blocking
-- Fire-and-forget pattern (doesn't wait for response)
-- Minimal dependencies for fast startup
-- Handles both `tool_result` and `tool_response` field names
+**Parser** (`packages/server/supertrace/ingest/parser.py`)
+- Parses JSONL lines into structured `ParsedMessage` objects
+- Extracts: prompt text, token usage, tool names, model, timestamps
+- Preserves raw JSON for future reprocessing
 
-**Supported Commands:**
-- `supertrace session-start` - SessionStart hook
-- `supertrace session-end` - SessionEnd hook
-- `supertrace prompt` - UserPromptSubmit hook
-- `supertrace stop` - Stop hook
-- `supertrace tool` - PostToolUse hook
+**Importer** (`packages/server/supertrace/ingest/importer.py`)
+- Batch inserts parsed messages into SQLite
+- Supports incremental imports (only new lines)
+- Deduplicates by message UUID
 
-### 3. FastAPI Server (Storage & API)
+**Poller** (`packages/server/supertrace/ingest/poller.py`)
+- Background task running every 120 seconds
+- Scans for new/modified files
+- Triggers incremental imports
+- Broadcasts updates via WebSocket
 
-**Package:** `packages/server/`
+### 3. Database (SQLite)
 
-A Python server that:
-1. Receives events via REST API
-2. Processes images (stores to disk, replaces base64 with URLs)
-3. Stores data in SQLite with WAL mode
-4. Broadcasts new events via WebSocket
-5. Provides query APIs for the frontend
-6. Serves stored images via `/api/media/`
+Location: `~/.supertrace/data.db`
 
-**Key Design Decisions:**
-- SQLite for simplicity (no external database needed)
-- WAL mode enables concurrent reads during writes
-- FTS5 for full-text search across events
-- WebSocket for real-time updates (no polling)
-- Images stored on disk, referenced by URL in database
+**Tables:**
 
-### 4. React Frontend (Display)
-
-**Package:** `packages/web/`
-
-A single-page app that:
-1. Lists sessions in a sidebar
-2. Displays conversation threads with images
-3. Shows tool calls with inputs and results (collapsible)
-4. Displays token usage statistics
-5. Connects via WebSocket for live updates
-6. Provides search and export features
+| Table | Purpose |
+|-------|---------|
+| `sessions` | Session metadata (id, project_path, timestamps) |
+| `messages` | Parsed JSONL messages with extracted fields |
+| `transcript_files` | Tracks ingested files (mtime, byte offset) |
+| `session_metrics` | Pre-computed aggregates |
+| `messages_fts` | Full-text search index |
 
 **Key Design Decisions:**
-- Vite for fast development
-- Tailwind for utility-first styling
-- WebSocket hook for real-time updates
-- Proxy config for seamless API access
+- WAL mode for concurrent reads during writes
+- Denormalized fields in `messages` for query performance
+- FTS5 for full-text search across content
+
+### 4. REST API (FastAPI)
+
+**Routes:**
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/sessions` | List sessions (paginated) |
+| `GET /api/sessions/{id}` | Get session with events |
+| `GET /api/sessions/{id}/export` | Export as JSON/Markdown |
+| `GET /api/metrics/session/{id}` | Compute session metrics |
+| `POST /api/ingest` | Trigger manual import |
+| `GET /api/ingest/status` | Show tracked files |
+| `WS /ws` | Real-time updates |
+
+### 5. Metrics System
+
+**Architecture:** Decorator-based plugin system
+
+```python
+@metric(category=MetricCategory.TOKENS, format=MetricFormat.CURRENCY)
+def estimated_cost(events: PreprocessedEvents) -> float:
+    # Compute cost from token counts
+```
+
+**Categories:**
+- TOKENS: Input/output counts, cache stats, costs
+- TOOLS: Tool usage counts, success rates
+- TIMING: Session duration, response times
+- INTERACTION: Prompt count, edits per prompt
+- CHARTS: Token trends, tool distribution
+
+**Preprocessing:** Single-pass extraction of commonly-needed data for efficiency.
+
+### 6. React Frontend
+
+**Tech Stack:** React 19, TypeScript, Tailwind CSS, Vite
+
+**Three-Panel Layout:**
+
+```
+[SessionList] | [AnalyticsPanel] | [SessionView]
+   256px         collapsible        flex-1
+```
+
+**Key Components:**
+- `SessionList` - Sidebar with session search and import
+- `AnalyticsPanel` - Expandable metrics dashboard with charts
+- `SessionView` - Conversation display with infinite scroll
+- `ToolGroup` - Collapsible tool usage display
+- `MessageBubble` - Event rendering (user/assistant/tools)
+
+**Real-time:** WebSocket connection for live updates when sessions change.
 
 ## Data Flow
 
-### Capture Flow (Write Path)
+### Import Flow
 
 ```
-1. User types message in Claude Code
-2. Claude Code triggers UserPromptSubmit hook
-3. Hook command executed: `uv run supertrace prompt`
-4. Python reads stdin, parses JSON
-5. Handler extracts images from transcript (if any)
-6. HTTP POST to /api/events
-7. Server processes images (stores to disk)
-8. Server inserts into SQLite
-9. Server broadcasts via WebSocket
-10. Frontend receives and displays (with images inline)
+1. Poller wakes up (every 2 min)
+2. Scanner finds JSONL files
+3. Compare mtime with tracked files
+4. For new/modified files:
+   a. Parser reads new lines
+   b. Extract messages with fields
+   c. Importer batch inserts
+5. Broadcast "session_updated" via WebSocket
+6. Frontend refetches if subscribed
 ```
 
-### Tool Capture Flow
+### Query Flow
 
 ```
-1. Claude invokes a tool (Read, Write, Bash, etc.)
-2. Tool executes and returns result
-3. Claude Code triggers PostToolUse hook
-4. Hook receives tool_name, tool_input, tool_response
-5. HTTP POST to /api/events
-6. Server stores event
-7. Frontend displays tool with expandable input/result
-```
-
-### Token Usage Flow
-
-```
-1. Claude finishes responding
-2. Stop hook triggered
-3. Handler reads transcript JSONL file
-4. Extracts token usage from assistant message metadata
-5. Aggregates: input_tokens, output_tokens, cache tokens
-6. Sends with event data
-7. Frontend displays token stats below response
-```
-
-### Query Flow (Read Path)
-
-```
-1. User opens http://localhost:5173
-2. Frontend fetches /api/sessions
-3. User clicks session
-4. Frontend fetches /api/sessions/:id
-5. Events displayed in conversation view
-6. Images loaded from /api/media/:id
-```
-
-### Real-time Flow
-
-```
-1. Frontend establishes WebSocket to /ws
-2. New event arrives at server
-3. Server broadcasts to all connected clients
-4. Frontend appends event to current view
-```
-
-## Database Schema
-
-### Entity Relationship
-
-```
-┌─────────────┐       ┌─────────────┐
-│  sessions   │───1:N─│   events    │
-├─────────────┤       ├─────────────┤
-│ id (PK)     │       │ id (PK)     │
-│ project_path│       │ session_id  │◀─FK
-│ started_at  │       │ event_type  │
-│ ended_at    │       │ timestamp   │
-│ metadata    │       │ data (JSON) │
-└─────────────┘       └─────────────┘
-                            │
-                            │ FTS index
-                            ▼
-                      ┌─────────────┐
-                      │ events_fts  │
-                      ├─────────────┤
-                      │ content     │
-                      │ session_id  │
-                      │ event_id    │
-                      └─────────────┘
+1. Frontend: GET /api/sessions
+2. Server: Query SQLite, return session list
+3. Frontend: User clicks session
+4. Frontend: GET /api/sessions/{id} + GET /api/metrics/session/{id}
+5. Server: Convert messages to events, compute metrics
+6. Frontend: Render conversation + analytics
 ```
 
 ### Event Types
 
-| Type | Source Hook | Contains |
-|------|-------------|----------|
-| `session_start` | SessionStart | Session metadata |
-| `session_end` | SessionEnd | - |
-| `user_prompt` | UserPromptSubmit | `prompt` text, `images` array |
-| `assistant_stop` | Stop | Full transcript, `token_usage` object |
-| `tool_use` | PostToolUse | `tool_name`, `tool_input`, `tool_result` |
+Events displayed in frontend are converted from raw messages:
 
-### Image Storage
+| Raw Message Type | Display Event Type |
+|------------------|-------------------|
+| `user` | `user_prompt` |
+| `assistant` | `assistant_stop` + `tool_use` events |
+| `summary` | `session_start` |
 
-Images are stored on the filesystem for efficiency:
+Tool uses are extracted from assistant message content blocks.
 
+## Database Schema
+
+```sql
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    project_path TEXT,
+    started_at TEXT,
+    ended_at TEXT,
+    git_branch TEXT,
+    cwd TEXT
+);
+
+CREATE TABLE messages (
+    id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    uuid TEXT UNIQUE,
+    msg_type TEXT,           -- user, assistant, summary
+    timestamp TEXT,
+    prompt_text TEXT,        -- extracted from user messages
+    model TEXT,              -- claude-opus-4, etc.
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cache_read_tokens INTEGER,
+    cache_create_tokens INTEGER,
+    tool_use_count INTEGER,
+    tool_names TEXT,         -- JSON array
+    raw_data TEXT,           -- full JSON for reprocessing
+    FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+CREATE TABLE transcript_files (
+    path TEXT PRIMARY KEY,
+    session_id TEXT,
+    mtime REAL,
+    last_byte_offset INTEGER
+);
 ```
-~/.supertrace/media/
-├── abc123_f7e8d9a1.png
-├── abc123_2b3c4d5e.jpg
-└── def456_1a2b3c4d.png
-```
-
-Naming: `{session_id_prefix}_{content_hash}.{ext}`
-
-## Security Considerations
-
-- **Localhost only**: Server binds to 127.0.0.1 by default
-- **No authentication**: Assumes local, single-user environment
-- **Data sensitivity**: Transcripts may contain sensitive code/data
-- **Hook execution**: Hooks run with user privileges
-- **Image storage**: Images stored locally, not uploaded anywhere
-
-## Performance Characteristics
-
-- **Hook latency**: ~50-100ms (Python startup + HTTP)
-- **Database writes**: ~1ms (SQLite WAL mode)
-- **WebSocket broadcast**: ~1ms per client
-- **Frontend render**: React virtual DOM diffing
-- **Image processing**: ~10-50ms per image (base64 decode + write)
-
-## Extensibility Points
-
-1. **New event types**: Add to `handlers.py` and update frontend
-2. **Additional hooks**: Add PreToolUse for validation, etc.
-3. **Export formats**: Add new formats in `routes/sessions.py`
-4. **Search features**: Extend FTS5 queries
-5. **Multi-user**: Add authentication layer
-6. **Remote storage**: Replace local SQLite with PostgreSQL
-7. **Cloud media**: Store images in S3/GCS instead of local disk
 
 ## Configuration
-
-### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SUPERTRACE_PORT` | `3456` | Server port |
-| `SUPERTRACE_HOST` | `127.0.0.1` | Server host |
-| `SUPERTRACE_URL` | `http://localhost:3456` | Server URL for hooks |
+| `SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
+| `SUPERTRACE_ENABLE_POLLER` | `true` | Enable background polling |
+| `SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
 | `SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage |
 
-## References
+## Security Considerations
 
-- [Claude Code Hooks Documentation](https://code.claude.com/docs/en/hooks)
-- [Claude Code Settings](https://code.claude.com/docs/en/settings)
-- [Feature Request: Image Data in Hooks](https://github.com/anthropics/claude-code/issues/16592)
+- **Localhost only** - Server binds to 127.0.0.1 by default
+- **No authentication** - Assumes local, single-user environment
+- **Read-only source** - Never modifies Claude Code files
+- **Data sensitivity** - Transcripts may contain sensitive code/data
+
+## Performance
+
+- **Poll interval**: 120s (configurable)
+- **Incremental import**: Only new lines processed
+- **Database**: SQLite WAL mode for concurrent access
+- **Metrics**: Pre-computed during import, cached
+- **Frontend**: Virtual scrolling for large sessions
+
+## Extending
+
+1. **New metrics**: Add decorated function in `metrics/` module
+2. **Export formats**: Add to `routes/sessions.py`
+3. **Search**: Extend FTS5 queries
+4. **Storage**: Replace SQLite with PostgreSQL for multi-user
 
 ## See Also
 
-- [How Hooks Work](how-hooks-work.md) - Deep dive into hook mechanics
 - [API Reference](../reference/api.md) - Endpoint documentation
 - [Configuration](../reference/configuration.md) - All config options
