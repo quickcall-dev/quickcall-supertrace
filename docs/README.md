@@ -49,10 +49,14 @@ docs/
 
 ## How It Works
 
-```
-~/.claude/projects/*.jsonl  →  Poller (2min)  →  SQLite  →  REST API  →  React UI
-                                    ↓
-                               WebSocket broadcast
+```mermaid
+flowchart LR
+    A[~/.claude/projects/*.jsonl] --> B[Poller]
+    B --> C[(SQLite)]
+    C --> D[REST API]
+    D --> E[React UI]
+    B --> F[WebSocket]
+    F --> E
 ```
 
 QuickCall SuperTrace polls Claude Code's transcript files, parses messages, computes metrics, and serves them via REST API with real-time WebSocket updates.

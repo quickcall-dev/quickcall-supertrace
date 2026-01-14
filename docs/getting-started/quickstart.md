@@ -43,17 +43,11 @@ VITE ready in 500ms
 
 ### Dashboard Layout
 
-```
-┌──────────────┬──────────────────┬────────────────────────┐
-│  Sessions    │    Analytics     │    Conversation        │
-│  (sidebar)   │    (center)      │    (right panel)       │
-│              │                  │                        │
-│  - Session 1 │  Cost: $0.45     │  User: Hello...        │
-│  - Session 2 │  Files: 12       │  Assistant: I'll...    │
-│  - Session 3 │  Tools: 47       │  [Tool: Read]          │
-│              │                  │  [Tool: Edit]          │
-└──────────────┴──────────────────┴────────────────────────┘
-```
+| Sessions (sidebar) | Analytics (center) | Conversation (right) |
+|-------------------|-------------------|---------------------|
+| Session 1 | Cost: $0.45 | User: Hello... |
+| Session 2 | Files: 12 | Assistant: I'll... |
+| Session 3 | Tools: 47 | [Tool: Read] |
 
 ## Import Sessions Manually
 

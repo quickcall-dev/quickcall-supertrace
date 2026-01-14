@@ -4,31 +4,27 @@ How QuickCall SuperTrace captures and displays Claude Code sessions.
 
 ## System Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       QuickCall SuperTrace System                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ~/.claude/projects/                                                    │
-│       │                                                                 │
-│       ▼                                                                 │
-│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                │
-│  │   Scanner   │───▶│    Parser    │───▶│  Importer   │                │
-│  │  (JSONL)    │    │  (Messages)  │    │  (SQLite)   │                │
-│  └─────────────┘    └──────────────┘    └──────┬──────┘                │
-│                                                 │                       │
-│       ┌─────────────────────────────────────────┘                       │
-│       │                                                                 │
-│       ▼                                                                 │
-│  ┌─────────────┐    ┌──────────────┐    ┌─────────────┐                │
-│  │   SQLite    │◀──▶│  REST API    │───▶│  React UI   │                │
-│  │   (WAL)     │    │  (FastAPI)   │    │  (Vite)     │                │
-│  └─────────────┘    └──────┬───────┘    └─────────────┘                │
-│                            │                    ▲                       │
-│                            │   WebSocket        │                       │
-│                            └────────────────────┘                       │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Ingestion
+        A[~/.claude/projects/] --> B[Scanner]
+        B --> C[Parser]
+        C --> D[Importer]
+    end
+
+    subgraph Storage
+        D --> E[(SQLite WAL)]
+    end
+
+    subgraph API
+        E <--> F[REST API / FastAPI]
+        F --> G[WebSocket]
+    end
+
+    subgraph Frontend
+        F --> H[React UI / Vite]
+        G --> H
+    end
 ```
 
 ## Components
@@ -126,10 +122,11 @@ def estimated_cost(events: PreprocessedEvents) -> float:
 
 **Three-Panel Layout:**
 
-```
-[SessionList] | [AnalyticsPanel] | [SessionView]
-   256px         collapsible        flex-1
-```
+| Panel | Width | Description |
+|-------|-------|-------------|
+| SessionList | 256px | Sidebar with search |
+| AnalyticsPanel | collapsible | Metrics dashboard |
+| SessionView | flex-1 | Conversation display |
 
 **Key Components:**
 - `SessionList` - Sidebar with session search and import
@@ -144,27 +141,47 @@ def estimated_cost(events: PreprocessedEvents) -> float:
 
 ### Import Flow
 
-```
-1. Poller wakes up (every 2 min)
-2. Scanner finds JSONL files
-3. Compare mtime with tracked files
-4. For new/modified files:
-   a. Parser reads new lines
-   b. Extract messages with fields
-   c. Importer batch inserts
-5. Broadcast "session_updated" via WebSocket
-6. Frontend refetches if subscribed
+```mermaid
+sequenceDiagram
+    participant P as Poller
+    participant S as Scanner
+    participant Pa as Parser
+    participant I as Importer
+    participant WS as WebSocket
+    participant UI as Frontend
+
+    P->>S: Wake up (every 2 min)
+    S->>S: Find JSONL files
+    S->>S: Compare mtime
+    S->>Pa: New/modified files
+    Pa->>Pa: Read new lines
+    Pa->>I: Extract messages
+    I->>I: Batch insert
+    I->>WS: Broadcast update
+    WS->>UI: session_updated
+    UI->>UI: Refetch if subscribed
 ```
 
 ### Query Flow
 
-```
-1. Frontend: GET /api/sessions
-2. Server: Query SQLite, return session list
-3. Frontend: User clicks session
-4. Frontend: GET /api/sessions/{id} + GET /api/metrics/session/{id}
-5. Server: Convert messages to events, compute metrics
-6. Frontend: Render conversation + analytics
+```mermaid
+sequenceDiagram
+    participant UI as Frontend
+    participant API as Server
+    participant DB as SQLite
+
+    UI->>API: GET /api/sessions
+    API->>DB: Query sessions
+    DB->>API: Session list
+    API->>UI: Return sessions
+    UI->>UI: User clicks session
+    UI->>API: GET /api/sessions/{id}
+    UI->>API: GET /api/metrics/session/{id}
+    API->>DB: Fetch messages
+    API->>API: Convert to events
+    API->>API: Compute metrics
+    API->>UI: Return data
+    UI->>UI: Render conversation + analytics
 ```
 
 ### Event Types

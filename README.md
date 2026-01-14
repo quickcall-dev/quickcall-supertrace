@@ -17,7 +17,6 @@
 <p align="center">
   <a href="#install">Install</a> |
   <a href="#features">Features</a> |
-  <a href="#configure-hooks">Configure Hooks</a> |
   <a href="#configuration">Configuration</a> |
   <a href="#docker">Docker</a> |
   <a href="#troubleshooting">Troubleshooting</a>
@@ -32,6 +31,8 @@ uvx quickcall-supertrace@latest
 ```
 
 Open http://localhost:7845 in your browser.
+
+> SuperTrace reads directly from Claude Code's JSONL transcript files at `~/.claude/projects/`. No hooks or configuration needed.
 
 ### Alternative Methods
 
@@ -56,57 +57,12 @@ quickcall-supertrace
 - **Export** - Download sessions as JSON or Markdown
 - **WebSocket updates** - Live updates without page refresh
 
-## Configure Hooks
-
-To capture Claude Code sessions, add hooks to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace prompt" }] }
-    ],
-    "Stop": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace stop" }] }
-    ],
-    "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-start" }] }
-    ],
-    "SessionEnd": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "cd /path/to/quickcall-supertrace/packages/hooks && uv run supertrace session-end" }] }
-    ]
-  }
-}
-```
-
-> Replace `/path/to/quickcall-supertrace` with your actual installation path.
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   AI Assistant  │────▶│  Python Hooks   │────▶│  FastAPI Server │
-│   (CLI/IDE)     │     │  (via stdin)    │     │  (REST + WS)    │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                        │
-                       ┌─────────────────┐              │
-                       │    SQLite DB    │◀─────────────┘
-                       │  (WAL mode)     │              │
-                       └─────────────────┘              │
-                                                        ▼
-                                               ┌─────────────────┐
-                                               │   React UI      │
-                                               │   (WebSocket)   │
-                                               └─────────────────┘
-```
-
 ## Configuration
 
 | Env Variable | Default | Description |
 |--------------|---------|-------------|
 | `QUICKCALL_SUPERTRACE_PORT` | 7845 | Server port |
 | `QUICKCALL_SUPERTRACE_HOST` | 127.0.0.1 | Server host |
-| `QUICKCALL_SUPERTRACE_URL` | http://localhost:7845 | Server URL for hooks |
 
 ## Docker
 
@@ -120,23 +76,11 @@ docker run -p 7845:7845 \
   quickcall-supertrace
 ```
 
-## Project Structure
-
-```
-quickcall-supertrace/
-├── packages/
-│   ├── hooks/          # Python CLI for capturing events
-│   ├── server/         # FastAPI backend with SQLite
-│   └── web/            # React frontend
-└── docs/               # Documentation
-```
-
 ## Troubleshooting
 
 ### Port Already in Use
 
 ```bash
-# Use a different port
 QUICKCALL_SUPERTRACE_PORT=8080 uvx quickcall-supertrace@latest
 ```
 
@@ -149,11 +93,8 @@ rm -rf ~/.quickcall-supertrace
 ### Stop the Server
 
 ```bash
-# If running in foreground
-Ctrl+C
-
-# If running in background
-pkill -f quickcall_supertrace
+# Foreground: Ctrl+C
+# Background: pkill -f quickcall_supertrace
 ```
 
 ---

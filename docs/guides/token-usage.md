@@ -76,13 +76,10 @@ Expanded view shows detailed breakdown:
 ### Per-Response Display
 
 Each assistant response shows token usage below:
-```
-┌────────────────────────────────────────────┐
-│ [Assistant's response text...]              │
-│                                            │
-│ 10:32 AM  1.5K in / 350 out (1.2K cached) │
-└────────────────────────────────────────────┘
-```
+
+> **[Assistant's response text...]**
+>
+> `10:32 AM  1.5K in / 350 out (1.2K cached)`
 
 **Reading the display:**
 - **X.XK in** - Input tokens sent
