@@ -349,13 +349,20 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
         </div>
 
         {/* Custom tooltip */}
-        {hoveredTurn && (
+        {hoveredTurn && (() => {
+          // Calculate tooltip position, flip to left if near right edge
+          const tooltipWidth = 140;
+          const containerWidth = scrollRef.current?.clientWidth || 400;
+          const tooltipX = yAxisWidth + hoveredX - scrollLeft;
+          const nearRightEdge = tooltipX + tooltipWidth / 2 > containerWidth - 10;
+
+          return (
           <div
             className="absolute pointer-events-none z-20 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
             style={{
-              left: yAxisWidth + hoveredX - scrollLeft,
+              left: tooltipX,
               top: tokenChartHeight + gapHeight + 8,
-              transform: 'translateX(-50%)',
+              transform: nearRightEdge ? 'translateX(-100%)' : 'translateX(-50%)',
             }}
           >
             <div className="flex items-center gap-2 mb-1.5">
@@ -398,7 +405,8 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <div className="text-muted-foreground">No tools</div>
             )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Combined legend */}

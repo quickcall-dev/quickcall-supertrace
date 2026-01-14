@@ -106,12 +106,17 @@ function App() {
     onNewSession: handleNewSession,
   });
 
-  // Load sessions on mount
+  // Load sessions on mount and auto-select the most recent
   useEffect(() => {
     const loadSessions = async () => {
       try {
         const data = await getSessions();
         setSessions(data.sessions);
+
+        // Auto-select the most recent session if none selected
+        if (!selectedSessionId && data.sessions.length > 0) {
+          setSelectedSessionId(data.sessions[0].id);
+        }
       } catch (error) {
         console.error('Failed to load sessions:', error);
       }
@@ -119,8 +124,15 @@ function App() {
 
     loadSessions();
 
-    // Refresh sessions periodically
-    const interval = setInterval(loadSessions, 30000);
+    // Refresh sessions periodically (but don't auto-select on refresh)
+    const interval = setInterval(async () => {
+      try {
+        const data = await getSessions();
+        setSessions(data.sessions);
+      } catch (error) {
+        console.error('Failed to refresh sessions:', error);
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
