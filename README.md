@@ -40,6 +40,8 @@ Open http://localhost:7845 in your browser.
 
 > SuperTrace reads directly from Claude Code's JSONL transcript files at `~/.claude/projects/`. No hooks or configuration needed.
 
+> **100% Local** - All data stays on your machine. Nothing is sent to any external servers.
+
 ### Alternative Methods
 
 ```bash
@@ -73,13 +75,7 @@ quickcall-supertrace
 ## Docker
 
 ```bash
-# Using Docker Compose
 docker compose up -d
-
-# Or directly
-docker run -p 7845:7845 \
-  -v ~/.claude/projects:/root/.claude/projects:ro \
-  quickcall-supertrace
 ```
 
 ## Troubleshooting
