@@ -220,10 +220,15 @@ def calc_prompt_turns(events: list[dict]) -> dict:
             turn["outputTokens"] = total_output_tokens
 
             # Calculate duration
+            # Cap at 30 minutes - longer durations indicate user went AFK/took a break
+            # and shouldn't count as actual turn duration
+            MAX_TURN_DURATION = 30 * 60  # 30 minutes in seconds
             if start_time and end_time:
                 duration = (end_time - start_time).total_seconds()
-                turn["durationSeconds"] = round(duration, 1)
-                max_duration = max(max_duration, duration)
+                if duration <= MAX_TURN_DURATION:
+                    turn["durationSeconds"] = round(duration, 1)
+                    max_duration = max(max_duration, duration)
+                # else: leave as None - user was likely AFK
 
             # Convert tool counts to sorted list
             turn["tools"] = sorted(
