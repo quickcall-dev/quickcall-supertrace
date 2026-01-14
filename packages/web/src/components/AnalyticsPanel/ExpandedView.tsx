@@ -268,37 +268,32 @@ export function ExpandedView({
           <TimingChart data={chartData} onPromptClick={onScrollToEvent} />
         </div>
 
-        {/* Work Output */}
-        <div className="px-5 py-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">Work Output</div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-muted/50 rounded-lg p-3">
-              <div className="text-2xl font-bold text-[color:var(--info)]">{filesChanged}</div>
-              <div className="text-xs text-muted-foreground mt-1">Files changed</div>
+        {/* Work Output - Compact row */}
+        <div className="px-5 py-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-4">
+            {/* Files changed */}
+            <div className="flex items-center gap-1.5" title="Files changed">
+              <i className="ri-file-edit-line text-[color:var(--info)]" />
+              <span className="font-semibold text-foreground">{filesChanged}</span>
+              <span className="text-muted-foreground">files</span>
             </div>
-            <div className="bg-muted/50 rounded-lg p-3">
-              <div className={`text-2xl font-bold ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`}>
-                {formatWithSign(netLines)}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Net lines</div>
+
+            {/* Lines added/removed */}
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="text-[color:var(--success)] font-medium">+{linesAdded.toLocaleString()}</span>
+              <span>/</span>
+              <span className="text-destructive font-medium">-{linesRemoved.toLocaleString()}</span>
+            </div>
+
+            {/* Net lines */}
+            <div className={`font-semibold ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`} title="Net lines">
+              ({formatWithSign(netLines)} net)
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <i className="ri-add-line text-[color:var(--success)]" />
-              <span className="text-foreground font-medium">{linesAdded.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <i className="ri-subtract-line text-destructive" />
-              <span className="text-foreground font-medium">{linesRemoved.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 text-muted-foreground">
             <span><strong className="text-foreground">{edits}</strong> edits</span>
-            <span><strong className="text-foreground">{filesRead}</strong> files read</span>
+            <span><strong className="text-foreground">{filesRead}</strong> reads</span>
           </div>
         </div>
       </div>
