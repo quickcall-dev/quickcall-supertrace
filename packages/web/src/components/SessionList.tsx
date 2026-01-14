@@ -283,7 +283,7 @@ export function SessionList({
                             title={getSessionFilePath(session)}
                             onClick={(e) => handleCopyPath(e, session)}
                           >
-                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 7)}
+                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 8)}
                           </span>
                         </div>
                       </div>

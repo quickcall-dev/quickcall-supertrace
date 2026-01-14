@@ -150,6 +150,14 @@ async def import_session_file(
         # Update session with additional metadata
         await _update_session_metadata(db, session_id, file_path, metadata)
 
+        # Compute prompt_index for each non-tool-result user message
+        # For incremental imports, start from the current max
+        starting_prompt_index = 0
+        if incremental:
+            starting_prompt_index = await _get_max_prompt_index(db, session_id)
+
+        _assign_prompt_indices(messages, starting_prompt_index)
+
         # Insert messages in batches
         batch_size = 100
         for i in range(0, len(messages), batch_size):
@@ -251,6 +259,39 @@ async def _clear_session_data(db: Any, session_id: str) -> None:
     await db.conn.commit()
 
 
+async def _get_max_prompt_index(db: Any, session_id: str) -> int:
+    """Get the maximum prompt_index for a session (for incremental imports)."""
+    cursor = await db.conn.execute(
+        """
+        SELECT MAX(prompt_index) as max_idx FROM messages
+        WHERE session_id = ? AND prompt_index IS NOT NULL
+        """,
+        (session_id,),
+    )
+    row = await cursor.fetchone()
+    return row["max_idx"] if row and row["max_idx"] else 0
+
+
+def _assign_prompt_indices(messages: list[ParsedMessage], starting_index: int = 0) -> None:
+    """
+    Assign prompt_index to non-tool-result user messages.
+
+    Modifies messages in place. Only user messages that are not tool results
+    get a prompt_index. All other messages get None.
+
+    Args:
+        messages: List of parsed messages to update
+        starting_index: Starting prompt index (for incremental imports)
+    """
+    prompt_index = starting_index
+    for msg in messages:
+        if msg.msg_type == "user" and not msg.is_tool_result:
+            prompt_index += 1
+            msg.prompt_index = prompt_index
+        else:
+            msg.prompt_index = None
+
+
 async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
     """
     Insert a batch of messages into the database.
@@ -266,12 +307,12 @@ async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
             INSERT OR IGNORE INTO messages (
                 uuid, parent_uuid, session_id, msg_type, subtype, timestamp,
                 cwd, version, git_branch,
-                prompt_text, image_count, thinking_level, thinking_enabled,
+                prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                 todo_count, is_tool_result,
                 model, input_tokens, output_tokens, cache_read_tokens,
                 cache_create_tokens, stop_reason, tool_use_count, tool_names,
                 raw_data, line_number
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 msg.uuid,
@@ -284,6 +325,7 @@ async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
                 msg.version,
                 msg.git_branch,
                 msg.prompt_text,
+                msg.prompt_index,
                 msg.image_count,
                 msg.thinking_level,
                 1 if msg.thinking_enabled else 0,

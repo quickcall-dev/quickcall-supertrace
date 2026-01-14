@@ -29,7 +29,7 @@ export function AnalyticsPanel({
   expanded,
   onToggle,
   onScrollToEvent,
-  hoursBack = 2,
+  hoursBack = 0,
   onTimeRangeChange,
   isJumpingToEvent = false,
 }: AnalyticsPanelProps) {

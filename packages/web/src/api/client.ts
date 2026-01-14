@@ -147,7 +147,7 @@ export function getExportUrl(sessionId: string, format: 'json' | 'md'): string {
 
 export async function getSessionMetrics(
   sessionId: string,
-  hoursBack: number = 2
+  hoursBack: number = 0
 ): Promise<SessionMetricsResponse> {
   return fetchJson(`${BASE_URL}/metrics/session/${sessionId}?hours_back=${hoursBack}`);
 }

@@ -174,7 +174,7 @@ class Database:
         cursor = await self.conn.execute(
             """
             SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
-                   prompt_text, image_count, thinking_level, thinking_enabled,
+                   prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                    model, input_tokens, output_tokens, cache_read_tokens,
                    cache_create_tokens, stop_reason, tool_use_count, tool_names,
                    is_tool_result
@@ -188,7 +188,6 @@ class Database:
         rows = await cursor.fetchall()
 
         events = []
-        prompt_index = 0  # Track actual prompt number across all messages
 
         for row in rows:
             msg_type = row["msg_type"]
@@ -200,8 +199,8 @@ class Database:
                 if row["is_tool_result"]:
                     continue
 
-                # This is a real user prompt - increment counter
-                prompt_index += 1
+                # Use stored prompt_index for absolute numbering
+                current_prompt_index = row["prompt_index"] or 0
 
                 # Parse raw_data to get full content
                 raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
@@ -228,7 +227,7 @@ class Database:
                     "timestamp": row["timestamp"],
                     "data": {
                         "prompt": prompt_text or "",
-                        "promptIndex": prompt_index,  # Backend provides true index
+                        "promptIndex": current_prompt_index,  # Backend provides true index
                         "imagePasteIds": raw.get("imagePasteIds", []),
                         "thinkingMetadata": raw.get("thinkingMetadata", {}),
                     },
@@ -315,7 +314,7 @@ class Database:
             cursor = await self.conn.execute(
                 """
                 SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
-                       prompt_text, image_count, thinking_level, thinking_enabled,
+                       prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
                        is_tool_result
@@ -330,7 +329,7 @@ class Database:
             cursor = await self.conn.execute(
                 """
                 SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
-                       prompt_text, image_count, thinking_level, thinking_enabled,
+                       prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
                        is_tool_result
@@ -350,9 +349,9 @@ class Database:
         Convert database rows to event format.
 
         Shared logic between get_messages_as_events and get_messages_as_events_filtered.
+        Uses stored prompt_index for absolute prompt numbering (preserves indices when filtered).
         """
         events = []
-        prompt_index = 0
 
         for row in rows:
             msg_type = row["msg_type"]
@@ -361,7 +360,9 @@ class Database:
                 if row["is_tool_result"]:
                     continue
 
-                prompt_index += 1
+                # Use stored prompt_index for absolute numbering
+                prompt_index = row["prompt_index"] or 0
+
                 raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
 
                 prompt_text = row["prompt_text"]

@@ -381,31 +381,41 @@ useEffect(() => {
 
 ### Phase 2: Code Quality (Medium)
 5. [x] `importer.py` - Fix generator return value capture ✅
-6. [ ] Extract token calculation to utility
-7. [ ] Extract common poller logic
+6. [x] Extract token calculation to utility (`utils/tokens.py`) ✅
+7. [x] Extract common poller logic (`_process_session_files()` helper) ✅
 8. [x] Return `file_path` from server, remove client-side guessing ✅
 
 ### Phase 3: Minor Improvements
-9. [ ] CORS configuration
-10. [ ] WebSocket error logging
-11. [ ] Remove unused `useSessionMetrics` hook
-12. [ ] Use `useLayoutEffect` for scroll position
+9. [x] CORS configuration (via `SUPERTRACE_CORS_ORIGINS` env var) ✅
+10. [x] WebSocket error logging ✅
+11. [x] Remove unused `useSessionMetrics` hook ✅
+12. [x] Use `useLayoutEffect` for scroll position ✅
+
+### Phase 4: Bug Fixes
+13. [x] Store absolute `prompt_index` in DB for correct chart numbering when time-filtered ✅
+14. [x] Default time filter to "All time" instead of 2h ✅
+15. [x] Remove "smart filter" logic that overrode user preference ✅
+16. [x] Consistent session ID display (8 chars in sidebar and viewer) ✅
 
 ---
 
-## Files to Modify
+## Files Modified
 
 | File | Changes |
 |------|---------|
-| `ingest/importer.py` | Batch insert, generator fix |
-| `db/client.py` | Add paginated event query |
-| `routes/sessions.py` | Use paginated query |
-| `routes/metrics.py` | Pass time filter to SQL |
-| `ingest/poller.py` | Extract common logic |
-| `main.py` | CORS config, WS logging |
-| `SessionView.tsx` | useMemo, clear refs |
-| `SessionList.tsx` | Remove file path guessing |
-| `api/client.ts` | Add file_path to Session type |
+| `ingest/importer.py` | Batch insert, generator fix, prompt_index computation ✅ |
+| `ingest/parser.py` | Added prompt_index field to ParsedMessage ✅ |
+| `ingest/poller.py` | Extracted common logic to `_process_session_files()` ✅ |
+| `db/schema.py` | Added prompt_index column + migration ✅ |
+| `db/client.py` | SQL-level filtering, prompt_index in queries ✅ |
+| `routes/metrics.py` | Pass time filter to SQL ✅ |
+| `main.py` | CORS config via env var, WS error logging ✅ |
+| `utils/tokens.py` | New shared token calculation utility ✅ |
+| `metrics/preprocess.py` | Use shared token utility ✅ |
+| `SessionView.tsx` | useMemo, clear refs, useLayoutEffect ✅ |
+| `SessionList.tsx` | Use file_path from server ✅ |
+| `api/client.ts` | Add file_path to Session type ✅ |
+| `hooks/useSessionMetrics.ts` | Removed (unused) ✅ |
 
 ---
 
@@ -413,20 +423,20 @@ useEffect(() => {
 
 | Metric | Server | Web |
 |--------|--------|-----|
-| Total Files | 15 | 14 |
-| Lines of Code | ~2,500 | ~2,800 |
-| Critical Issues | 3 | 2 |
-| Medium Issues | 5 | 4 |
-| Low Issues | 3 | 4 |
+| Total Files | 16 (+1 utils) | 13 (-1 unused hook) |
+| Lines of Code | ~2,600 | ~2,750 |
+| Issues Found | 8 | 8 |
+| Issues Fixed | 8 ✅ | 8 ✅ |
 
 ---
 
 ## Conclusion
 
-The codebase is well-structured with clear patterns. Main areas for improvement:
+The codebase is well-structured with clear patterns. All identified issues have been addressed:
 
-1. **Performance**: Database queries and React memoization
-2. **DRY**: Token calculation, file path logic, poller functions
-3. **Error handling**: Better logging and error messages
+1. **Performance**: ✅ Database queries optimized, React memoization added
+2. **DRY**: ✅ Token calculation extracted, poller logic consolidated
+3. **Error handling**: ✅ WebSocket logging added, CORS configurable
+4. **Bug fix**: ✅ Chart now shows absolute prompt indices when time-filtered
 
-The architecture is sound and the code is maintainable. Recommended to address Phase 1 issues first as they directly impact user experience.
+**All 16 issues resolved.** Delete `~/.supertrace/data.db` and re-import sessions for a clean start.

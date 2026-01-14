@@ -5,7 +5,7 @@
  * Professional enterprise-ready design. Uses Remix Icons.
  */
 
-import { useEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
@@ -79,7 +79,9 @@ export function SessionView({
   const prevEventCountRef = useRef<number>(0);
 
   // After events change, adjust scroll to maintain position
-  useEffect(() => {
+  // useLayoutEffect ensures DOM updates happen synchronously before paint
+  // to avoid visual flicker when adjusting scroll position
+  useLayoutEffect(() => {
     if (scrollRef.current && prevScrollHeightRef.current > 0) {
       const newScrollHeight = scrollRef.current.scrollHeight;
       const heightDiff = newScrollHeight - prevScrollHeightRef.current;
@@ -298,7 +300,7 @@ export function SessionView({
             title={getSessionFilePath()}
           >
             <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
-            {copied ? 'Copied!' : session.id.slice(0, 12)}
+            {copied ? 'Copied!' : session.id.slice(0, 8)}
           </button>
           <span>
             {events.length === totalEvents || totalEvents === 0
