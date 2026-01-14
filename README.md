@@ -1,57 +1,64 @@
-# QuickCall SuperTrace
+<p align="center">
+  <img src="https://quickcall.dev/assets/v1/qc-full-512px-white.png" alt="QuickCall" width="400">
+</p>
 
-Monitoring and observability tool for AI coding assistant sessions.
+<h3 align="center">SuperTrace - Monitor your AI coding sessions</h3>
 
-Captures inputs/outputs, stores them in SQLite, and displays them in a web UI.
+<p align="center">
+  <em>See what your AI assistant is doing. Track inputs, outputs, and tool calls in real-time.</em>
+</p>
 
-## Documentation
+<p align="center">
+  <a href="https://quickcall.dev"><img src="https://img.shields.io/badge/Web-quickcall.dev-000000?logo=googlechrome&logoColor=white" alt="Web"></a>
+  <a href="https://discord.gg/DtnMxuE35v"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://pypi.org/project/quickcall-supertrace/"><img src="https://img.shields.io/pypi/v/quickcall-supertrace?color=blue" alt="PyPI"></a>
+</p>
 
-See the [docs/](docs/) folder for detailed documentation:
+<p align="center">
+  <a href="#install">Install</a> |
+  <a href="#features">Features</a> |
+  <a href="#configure-hooks">Configure Hooks</a> |
+  <a href="#configuration">Configuration</a> |
+  <a href="#docker">Docker</a> |
+  <a href="#troubleshooting">Troubleshooting</a>
+</p>
 
-- **[Getting Started](docs/getting-started/)** - Installation and quick start
-- **[How-to Guides](docs/guides/)** - Configure hooks, export sessions
-- **[Reference](docs/reference/)** - API, hook events, configuration
-- **[Concepts](docs/concepts/)** - Architecture, how hooks work
+---
 
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   AI Assistant  │────▶│  Python Hooks   │────▶│  FastAPI Server │
-│   (CLI/IDE)     │     │  (via stdin)    │     │  (REST + WS)    │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                         │
-                        ┌─────────────────┐              │
-                        │    SQLite DB    │◀─────────────┘
-                        │  (WAL mode)     │              │
-                        └─────────────────┘              │
-                                                         ▼
-                                                ┌─────────────────┐
-                                                │   React UI      │
-                                                │   (WebSocket)   │
-                                                └─────────────────┘
-```
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-- [uv](https://github.com/astral-sh/uv) package manager
-
-### Installation
+## Install
 
 ```bash
-# Clone and install
-git clone https://github.com/quickcall-dev/quickcall-supertrace.git
-cd quickcall-supertrace
-./install.sh
+uvx quickcall-supertrace@latest
 ```
 
-### Configure Hooks
+Open http://localhost:7845 in your browser.
 
-Add to `~/.claude/settings.json` (replace `/path/to` with your actual path):
+### Alternative Methods
+
+```bash
+# Install globally
+uv tool install quickcall-supertrace
+
+# Upgrade to latest
+uv tool upgrade quickcall-supertrace
+
+# Or with pip
+pip install quickcall-supertrace
+quickcall-supertrace
+```
+
+## Features
+
+- **Real-time monitoring** - Watch AI assistant inputs/outputs as they happen
+- **Session timeline** - Browse all your coding sessions
+- **Conversation view** - See user prompts, assistant responses, and tool calls
+- **Full-text search** - Find anything across all sessions
+- **Export** - Download sessions as JSON or Markdown
+- **WebSocket updates** - Live updates without page refresh
+
+## Configure Hooks
+
+To capture Claude Code sessions, add hooks to `~/.claude/settings.json`:
 
 ```json
 {
@@ -72,27 +79,46 @@ Add to `~/.claude/settings.json` (replace `/path/to` with your actual path):
 }
 ```
 
-See [Configure Hooks Guide](docs/guides/configure-hooks.md) for detailed options.
+> Replace `/path/to/quickcall-supertrace` with your actual installation path.
 
-### Run
+## Architecture
 
-```bash
-# Terminal 1: Start server
-quickcall-supertrace
-
-# Terminal 2: Start frontend
-cd packages/web && npm run dev
-
-# Open http://localhost:2255
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   AI Assistant  │────▶│  Python Hooks   │────▶│  FastAPI Server │
+│   (CLI/IDE)     │     │  (via stdin)    │     │  (REST + WS)    │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                        │
+                       ┌─────────────────┐              │
+                       │    SQLite DB    │◀─────────────┘
+                       │  (WAL mode)     │              │
+                       └─────────────────┘              │
+                                                        ▼
+                                               ┌─────────────────┐
+                                               │   React UI      │
+                                               │   (WebSocket)   │
+                                               └─────────────────┘
 ```
 
-## Features
+## Configuration
 
-- **Real-time updates** via WebSocket
-- **Session list** with search
-- **Conversation view** with user/assistant messages and tool calls
-- **Export** to JSON or Markdown
-- **Full-text search** across all sessions
+| Env Variable | Default | Description |
+|--------------|---------|-------------|
+| `QUICKCALL_SUPERTRACE_PORT` | 7845 | Server port |
+| `QUICKCALL_SUPERTRACE_HOST` | 127.0.0.1 | Server host |
+| `QUICKCALL_SUPERTRACE_URL` | http://localhost:7845 | Server URL for hooks |
+
+## Docker
+
+```bash
+# Using Docker Compose
+docker compose up -d
+
+# Or directly
+docker run -p 7845:7845 \
+  -v ~/.claude/projects:/root/.claude/projects:ro \
+  quickcall-supertrace
+```
 
 ## Project Structure
 
@@ -102,31 +128,36 @@ quickcall-supertrace/
 │   ├── hooks/          # Python CLI for capturing events
 │   ├── server/         # FastAPI backend with SQLite
 │   └── web/            # React frontend
-├── install.sh
-└── README.md
+└── docs/               # Documentation
 ```
 
-## Configuration
+## Troubleshooting
 
-| Env Variable                    | Default              | Description          |
-|---------------------------------|----------------------|----------------------|
-| QUICKCALL_SUPERTRACE_PORT       | 7845                 | Server port          |
-| QUICKCALL_SUPERTRACE_HOST       | 127.0.0.1            | Server host          |
-| QUICKCALL_SUPERTRACE_URL        | http://localhost:7845| Server URL for hooks |
-
-## Development
+### Port Already in Use
 
 ```bash
-# Install dev dependencies
-cd packages/hooks && uv pip install -e ".[dev]"
-cd packages/server && uv pip install -e ".[dev]"
-cd packages/web && npm install
-
-# Run with hot reload
-cd packages/server && uvicorn quickcall_supertrace.main:app --reload
-cd packages/web && npm run dev
+# Use a different port
+QUICKCALL_SUPERTRACE_PORT=8080 uvx quickcall-supertrace@latest
 ```
 
-## License
+### Reset Database
 
-MIT
+```bash
+rm -rf ~/.quickcall-supertrace
+```
+
+### Stop the Server
+
+```bash
+# If running in foreground
+Ctrl+C
+
+# If running in background
+pkill -f quickcall_supertrace
+```
+
+---
+
+<p align="center">
+  Built with care by <a href="https://quickcall.dev">QuickCall</a>
+</p>
