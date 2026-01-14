@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS transcript_files (
     file_size INTEGER NOT NULL,
     last_line_number INTEGER DEFAULT 0,
     last_byte_offset INTEGER DEFAULT 0,
+    first_message_uuid TEXT,  -- Used to detect file rewrites vs appends
     status TEXT DEFAULT 'pending',
     error_message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -188,4 +189,18 @@ async def init_db(db_path: str) -> None:
         except Exception:
             # Trigger might already exist
             pass
+        # Run migrations for existing databases
+        await _run_migrations(db)
         await db.commit()
+
+
+async def _run_migrations(db: aiosqlite.Connection) -> None:
+    """Run schema migrations for existing databases."""
+    # Migration: Add first_message_uuid to transcript_files
+    try:
+        await db.execute(
+            "ALTER TABLE transcript_files ADD COLUMN first_message_uuid TEXT"
+        )
+    except Exception:
+        # Column already exists
+        pass

@@ -124,8 +124,16 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
                 for c in content
             )
 
-        # Extract prompt text (only if string content)
-        prompt_text = content if isinstance(content, str) else None
+        # Extract prompt text
+        prompt_text = None
+        if isinstance(content, str):
+            prompt_text = content
+        elif isinstance(content, list):
+            # Content can be a list of blocks - extract text from first text block
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    prompt_text = block.get("text")
+                    break
 
         # Thinking metadata
         thinking = raw.get("thinkingMetadata", {})

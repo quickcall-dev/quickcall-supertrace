@@ -4,6 +4,10 @@ Session importer.
 Imports parsed messages from JSONL files into the database.
 Handles both full imports and incremental updates.
 
+Detects file rewrites (e.g., from session compaction) by tracking
+the UUID of the first message. If the file was rewritten, clears
+existing messages and does a full reimport.
+
 Related: parser.py (provides ParsedMessage), scanner.py (finds files)
 """
 
@@ -18,6 +22,23 @@ from .parser import ParsedMessage, parse_jsonl_file, extract_session_metadata
 from .scanner import TranscriptFileInfo
 
 logger = logging.getLogger(__name__)
+
+
+def _get_first_message_uuid(file_path: Path) -> str | None:
+    """Read just the first message UUID from a JSONL file."""
+    try:
+        with open(file_path, "rb") as f:
+            for line in f:
+                try:
+                    data = json.loads(line.decode("utf-8").strip())
+                    uuid = data.get("uuid")
+                    if uuid:
+                        return uuid
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    continue
+    except Exception:
+        pass
+    return None
 
 
 @dataclass
@@ -41,6 +62,10 @@ async def import_session_file(
     """
     Import a session JSONL file into the database.
 
+    Detects file rewrites (e.g., from session compaction) by checking
+    if the first message UUID changed. If so, clears existing messages
+    and does a full reimport.
+
     Args:
         file_info: File metadata from scanner
         incremental: If True, only import new lines
@@ -55,6 +80,28 @@ async def import_session_file(
     file_path = str(file_info.file_path)
 
     try:
+        # Check if file was rewritten (not just appended)
+        current_first_uuid = _get_first_message_uuid(file_info.file_path)
+        stored_first_uuid = await _get_stored_first_uuid(db, file_path)
+
+        file_was_rewritten = (
+            stored_first_uuid is not None
+            and current_first_uuid is not None
+            and stored_first_uuid != current_first_uuid
+        )
+
+        if file_was_rewritten:
+            logger.info(
+                f"File {file_path} was rewritten (UUID changed from "
+                f"{stored_first_uuid} to {current_first_uuid}). "
+                "Clearing session data for full reimport."
+            )
+            await _clear_session_data(db, session_id)
+            # Reset to full import
+            incremental = False
+            start_line = 0
+            start_offset = 0
+
         # Parse messages from file
         messages: list[ParsedMessage] = []
         progress = None
@@ -119,6 +166,7 @@ async def import_session_file(
             size=file_info.size,
             last_line=progress.lines_processed if progress else len(messages),
             last_offset=progress.bytes_read if progress else file_info.size,
+            first_message_uuid=current_first_uuid,
         )
 
         return ImportResult(
@@ -165,6 +213,42 @@ async def _update_session_metadata(
             session_id,
         ),
     )
+    await db.conn.commit()
+
+
+async def _get_stored_first_uuid(db: Any, file_path: str) -> str | None:
+    """Get the stored first message UUID for a transcript file."""
+    cursor = await db.conn.execute(
+        "SELECT first_message_uuid FROM transcript_files WHERE file_path = ?",
+        (file_path,),
+    )
+    row = await cursor.fetchone()
+    return row["first_message_uuid"] if row else None
+
+
+async def _clear_session_data(db: Any, session_id: str) -> None:
+    """Clear all messages and FTS data for a session (for full reimport)."""
+    logger.info(f"Clearing all messages for session {session_id}")
+
+    # Delete from FTS first (has foreign key to messages)
+    await db.conn.execute(
+        "DELETE FROM messages_fts WHERE session_id = ?",
+        (session_id,),
+    )
+
+    # Delete messages
+    cursor = await db.conn.execute(
+        "DELETE FROM messages WHERE session_id = ?",
+        (session_id,),
+    )
+    logger.info(f"Deleted {cursor.rowcount} messages for session {session_id}")
+
+    # Reset session metrics
+    await db.conn.execute(
+        "DELETE FROM session_metrics WHERE session_id = ?",
+        (session_id,),
+    )
+
     await db.conn.commit()
 
 
@@ -249,24 +333,27 @@ async def _update_transcript_file(
     size: int,
     last_line: int,
     last_offset: int,
+    first_message_uuid: str | None = None,
 ) -> None:
     """Update or insert transcript file tracking record."""
     await db.conn.execute(
         """
         INSERT INTO transcript_files (
             file_path, session_id, file_mtime, file_size,
-            last_line_number, last_byte_offset, status, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'done', CURRENT_TIMESTAMP)
+            last_line_number, last_byte_offset, first_message_uuid,
+            status, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'done', CURRENT_TIMESTAMP)
         ON CONFLICT(file_path) DO UPDATE SET
             session_id = excluded.session_id,
             file_mtime = excluded.file_mtime,
             file_size = excluded.file_size,
             last_line_number = excluded.last_line_number,
             last_byte_offset = excluded.last_byte_offset,
+            first_message_uuid = excluded.first_message_uuid,
             status = 'done',
             updated_at = CURRENT_TIMESTAMP
         """,
-        (file_path, session_id, mtime, size, last_line, last_offset),
+        (file_path, session_id, mtime, size, last_line, last_offset, first_message_uuid),
     )
     await db.conn.commit()
 
@@ -291,6 +378,7 @@ async def get_transcript_file_info(file_path: str) -> dict | None:
         "file_size": row["file_size"],
         "last_line_number": row["last_line_number"],
         "last_byte_offset": row["last_byte_offset"],
+        "first_message_uuid": row["first_message_uuid"],
         "status": row["status"],
         "error_message": row["error_message"],
         "created_at": row["created_at"],
@@ -315,6 +403,7 @@ async def get_all_transcript_files() -> list[dict]:
             "file_size": row["file_size"],
             "last_line_number": row["last_line_number"],
             "last_byte_offset": row["last_byte_offset"],
+            "first_message_uuid": row["first_message_uuid"],
             "status": row["status"],
             "error_message": row["error_message"],
         }
