@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Optional
 
 # Database path
-DB_PATH = Path.home() / ".supertrace" / "data.db"
+DB_PATH = Path.home() / ".quickcall-supertrace" / "data.db"
 
 # Default session JSONL directory
 JSONL_BASE = Path.home() / ".claude" / "projects"

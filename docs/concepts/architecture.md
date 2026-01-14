@@ -70,7 +70,7 @@ Each line is a JSON object representing a message:
 
 ### 3. Database (SQLite)
 
-Location: `~/.supertrace/data.db`
+Location: `~/.quickcall-supertrace/data.db`
 
 **Tables:**
 
@@ -225,7 +225,7 @@ CREATE TABLE transcript_files (
 | `QUICKCALL_SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
 | `QUICKCALL_SUPERTRACE_ENABLE_POLLER` | `true` | Enable background polling |
 | `QUICKCALL_SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
-| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage |
+| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.quickcall-supertrace/media` | Image storage |
 
 ## Security Considerations
 

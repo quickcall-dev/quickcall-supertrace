@@ -20,7 +20,7 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/media", tags=["media"])
 
 # Media storage directory - configurable via environment variable
-MEDIA_DIR = Path(os.environ.get("SUPERTRACE_MEDIA_DIR", "~/.supertrace/media")).expanduser()
+MEDIA_DIR = Path(os.environ.get("QUICKCALL_SUPERTRACE_MEDIA_DIR", "~/.quickcall-supertrace/media")).expanduser()
 
 
 class ImageUpload(BaseModel):

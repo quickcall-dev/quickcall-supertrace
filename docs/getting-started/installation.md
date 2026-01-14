@@ -67,8 +67,8 @@ quickcall-supertrace/
 
 | Path | Purpose |
 |------|---------|
-| `~/.supertrace/data.db` | SQLite database (created on first run) |
-| `~/.supertrace/media/` | Stored images |
+| `~/.quickcall-supertrace/data.db` | SQLite database (created on first run) |
+| `~/.quickcall-supertrace/media/` | Stored images |
 | `~/.claude/projects/` | Claude Code JSONL files (read-only) |
 
 ## Next Steps

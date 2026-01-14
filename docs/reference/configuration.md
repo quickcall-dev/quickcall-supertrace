@@ -12,7 +12,7 @@ Environment variables and file locations for QuickCall SuperTrace.
 | `QUICKCALL_SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
 | `QUICKCALL_SUPERTRACE_ENABLE_POLLER` | `true` | Enable background JSONL polling |
 | `QUICKCALL_SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
-| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage directory |
+| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.quickcall-supertrace/media` | Image storage directory |
 
 **Examples:**
 
@@ -33,10 +33,10 @@ QUICKCALL_SUPERTRACE_POLL_INTERVAL=30 uv run quickcall-supertrace
 
 | Path | Description |
 |------|-------------|
-| `~/.supertrace/data.db` | SQLite database |
-| `~/.supertrace/data.db-wal` | Write-ahead log |
-| `~/.supertrace/data.db-shm` | Shared memory file |
-| `~/.supertrace/media/` | Stored images |
+| `~/.quickcall-supertrace/data.db` | SQLite database |
+| `~/.quickcall-supertrace/data.db-wal` | Write-ahead log |
+| `~/.quickcall-supertrace/data.db-shm` | Shared memory file |
+| `~/.quickcall-supertrace/media/` | Stored images |
 
 ### Claude Code Data (Read-Only)
 
@@ -163,17 +163,17 @@ uv run quickcall-supertrace  # INFO level
 
 ```bash
 # Stop server first for consistency, or use SQLite backup API
-cp ~/.supertrace/data.db ~/.supertrace/data.db.backup
+cp ~/.quickcall-supertrace/data.db ~/.quickcall-supertrace/data.db.backup
 
 # Or while running (WAL mode safe)
-sqlite3 ~/.supertrace/data.db ".backup backup.db"
+sqlite3 ~/.quickcall-supertrace/data.db ".backup backup.db"
 ```
 
 ## Reset Database
 
 ```bash
 # Delete database to start fresh
-rm ~/.supertrace/data.db*
+rm ~/.quickcall-supertrace/data.db*
 
 # Restart server - new database created automatically
 uv run quickcall-supertrace

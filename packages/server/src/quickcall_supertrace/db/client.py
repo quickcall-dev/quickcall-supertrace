@@ -16,7 +16,7 @@ import aiosqlite
 
 from .schema import init_db
 
-DEFAULT_DB_PATH = Path.home() / ".supertrace" / "data.db"
+DEFAULT_DB_PATH = Path.home() / ".quickcall-supertrace" / "data.db"
 
 
 class Database:

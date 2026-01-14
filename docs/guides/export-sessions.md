@@ -108,17 +108,17 @@ For advanced use cases, query SQLite directly:
 
 ```bash
 # Database location
-~/.supertrace/data.db
+~/.quickcall-supertrace/data.db
 
 # List sessions
-sqlite3 ~/.supertrace/data.db "SELECT id, project_path, started_at FROM sessions LIMIT 10"
+sqlite3 ~/.quickcall-supertrace/data.db "SELECT id, project_path, started_at FROM sessions LIMIT 10"
 
 # Export to CSV
-sqlite3 -header -csv ~/.supertrace/data.db \
+sqlite3 -header -csv ~/.quickcall-supertrace/data.db \
   "SELECT * FROM messages WHERE session_id='abc123'" > messages.csv
 
 # Full database backup
-sqlite3 ~/.supertrace/data.db ".backup backup.db"
+sqlite3 ~/.quickcall-supertrace/data.db ".backup backup.db"
 ```
 
 ## Use Cases
@@ -161,7 +161,7 @@ BACKUP_DIR="$HOME/backups/supertrace/$(date +%Y-%m-%d)"
 mkdir -p "$BACKUP_DIR"
 
 # Backup database
-sqlite3 ~/.supertrace/data.db ".backup $BACKUP_DIR/data.db"
+sqlite3 ~/.quickcall-supertrace/data.db ".backup $BACKUP_DIR/data.db"
 
 # Export recent sessions as JSON
 curl -s "http://localhost:7845/api/sessions?limit=100" | \

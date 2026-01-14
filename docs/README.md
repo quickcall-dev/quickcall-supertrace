@@ -10,7 +10,7 @@ QuickCall SuperTrace automatically captures Claude Code sessions from JSONL tran
 |------|-------|
 | Server | `packages/server/` - FastAPI backend |
 | Frontend | `packages/web/` - React dashboard |
-| Database | `~/.supertrace/data.db` (SQLite) |
+| Database | `~/.quickcall-supertrace/data.db` (SQLite) |
 | Source data | `~/.claude/projects/*/*.jsonl` |
 | Default ports | Server: 7845, Frontend: 2255 |
 
@@ -63,7 +63,7 @@ When helping users with QuickCall SuperTrace:
 - **No hooks required** - The system reads JSONL files directly, no Claude Code configuration needed
 - **Sessions appear automatically** - After ~2 minutes of Claude Code activity
 - **Manual import available** - Click "Import Sessions" in UI or `POST /api/ingest`
-- **Database location** - `~/.supertrace/data.db` (SQLite with WAL mode)
+- **Database location** - `~/.quickcall-supertrace/data.db` (SQLite with WAL mode)
 - **Logs** - Server outputs to stdout, check terminal running `quickcall-supertrace`
 
 Common troubleshooting:
