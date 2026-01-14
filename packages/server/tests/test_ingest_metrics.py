@@ -6,6 +6,8 @@ Tests that:
 2. Parser extracts tokens and fields properly
 3. Messages are converted to events format for metrics
 4. Token counts are accurate
+
+Uses fixtures from conftest.py for sample data.
 """
 
 import json
@@ -14,74 +16,16 @@ from pathlib import Path
 
 import pytest
 
-# Test data - sample JSONL messages
-SAMPLE_USER_MESSAGE = {
-    "type": "user",
-    "uuid": "user-123",
-    "parentUuid": None,
-    "sessionId": "test-session-001",
-    "timestamp": "2026-01-13T10:00:00.000Z",
-    "cwd": "/test/project",
-    "version": "2.1.5",
-    "gitBranch": "main",
-    "message": {"role": "user", "content": "Hello, help me write code"},
-    "imagePasteIds": [1, 2],
-    "thinkingMetadata": {"level": "high", "disabled": False, "triggers": []},
-    "todos": [{"content": "Task 1", "status": "pending", "activeForm": "Doing task"}],
-}
-
-SAMPLE_ASSISTANT_MESSAGE = {
-    "type": "assistant",
-    "uuid": "asst-456",
-    "parentUuid": "user-123",
-    "sessionId": "test-session-001",
-    "timestamp": "2026-01-13T10:00:05.000Z",
-    "cwd": "/test/project",
-    "version": "2.1.5",
-    "gitBranch": "main",
-    "message": {
-        "model": "claude-sonnet-4-20250514",
-        "id": "msg_xxx",
-        "type": "message",
-        "role": "assistant",
-        "content": [
-            {"type": "text", "text": "I'll help you write code."},
-            {
-                "type": "tool_use",
-                "id": "toolu_xxx",
-                "name": "Read",
-                "input": {"file_path": "/test/file.py"},
-            },
-        ],
-        "stop_reason": "tool_use",
-        "usage": {
-            "input_tokens": 1500,
-            "output_tokens": 250,
-            "cache_read_input_tokens": 5000,
-            "cache_creation_input_tokens": 1000,
-        },
-    },
-}
-
-SAMPLE_ASSISTANT_MESSAGE_2 = {
-    "type": "assistant",
-    "uuid": "asst-789",
-    "parentUuid": "user-456",
-    "sessionId": "test-session-001",
-    "timestamp": "2026-01-13T10:01:00.000Z",
-    "message": {
-        "model": "claude-sonnet-4-20250514",
-        "role": "assistant",
-        "content": [{"type": "text", "text": "Done!"}],
-        "stop_reason": "end_turn",
-        "usage": {
-            "input_tokens": 2000,
-            "output_tokens": 100,
-            "cache_read_input_tokens": 6000,
-            "cache_creation_input_tokens": 500,
-        },
-    },
-}
+from conftest import (
+    SAMPLE_USER_MESSAGE,
+    SAMPLE_USER_MESSAGE_LIST_CONTENT,
+    SAMPLE_ASSISTANT_MESSAGE,
+    SAMPLE_ASSISTANT_MESSAGE_2,
+    SAMPLE_TOOL_RESULT,
+    make_user_message,
+    make_assistant_message,
+    assert_tokens_match,
+)
 
 
 class TestParser:
@@ -103,6 +47,28 @@ class TestParser:
         assert msg.thinking_enabled is True
         assert msg.todo_count == 1
         assert msg.is_tool_result is False
+
+    def test_parse_user_message_list_content(self):
+        """Test parsing user message with content as list of blocks."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(SAMPLE_USER_MESSAGE_LIST_CONTENT, line_num=1)
+
+        assert msg is not None
+        assert msg.msg_type == "user"
+        assert msg.prompt_text == "This is content as a list block"
+        assert msg.is_tool_result is False
+
+    def test_parse_tool_result(self):
+        """Test that tool result messages are correctly identified."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(SAMPLE_TOOL_RESULT, line_num=1)
+
+        assert msg is not None
+        assert msg.msg_type == "user"
+        assert msg.is_tool_result is True
+        assert msg.prompt_text is None  # Tool results don't have prompt text
 
     def test_parse_assistant_message(self):
         """Test parsing an assistant message extracts token usage."""
