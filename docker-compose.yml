@@ -1,0 +1,24 @@
+# QuickCall SuperTrace Docker Compose
+#
+# Run with: docker compose up
+# Access at: http://localhost:7845
+
+services:
+  supertrace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7845:7845"
+    volumes:
+      # Mount Claude Code transcripts (read-only)
+      - ~/.claude/projects:/root/.claude/projects:ro
+      # Persist database
+      - supertrace-data:/root/.quickcall-supertrace
+    environment:
+      - QUICKCALL_SUPERTRACE_HOST=0.0.0.0
+      - QUICKCALL_SUPERTRACE_PORT=7845
+    restart: unless-stopped
+
+volumes:
+  supertrace-data:

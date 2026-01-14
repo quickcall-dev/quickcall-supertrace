@@ -208,12 +208,62 @@ Once published, users can install with:
 # Run without installing (recommended)
 uvx quickcall-supertrace
 
+# Always run the latest version (bypasses cache)
+uvx quickcall-supertrace@latest
+
+# Run a specific version
+uvx quickcall-supertrace@0.1.0
+
 # Or install globally
 uv tool install quickcall-supertrace
 
+# Upgrade to latest version
+uv tool upgrade quickcall-supertrace
+
 # Or with pip
 pip install quickcall-supertrace
+
+# Upgrade with pip
+pip install --upgrade quickcall-supertrace
 ```
+
+## Docker
+
+### Using Docker Compose (Recommended)
+
+```bash
+# Start the server
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop the server
+docker compose down
+```
+
+### Using Docker Directly
+
+```bash
+# Build the image
+docker build -t quickcall-supertrace .
+
+# Run the container
+docker run -p 7845:7845 \
+  -v ~/.claude/projects:/root/.claude/projects:ro \
+  -v supertrace-data:/root/.quickcall-supertrace \
+  quickcall-supertrace
+
+# Stop the container
+docker stop <container-id>
+```
+
+### Docker Volumes
+
+The Docker setup uses two volume mounts:
+
+1. **Claude transcripts** (read-only): `~/.claude/projects:/root/.claude/projects:ro`
+2. **Database persistence**: Named volume `supertrace-data` for `~/.quickcall-supertrace/`
 
 ## Troubleshooting
 

@@ -1,0 +1,43 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build frontend
+        run: |
+          cd packages/web
+          npm ci
+          npm run build
+
+      - name: Bundle frontend into package
+        run: |
+          cp -r packages/web/dist packages/server/src/quickcall_supertrace/static
+
+      - name: Build Python package
+        run: |
+          cd packages/server
+          uv build
+
+      - name: Publish to PyPI
+        run: |
+          cd packages/server
+          uv publish --token ${{ secrets.PYPI_API_TOKEN }}
