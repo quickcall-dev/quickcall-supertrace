@@ -10,6 +10,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from ..utils.tokens import calculate_total_input_tokens
+
 # Patterns to detect git commits
 GIT_COMMIT_PATTERNS = [
     re.compile(r"\bgit\s+commit\b", re.IGNORECASE),
@@ -125,16 +127,11 @@ def preprocess_events(events: list[dict]) -> PreprocessedEvents:
             # Extract token usage
             if token_usage := data.get("token_usage"):
                 result.token_usages.append(token_usage)
-                # Aggregate tokens
-                # NOTE: input_tokens from API can be 0 when all context is cached
-                # Total context = input_tokens + cache_read + cache_creation
-                input_tok = token_usage.get("input_tokens", 0)
-                cache_read = token_usage.get("cache_read_input_tokens", 0)
-                cache_create = token_usage.get("cache_creation_input_tokens", 0)
-                result.total_input_tokens += input_tok + cache_read + cache_create
-                result.total_output_tokens += token_usage.get("output_tokens", 0)
-                result.total_cache_read_tokens += cache_read
-                result.total_cache_creation_tokens += cache_create
+                # Aggregate tokens using shared utility
+                result.total_input_tokens += calculate_total_input_tokens(token_usage)
+                result.total_output_tokens += token_usage.get("output_tokens", 0) or 0
+                result.total_cache_read_tokens += token_usage.get("cache_read_input_tokens", 0) or 0
+                result.total_cache_creation_tokens += token_usage.get("cache_creation_input_tokens", 0) or 0
 
         elif event_type == "tool_use":
             result.tool_uses.append(event)

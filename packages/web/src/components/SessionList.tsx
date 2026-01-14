@@ -63,14 +63,15 @@ function getRelativeTime(timestamp: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function getSessionFilePath(projectPath: string | null, sessionId: string): string {
-  if (!projectPath) return sessionId;
-  // Convert project path to Claude's folder naming convention
-  // Remove leading slash then replace remaining slashes with dashes
-  const escapedPath = projectPath.replace(/^\//, '').replace(/\//g, '-');
-  // Use absolute path - extract username from project path
-  const homeDir = '/Users/' + (projectPath.split('/')[2] || 'user');
-  return `${homeDir}/.claude/projects/-${escapedPath}/${sessionId}.jsonl`;
+function getSessionFilePath(session: Session): string {
+  // Use file_path from server if available (preferred)
+  if (session.file_path) return session.file_path;
+
+  // Fallback: construct path from project_path (legacy)
+  if (!session.project_path) return session.id;
+  const escapedPath = session.project_path.replace(/^\//, '').replace(/\//g, '-');
+  const homeDir = '/Users/' + (session.project_path.split('/')[2] || 'user');
+  return `${homeDir}/.claude/projects/-${escapedPath}/${session.id}.jsonl`;
 }
 
 export function SessionList({
@@ -113,7 +114,7 @@ export function SessionList({
 
   const handleCopyPath = (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
-    const filePath = getSessionFilePath(session.project_path, session.id);
+    const filePath = getSessionFilePath(session);
     navigator.clipboard.writeText(filePath);
     setCopiedId(session.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -279,10 +280,10 @@ export function SessionList({
                           <span className="text-muted-foreground/50">·</span>
                           <span
                             className={`text-[11px] font-mono cursor-pointer transition-colors ${copiedId === session.id ? 'text-[color:var(--success)]' : 'text-muted-foreground hover:text-primary'}`}
-                            title={getSessionFilePath(session.project_path, session.id)}
+                            title={getSessionFilePath(session)}
                             onClick={(e) => handleCopyPath(e, session)}
                           >
-                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 7)}
+                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 8)}
                           </span>
                         </div>
                       </div>

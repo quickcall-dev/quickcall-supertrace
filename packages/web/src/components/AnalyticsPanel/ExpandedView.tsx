@@ -87,7 +87,7 @@ export function ExpandedView({
   metrics,
   onCollapse,
   onScrollToEvent,
-  hoursBack = 2,
+  hoursBack = 0,
   onTimeRangeChange,
   loading = false,
   isJumpingToEvent = false,

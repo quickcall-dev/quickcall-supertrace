@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS messages (
 
     -- User Message Fields
     prompt_text TEXT,
+    prompt_index INTEGER,  -- Absolute prompt number in session (non-tool-result user messages only)
     image_count INTEGER DEFAULT 0,
     thinking_level TEXT,
     thinking_enabled INTEGER DEFAULT 0,
@@ -200,6 +201,15 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
     try:
         await db.execute(
             "ALTER TABLE transcript_files ADD COLUMN first_message_uuid TEXT"
+        )
+    except Exception:
+        # Column already exists
+        pass
+
+    # Migration: Add prompt_index to messages
+    try:
+        await db.execute(
+            "ALTER TABLE messages ADD COLUMN prompt_index INTEGER"
         )
     except Exception:
         # Column already exists

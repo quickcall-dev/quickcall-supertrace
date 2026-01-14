@@ -5,7 +5,7 @@
  * Professional enterprise-ready design. Uses Remix Icons.
  */
 
-import { useEffect, useRef, useCallback, useState, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
 import type { Session, Event } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
@@ -65,13 +65,23 @@ export function SessionView({
   const eventRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [copied, setCopied] = useState(false);
 
+  // Clear event refs when session changes to prevent memory leak
+  useEffect(() => {
+    eventRefs.current.clear();
+  }, [session?.id]);
+
+  // Memoize grouped events to avoid recalculating on every render
+  const groupedEvents = useMemo(() => groupEvents(events), [events]);
+
   // Infinite scroll - load more when scrolling to top
   // Store scroll height before loading to restore position after
   const prevScrollHeightRef = useRef<number>(0);
   const prevEventCountRef = useRef<number>(0);
 
   // After events change, adjust scroll to maintain position
-  useEffect(() => {
+  // useLayoutEffect ensures DOM updates happen synchronously before paint
+  // to avoid visual flicker when adjusting scroll position
+  useLayoutEffect(() => {
     if (scrollRef.current && prevScrollHeightRef.current > 0) {
       const newScrollHeight = scrollRef.current.scrollHeight;
       const heightDiff = newScrollHeight - prevScrollHeightRef.current;
@@ -163,33 +173,11 @@ export function SessionView({
   };
 
   const isActive = session.started_at && !session.ended_at;
-  const groupedEvents = groupEvents(events);
 
-  // Get session file path for clipboard (absolute path)
-  // Claude stores sessions at the git root, not the cwd. We need to find
-  // the git root from project_path. Convention: .claude folder is at git root.
+  // Get session file path for clipboard
+  // Prefer file_path from server (set during import), fallback to session ID
   const getSessionFilePath = () => {
-    if (!session.project_path) return session.id;
-
-    // Find git root - look for common project indicators
-    // e.g., /Users/sagar/work/project/packages/server -> /Users/sagar/work/project
-    const parts = session.project_path.split('/');
-    const homeDir = parts.slice(0, 3).join('/'); // /Users/username
-
-    // Find the likely git root by looking for common subdirectories
-    // that indicate we're in a subdirectory of a monorepo
-    let gitRootParts = [...parts];
-    const subDirIndicators = ['packages', 'apps', 'libs', 'src', 'services'];
-    for (let i = parts.length - 1; i >= 3; i--) {
-      if (subDirIndicators.includes(parts[i])) {
-        gitRootParts = parts.slice(0, i);
-        break;
-      }
-    }
-
-    const gitRoot = gitRootParts.join('/');
-    const escapedPath = gitRoot.replace(/^\//, '').replace(/\//g, '-');
-    return `${homeDir}/.claude/projects/-${escapedPath}/${session.id}.jsonl`;
+    return session.file_path || session.id;
   };
 
   const copySessionPath = () => {
@@ -312,7 +300,7 @@ export function SessionView({
             title={getSessionFilePath()}
           >
             <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
-            {copied ? 'Copied!' : session.id.slice(0, 12)}
+            {copied ? 'Copied!' : session.id.slice(0, 8)}
           </button>
           <span>
             {events.length === totalEvents || totalEvents === 0

@@ -14,6 +14,7 @@ export interface Session {
   ended_at: string | null;
   metadata: Record<string, unknown> | null;
   first_prompt: string | null;
+  file_path: string | null;  // Full path to JSONL file (from server)
 }
 
 export interface Event {
@@ -146,7 +147,7 @@ export function getExportUrl(sessionId: string, format: 'json' | 'md'): string {
 
 export async function getSessionMetrics(
   sessionId: string,
-  hoursBack: number = 2
+  hoursBack: number = 0
 ): Promise<SessionMetricsResponse> {
   return fetchJson(`${BASE_URL}/metrics/session/${sessionId}?hours_back=${hoursBack}`);
 }

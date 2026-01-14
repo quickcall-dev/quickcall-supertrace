@@ -39,6 +39,7 @@ class ParsedMessage:
 
     # User Message Fields
     prompt_text: str | None
+    prompt_index: int | None  # Absolute prompt number (set by importer, not parser)
     image_count: int
     thinking_level: str | None
     thinking_enabled: bool
@@ -148,6 +149,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
         return ParsedMessage(
             **base,
             prompt_text=prompt_text,
+            prompt_index=None,  # Set by importer after counting all messages
             image_count=len(image_paste_ids),
             thinking_level=thinking_level,
             thinking_enabled=thinking_enabled,
@@ -182,6 +184,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
             **base,
             # User fields default
             prompt_text=None,
+            prompt_index=None,
             image_count=0,
             thinking_level=None,
             thinking_enabled=False,
@@ -203,6 +206,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
         return ParsedMessage(
             **base,
             prompt_text=None,
+            prompt_index=None,
             image_count=0,
             thinking_level=None,
             thinking_enabled=False,

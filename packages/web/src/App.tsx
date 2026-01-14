@@ -83,7 +83,7 @@ function App() {
   // Session metrics - loaded in parallel with session data
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
-  const [metricsHoursBack, setMetricsHoursBack] = useState<number>(2); // Default: last 2 hours
+  const [metricsHoursBack, setMetricsHoursBack] = useState<number>(0); // Default: all time
 
   // Handle new events from WebSocket (only for subscribed session)
   const handleNewEvent = useCallback((event: Event) => {
@@ -162,26 +162,13 @@ function App() {
       // First, get session to check if it's old
       const sessionPromise = getSession(selectedSessionId, 30);
 
-      // Handle session data first to determine time filter
-      let effectiveHoursBack = metricsHoursBack;
+      // Handle session data
       try {
         const data = await sessionPromise;
         if (!cancelled) {
           setSelectedSession(data.session);
           setEvents(data.events);
           setTotalEvents(data.total_events || data.events.length);
-
-          // Smart time filter:
-          // - Small sessions (< 10 events): show all
-          // - Larger sessions: use 2hr filter
-          const totalEvents = data.total_events || data.events.length;
-          if (totalEvents < 10) {
-            effectiveHoursBack = 0; // "All" for small sessions
-            setMetricsHoursBack(0);
-          } else {
-            effectiveHoursBack = 2; // Default 2hr for larger sessions
-            setMetricsHoursBack(2);
-          }
         }
       } catch (error) {
         console.error('Failed to load session:', error);
@@ -196,8 +183,8 @@ function App() {
         }
       }
 
-      // Now load metrics with the correct time filter
-      const metricsPromise = getSessionMetrics(selectedSessionId, effectiveHoursBack);
+      // Now load metrics
+      const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
 
       // Handle metrics data
       try {

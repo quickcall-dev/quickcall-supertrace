@@ -69,10 +69,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS for frontend
+# CORS for frontend - configurable via environment variable
+# Set SUPERTRACE_CORS_ORIGINS to comma-separated list of allowed origins
+# Example: SUPERTRACE_CORS_ORIGINS="http://localhost:5173,https://myapp.com"
+_cors_origins_env = os.environ.get("SUPERTRACE_CORS_ORIGINS", "*")
+_cors_origins = (
+    ["*"] if _cors_origins_env == "*"
+    else [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict to frontend URL
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -121,8 +129,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     manager.subscribe(websocket, session_id)
                 elif msg_type == "unsubscribe" and session_id:
                     manager.unsubscribe(websocket, session_id)
-            except json.JSONDecodeError:
-                pass  # Ignore invalid messages
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid JSON from WebSocket client: {e}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

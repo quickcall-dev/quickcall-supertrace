@@ -25,7 +25,7 @@ function SkeletonBox({ className = '', style }: { className?: string; style?: Re
 
 export function SkeletonView({
   onCollapse,
-  hoursBack = 2,
+  hoursBack = 0,
   onTimeRangeChange,
 }: SkeletonViewProps) {
   return (
