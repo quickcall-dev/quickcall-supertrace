@@ -12,6 +12,7 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+packages/server/src/quickcall_supertrace/static/
 
 # Database
 *.db

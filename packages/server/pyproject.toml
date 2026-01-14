@@ -26,6 +26,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quickcall_supertrace"]
+# Include static files (bundled frontend) if they exist
+artifacts = ["src/quickcall_supertrace/static/**/*"]
 
 [tool.ruff]
 line-length = 100

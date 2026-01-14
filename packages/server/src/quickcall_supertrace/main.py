@@ -11,12 +11,18 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .db import get_db
+
+# Static files directory (bundled frontend)
+STATIC_DIR = Path(__file__).parent / "static"
 from .ingest.poller import polling_loop
 from .routes import (
     ingest_router,
@@ -92,11 +98,33 @@ app.include_router(sessions_router)
 app.include_router(media_router)
 app.include_router(metrics_router)
 
+# Mount static files for bundled frontend (if available)
+if STATIC_DIR.exists():
+    # Serve static assets (js, css, etc.)
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
-@app.get("/")
-async def root():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "quickcall-supertrace"}
+    @app.get("/")
+    async def serve_frontend():
+        """Serve the frontend application."""
+        return FileResponse(STATIC_DIR / "index.html")
+
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        """Serve SPA - return index.html for client-side routing."""
+        # Don't catch API or WebSocket routes
+        if path.startswith("api/") or path == "ws":
+            return {"status": "not_found"}
+        # Serve static file if it exists
+        static_file = STATIC_DIR / path
+        if static_file.exists() and static_file.is_file():
+            return FileResponse(static_file)
+        # Otherwise serve index.html for SPA routing
+        return FileResponse(STATIC_DIR / "index.html")
+else:
+    @app.get("/")
+    async def root():
+        """Health check endpoint (no frontend bundled)."""
+        return {"status": "ok", "service": "quickcall-supertrace", "frontend": "not bundled"}
 
 
 @app.get("/api/health")

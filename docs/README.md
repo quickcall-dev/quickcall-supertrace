@@ -24,6 +24,7 @@ docs/
 ├── concepts/            # How things work
 │   └── architecture.md  # System design and data flow
 ├── guides/              # Task-oriented how-tos
+│   ├── distribution.md  # Build, package, and publish
 │   ├── export-sessions.md
 │   ├── token-usage.md
 │   └── file-suggestion.md
