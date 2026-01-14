@@ -1,6 +1,6 @@
 # TODO: Remove Hooks System
 
-## Status: Planned
+## Status: COMPLETED
 
 The hooks system is redundant now that we have JSONL ingestion. This document outlines the plan to remove hooks and simplify the architecture.
 
@@ -61,12 +61,12 @@ if not events:
 - [ ] Add deprecation notice to hooks package
 
 ### Phase 2: Remove Code
-- [ ] Delete `packages/hooks/` directory
-- [ ] Delete `routes/events.py` (POST /api/events endpoint)
-- [ ] Remove fallback logic in `routes/sessions.py`
-- [ ] Remove fallback logic in `routes/metrics.py`
-- [ ] Drop `events` table from schema (migration)
-- [ ] Drop `events_fts` table from schema
+- [x] Delete `packages/hooks/` directory
+- [x] Delete `routes/events.py` (POST /api/events endpoint)
+- [x] Remove fallback logic in `routes/sessions.py`
+- [x] Remove fallback logic in `routes/metrics.py`
+- [x] Drop `events` table from schema (migration)
+- [x] Drop `events_fts` table from schema
 
 ### Phase 3: Improve JSONL Ingestion
 - [ ] Reduce polling interval (30s for active sessions)

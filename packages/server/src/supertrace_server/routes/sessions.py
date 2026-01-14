@@ -158,21 +158,8 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # =========================================================================
-    # CRITICAL: Must use get_messages_as_events for sessions with ingested data
-    # =========================================================================
-    # This ensures event IDs match between session viewer and metrics/charts.
-    # If IDs don't match, clicking on a chart prompt won't scroll to the right
-    # message in the session viewer.
-    #
-    # get_messages_as_events also handles:
-    # - Skipping empty assistant messages (tool-only responses)
-    # - Extracting text content for assistant message display
-    # - Filtering out tool_result user messages (not real prompts)
-    # =========================================================================
+    # Get events from messages table (JSONL ingestion is the only data source)
     all_events = await db.get_messages_as_events(session_id, limit=10000)
-    if not all_events:
-        all_events = await db.get_events(session_id, limit=10000)
 
     total_events = len(all_events)
 
@@ -211,10 +198,8 @@ async def get_session_events(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # CRITICAL: Must use get_messages_as_events - see get_session for details
+    # Get events from messages table (JSONL ingestion is the only data source)
     all_events = await db.get_messages_as_events(session_id, limit=10000)
-    if not all_events:
-        all_events = await db.get_events(session_id, limit=10000)
 
     # Filter to events before the given ID (for loading older events)
     if before_id is not None:
@@ -245,7 +230,7 @@ async def export_session(session_id: str, format: str = "json") -> Response:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    events = await db.get_events(session_id, limit=10000)
+    events = await db.get_messages_as_events(session_id, limit=10000)
 
     if format == "json":
         content = json.dumps({"session": session, "events": events}, indent=2)

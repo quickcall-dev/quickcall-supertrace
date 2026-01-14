@@ -144,63 +144,8 @@ class Database:
         }
 
     # =====================
-    # Event operations
+    # Message operations
     # =====================
-
-    async def insert_event(
-        self,
-        session_id: str,
-        event_type: str,
-        timestamp: datetime,
-        data: dict | None = None,
-    ) -> int:
-        """Insert an event and update FTS index."""
-        cursor = await self.conn.execute(
-            """
-            INSERT INTO events (session_id, event_type, timestamp, data)
-            VALUES (?, ?, ?, ?)
-            """,
-            (session_id, event_type, timestamp.isoformat(), json.dumps(data) if data else None),
-        )
-        event_id = cursor.lastrowid
-
-        # Update FTS index with searchable content
-        if data:
-            content = json.dumps(data)
-            await self.conn.execute(
-                "INSERT INTO events_fts (content, session_id, event_id) VALUES (?, ?, ?)",
-                (content, session_id, event_id),
-            )
-
-        await self.conn.commit()
-        return event_id
-
-    async def get_events(
-        self, session_id: str, limit: int = 10000, offset: int = 0
-    ) -> list[dict[str, Any]]:
-        """Get events for a session."""
-        cursor = await self.conn.execute(
-            """
-            SELECT id, session_id, event_type, timestamp, data, created_at
-            FROM events
-            WHERE session_id = ?
-            ORDER BY timestamp ASC
-            LIMIT ? OFFSET ?
-            """,
-            (session_id, limit, offset),
-        )
-        rows = await cursor.fetchall()
-        return [
-            {
-                "id": row["id"],
-                "session_id": row["session_id"],
-                "event_type": row["event_type"],
-                "timestamp": row["timestamp"],
-                "data": json.loads(row["data"]) if row["data"] else None,
-                "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
 
     async def get_messages_as_events(
         self, session_id: str, limit: int = 10000
@@ -349,37 +294,6 @@ class Database:
                         })
 
         return events
-
-    # =====================
-    # Search operations
-    # =====================
-
-    async def search(self, query: str, limit: int = 50) -> list[dict[str, Any]]:
-        """Full-text search across events."""
-        cursor = await self.conn.execute(
-            """
-            SELECT e.id, e.session_id, e.event_type, e.timestamp, e.data,
-                   snippet(events_fts, 0, '<mark>', '</mark>', '...', 32) as snippet
-            FROM events_fts
-            JOIN events e ON events_fts.event_id = e.id
-            WHERE events_fts MATCH ?
-            ORDER BY rank
-            LIMIT ?
-            """,
-            (query, limit),
-        )
-        rows = await cursor.fetchall()
-        return [
-            {
-                "id": row["id"],
-                "session_id": row["session_id"],
-                "event_type": row["event_type"],
-                "timestamp": row["timestamp"],
-                "data": json.loads(row["data"]) if row["data"] else None,
-                "snippet": row["snippet"],
-            }
-            for row in rows
-        ]
 
 
 # Singleton instance

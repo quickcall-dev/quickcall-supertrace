@@ -19,7 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db import get_db
 from .ingest.poller import polling_loop
 from .routes import (
-    events_router,
     ingest_router,
     media_router,
     metrics_router,
@@ -80,7 +79,6 @@ app.add_middleware(
 )
 
 # Mount routers
-app.include_router(events_router)
 app.include_router(ingest_router)
 app.include_router(sessions_router)
 app.include_router(media_router)

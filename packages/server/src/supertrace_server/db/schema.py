@@ -1,7 +1,7 @@
 """
 SQLite schema definitions and initialization.
 
-Creates sessions table, events table, messages table (for JSONL ingestion),
+Creates sessions table, messages table (for JSONL ingestion),
 transcript_files table, session_metrics table, and FTS5 virtual tables.
 Uses WAL mode for concurrent access.
 
@@ -27,18 +27,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     file_path TEXT
 );
 
--- Events table (legacy - kept for backward compatibility)
-CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    data TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (session_id) REFERENCES sessions(id)
-);
-
--- Messages table (new - stores parsed JSONL messages with extracted fields)
+-- Messages table (stores parsed JSONL messages with extracted fields)
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -139,13 +128,10 @@ CREATE TABLE IF NOT EXISTS session_metrics (
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 
--- Indexes for events (legacy)
-CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
-CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+-- Indexes for sessions
 CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at);
 
--- Indexes for messages (new)
+-- Indexes for messages
 CREATE INDEX IF NOT EXISTS idx_msg_session ON messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_msg_type ON messages(msg_type);
 CREATE INDEX IF NOT EXISTS idx_msg_timestamp ON messages(timestamp);
@@ -158,14 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_msg_tools ON messages(tool_names);
 CREATE INDEX IF NOT EXISTS idx_tf_session ON transcript_files(session_id);
 CREATE INDEX IF NOT EXISTS idx_tf_mtime ON transcript_files(file_mtime DESC);
 
--- Full-text search for events (legacy)
-CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
-    content,
-    session_id UNINDEXED,
-    event_id UNINDEXED
-);
-
--- Full-text search for messages (new)
+-- Full-text search for messages
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
     content,
     session_id UNINDEXED,
