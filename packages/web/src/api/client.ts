@@ -14,6 +14,7 @@ export interface Session {
   ended_at: string | null;
   metadata: Record<string, unknown> | null;
   first_prompt: string | null;
+  file_path: string | null;  // Full path to JSONL file (from server)
 }
 
 export interface Event {

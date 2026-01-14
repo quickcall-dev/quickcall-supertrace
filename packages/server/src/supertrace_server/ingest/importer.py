@@ -103,6 +103,7 @@ async def import_session_file(
             start_offset = 0
 
         # Parse messages from file
+        # Use manual iteration to capture the generator's return value (ParseProgress)
         messages: list[ParsedMessage] = []
         progress = None
 
@@ -112,16 +113,14 @@ async def import_session_file(
             start_offset=start_offset,
         )
 
-        for msg in generator:
-            messages.append(msg)
-
-        # Get final progress (returned from generator)
-        try:
-            # The generator returns ParseProgress when exhausted
-            # We need to capture it from the last yield
-            pass
-        except StopIteration as e:
-            progress = e.value
+        # Manual iteration to capture StopIteration.value (the ParseProgress)
+        while True:
+            try:
+                msg = next(generator)
+                messages.append(msg)
+            except StopIteration as e:
+                progress = e.value
+                break
 
         if not messages:
             # No messages to import
@@ -253,22 +252,18 @@ async def _clear_session_data(db: Any, session_id: str) -> None:
 
 
 async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
-    """Insert a batch of messages into the database."""
+    """
+    Insert a batch of messages into the database.
+
+    Uses INSERT OR IGNORE to skip duplicates efficiently (no pre-check SELECT).
+    FTS index is updated for searchable user/assistant messages.
+    """
     for msg in messages:
-        # Check if message already exists (by uuid)
+        # Use INSERT OR IGNORE - SQLite skips if uuid already exists (UNIQUE constraint)
+        # This eliminates the need for a SELECT check before each insert
         cursor = await db.conn.execute(
-            "SELECT id FROM messages WHERE uuid = ?", (msg.uuid,)
-        )
-        existing = await cursor.fetchone()
-
-        if existing:
-            # Skip duplicate
-            continue
-
-        # Insert message
-        await db.conn.execute(
             """
-            INSERT INTO messages (
+            INSERT OR IGNORE INTO messages (
                 uuid, parent_uuid, session_id, msg_type, subtype, timestamp,
                 cwd, version, git_branch,
                 prompt_text, image_count, thinking_level, thinking_enabled,
@@ -307,16 +302,17 @@ async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
             ),
         )
 
-        # Update FTS index for searchable messages
-        if msg.msg_type in ("user", "assistant") and msg.prompt_text:
-            cursor = await db.conn.execute("SELECT last_insert_rowid()")
-            row = await cursor.fetchone()
+        # Only update FTS if a row was actually inserted (rowcount > 0)
+        # This handles duplicates gracefully
+        if cursor.rowcount > 0 and msg.msg_type in ("user", "assistant") and msg.prompt_text:
+            row_cursor = await db.conn.execute("SELECT last_insert_rowid()")
+            row = await row_cursor.fetchone()
             message_id = row[0] if row else None
 
             if message_id:
                 await db.conn.execute(
                     """
-                    INSERT INTO messages_fts (content, session_id, message_id)
+                    INSERT OR IGNORE INTO messages_fts (content, session_id, message_id)
                     VALUES (?, ?, ?)
                     """,
                     (msg.prompt_text, msg.session_id, message_id),

@@ -90,11 +90,11 @@ class Database:
     async def get_sessions(
         self, limit: int = 50, offset: int = 0
     ) -> list[dict[str, Any]]:
-        """Get sessions ordered by most recent, including first user prompt."""
+        """Get sessions ordered by most recent, including first user prompt and file path."""
         cursor = await self.conn.execute(
             """
             SELECT
-                s.id, s.project_path, s.started_at, s.ended_at, s.metadata,
+                s.id, s.project_path, s.started_at, s.ended_at, s.metadata, s.file_path,
                 (
                     SELECT m.prompt_text
                     FROM messages m
@@ -123,12 +123,13 @@ class Database:
                 "ended_at": row["ended_at"],
                 "metadata": json.loads(row["metadata"]) if row["metadata"] else None,
                 "first_prompt": row["first_prompt"],
+                "file_path": row["file_path"],
             }
             for row in rows
         ]
 
     async def get_session(self, session_id: str) -> dict[str, Any] | None:
-        """Get a single session by ID."""
+        """Get a single session by ID including file path."""
         cursor = await self.conn.execute(
             "SELECT * FROM sessions WHERE id = ?", (session_id,)
         )
@@ -141,6 +142,7 @@ class Database:
             "started_at": row["started_at"],
             "ended_at": row["ended_at"],
             "metadata": json.loads(row["metadata"]) if row["metadata"] else None,
+            "file_path": row["file_path"],
         }
 
     # =====================
@@ -279,6 +281,143 @@ class Database:
                     })
 
                 # Add tool_use events for each tool used
+                for block in content_blocks:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        events.append({
+                            "id": row["id"],
+                            "session_id": row["session_id"],
+                            "event_type": "tool_use",
+                            "timestamp": row["timestamp"],
+                            "data": {
+                                "tool_name": block.get("name", "unknown"),
+                                "tool_input": block.get("input", {}),
+                                "tool_result": {},
+                            },
+                        })
+
+        return events
+
+    async def get_messages_as_events_filtered(
+        self, session_id: str, since_timestamp: str | None = None, limit: int = 10000
+    ) -> list[dict[str, Any]]:
+        """
+        Get messages for a session with optional time filter, converted to events.
+
+        This is an optimized version that filters at SQL level instead of in Python.
+        Used by metrics route when hours_back is specified.
+
+        Args:
+            session_id: Session to get events for
+            since_timestamp: ISO timestamp - only get events after this time
+            limit: Maximum events to return
+        """
+        if since_timestamp:
+            cursor = await self.conn.execute(
+                """
+                SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
+                       prompt_text, image_count, thinking_level, thinking_enabled,
+                       model, input_tokens, output_tokens, cache_read_tokens,
+                       cache_create_tokens, stop_reason, tool_use_count, tool_names,
+                       is_tool_result
+                FROM messages
+                WHERE session_id = ? AND timestamp >= ?
+                ORDER BY timestamp ASC
+                LIMIT ?
+                """,
+                (session_id, since_timestamp, limit),
+            )
+        else:
+            cursor = await self.conn.execute(
+                """
+                SELECT id, uuid, session_id, msg_type, timestamp, raw_data,
+                       prompt_text, image_count, thinking_level, thinking_enabled,
+                       model, input_tokens, output_tokens, cache_read_tokens,
+                       cache_create_tokens, stop_reason, tool_use_count, tool_names,
+                       is_tool_result
+                FROM messages
+                WHERE session_id = ?
+                ORDER BY timestamp ASC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            )
+
+        rows = await cursor.fetchall()
+        return self._convert_rows_to_events(rows)
+
+    def _convert_rows_to_events(self, rows: list) -> list[dict[str, Any]]:
+        """
+        Convert database rows to event format.
+
+        Shared logic between get_messages_as_events and get_messages_as_events_filtered.
+        """
+        events = []
+        prompt_index = 0
+
+        for row in rows:
+            msg_type = row["msg_type"]
+
+            if msg_type == "user":
+                if row["is_tool_result"]:
+                    continue
+
+                prompt_index += 1
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+
+                prompt_text = row["prompt_text"]
+                if not prompt_text:
+                    msg_content = raw.get("message", {}).get("content")
+                    if isinstance(msg_content, str):
+                        prompt_text = msg_content
+                    elif isinstance(msg_content, list):
+                        for block in msg_content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                prompt_text = block.get("text", "")
+                                break
+
+                events.append({
+                    "id": row["id"],
+                    "session_id": row["session_id"],
+                    "event_type": "user_prompt",
+                    "timestamp": row["timestamp"],
+                    "data": {
+                        "prompt": prompt_text or "",
+                        "promptIndex": prompt_index,
+                        "imagePasteIds": raw.get("imagePasteIds", []),
+                        "thinkingMetadata": raw.get("thinkingMetadata", {}),
+                    },
+                })
+
+            elif msg_type == "assistant":
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                message_obj = raw.get("message", {})
+                content_blocks = message_obj.get("content", [])
+
+                text_content = ""
+                for block in content_blocks:
+                    if isinstance(block, dict):
+                        if block.get("type") == "text":
+                            text_content = block.get("text", "")
+
+                if text_content.strip():
+                    events.append({
+                        "id": row["id"],
+                        "session_id": row["session_id"],
+                        "event_type": "assistant_stop",
+                        "timestamp": row["timestamp"],
+                        "data": {
+                            "model": row["model"],
+                            "stop_reason": row["stop_reason"],
+                            "message": text_content,
+                            "token_usage": {
+                                "input_tokens": row["input_tokens"] or 0,
+                                "output_tokens": row["output_tokens"] or 0,
+                                "cache_read_input_tokens": row["cache_read_tokens"] or 0,
+                                "cache_creation_input_tokens": row["cache_create_tokens"] or 0,
+                            },
+                        },
+                    })
+
                 for block in content_blocks:
                     if isinstance(block, dict) and block.get("type") == "tool_use":
                         events.append({

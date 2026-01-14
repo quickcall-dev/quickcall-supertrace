@@ -18,36 +18,10 @@ from ..metrics import compute_metrics
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
 
-def _filter_events_by_time(events: list[dict], hours_back: int | None) -> list[dict]:
-    """Filter events to only include those within the time window."""
-    if hours_back is None or hours_back <= 0:
-        return events
-
-    # Use UTC for cutoff - events are stored in UTC
+def _get_cutoff_timestamp(hours_back: int) -> str:
+    """Get ISO timestamp for cutoff time (hours_back hours ago)."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-
-    filtered = []
-    for event in events:
-        ts_str = event.get("timestamp")
-        if not ts_str:
-            continue
-        try:
-            # Parse ISO timestamp and treat as UTC
-            ts_str_clean = ts_str.replace("Z", "+00:00")
-            # If no timezone info, assume UTC
-            if "+" not in ts_str_clean and "-" not in ts_str_clean[10:]:
-                ts_str_clean = ts_str + "+00:00"
-            ts = datetime.fromisoformat(ts_str_clean)
-            # Make sure it's UTC aware
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if ts >= cutoff:
-                filtered.append(event)
-        except (ValueError, TypeError):
-            # Include events with unparseable timestamps
-            filtered.append(event)
-
-    return filtered
+    return cutoff.isoformat()
 
 
 @router.get("/session/{session_id}")
@@ -71,12 +45,16 @@ async def get_session_metrics(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get events from messages table (JSONL ingestion is the only data source)
-    events = await db.get_messages_as_events(session_id, limit=10000)
-
-    # Filter by time if requested
+    # Get events with SQL-level time filtering (much faster than Python filtering)
+    since_timestamp = None
     if hours_back is not None and hours_back > 0:
-        events = _filter_events_by_time(events, hours_back)
+        since_timestamp = _get_cutoff_timestamp(hours_back)
+
+    events = await db.get_messages_as_events_filtered(
+        session_id,
+        since_timestamp=since_timestamp,
+        limit=10000,
+    )
 
     # Compute all registered metrics
     metrics = compute_metrics(events)
