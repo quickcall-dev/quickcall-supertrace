@@ -56,7 +56,7 @@ export function TimingChart({ data, onPromptClick }: TimingChartProps) {
   };
 
   // Chart dimensions
-  const yAxisWidth = 32;
+  const yAxisWidth = 48; // Enough for "3m 18s"
   const pointSpacing = 56;
   const graphWidth = Math.max(turns.length * pointSpacing, 180);
   const chartHeight = 60;

@@ -171,14 +171,16 @@ function App() {
           setEvents(data.events);
           setTotalEvents(data.total_events || data.events.length);
 
-          // Auto-set to "All" for older sessions (started > 2 hours ago)
-          if (data.session?.started_at) {
-            const sessionStart = new Date(data.session.started_at);
-            const hoursAgo = (Date.now() - sessionStart.getTime()) / (1000 * 60 * 60);
-            if (hoursAgo > 2) {
-              effectiveHoursBack = 0; // "All"
-              setMetricsHoursBack(0);
-            }
+          // Smart time filter:
+          // - Small sessions (< 10 events): show all
+          // - Larger sessions: use 2hr filter
+          const totalEvents = data.total_events || data.events.length;
+          if (totalEvents < 10) {
+            effectiveHoursBack = 0; // "All" for small sessions
+            setMetricsHoursBack(0);
+          } else {
+            effectiveHoursBack = 2; // Default 2hr for larger sessions
+            setMetricsHoursBack(2);
           }
         }
       } catch (error) {
