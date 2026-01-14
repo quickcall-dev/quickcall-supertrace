@@ -24,6 +24,12 @@
 
 ---
 
+<p align="center">
+  <img src="assets/demo-image.png" alt="SuperTrace Demo" width="800">
+</p>
+
+---
+
 ## Install
 
 ```bash
