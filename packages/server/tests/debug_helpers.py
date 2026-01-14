@@ -348,12 +348,226 @@ class DebugHelper:
         }
 
     # =========================================================================
+    # JSONL extraction
+    # =========================================================================
+
+    def extract_examples(
+        self,
+        session_id: Optional[str] = None,
+        file_path: Optional[Path] = None
+    ) -> dict:
+        """
+        Extract condensed examples of each message type from a JSONL file.
+
+        Returns dict with keys: user_prompt, tool_result_success, tool_result_error,
+        assistant_text, assistant_tool, system, queue_operation
+        """
+        if file_path is None:
+            if session_id:
+                file_path = self._find_jsonl_file(session_id)
+            else:
+                # Find most recent
+                files = sorted(
+                    JSONL_BASE.rglob("*.jsonl"),
+                    key=lambda p: p.stat().st_mtime,
+                    reverse=True
+                )
+                file_path = files[0] if files else None
+
+        if not file_path or not file_path.exists():
+            return {'error': 'No JSONL file found'}
+
+        examples = {
+            'user_prompt': None,
+            'tool_result_success': None,
+            'tool_result_error': None,
+            'assistant_text': None,
+            'assistant_tool': None,
+            'system': None,
+            'queue_operation': None,
+        }
+
+        with open(file_path) as f:
+            for line in f:
+                try:
+                    msg = json.loads(line.strip())
+                    self._classify_and_store(msg, examples)
+                    if all(examples.values()):
+                        break
+                except json.JSONDecodeError:
+                    continue
+
+        return examples
+
+    def _classify_and_store(self, msg: dict, examples: dict):
+        """Classify message and store if we don't have that type yet."""
+        msg_type = msg.get('type')
+
+        if msg_type == 'user':
+            content = msg.get('message', {}).get('content')
+            if isinstance(content, list):
+                for c in content:
+                    if isinstance(c, dict) and c.get('type') == 'tool_result':
+                        if c.get('is_error'):
+                            if not examples['tool_result_error']:
+                                examples['tool_result_error'] = msg
+                        else:
+                            if not examples['tool_result_success']:
+                                result_content = c.get('content', '')
+                                # Skip if content is too complex
+                                if isinstance(result_content, str) and len(result_content) < 200:
+                                    examples['tool_result_success'] = msg
+                        return
+            # Regular user prompt
+            if not examples['user_prompt']:
+                if isinstance(content, str) and len(content) < 100 and not content.startswith('<'):
+                    examples['user_prompt'] = msg
+
+        elif msg_type == 'assistant':
+            content = msg.get('message', {}).get('content', [])
+            has_tool = any(c.get('type') == 'tool_use' for c in content if isinstance(c, dict))
+            if has_tool and not examples['assistant_tool']:
+                examples['assistant_tool'] = msg
+            elif not has_tool and not examples['assistant_text']:
+                examples['assistant_text'] = msg
+
+        elif msg_type == 'system' and not examples['system']:
+            examples['system'] = msg
+
+        elif msg_type == 'queue-operation' and not examples['queue_operation']:
+            examples['queue_operation'] = msg
+
+    def condense_message(self, msg: dict, truncate_uuid: int = 8) -> dict:
+        """
+        Condense a message for display, truncating UUIDs and long content.
+
+        Useful for documentation and debugging output.
+        """
+        if not msg:
+            return None
+
+        def trunc_uuid(u):
+            if u and len(u) > truncate_uuid:
+                return u[:truncate_uuid] + '...'
+            return u
+
+        result = {
+            'type': msg.get('type'),
+            'uuid': trunc_uuid(msg.get('uuid')),
+        }
+
+        if msg.get('parentUuid'):
+            result['parentUuid'] = trunc_uuid(msg.get('parentUuid'))
+
+        msg_type = msg.get('type')
+
+        if msg_type == 'user':
+            message = msg.get('message', {})
+            content = message.get('content')
+
+            if isinstance(content, str):
+                result['message'] = {
+                    'role': 'user',
+                    'content': content[:80] + ('...' if len(content) > 80 else '')
+                }
+            elif isinstance(content, list):
+                condensed_content = []
+                for c in content[:2]:  # Only first 2 blocks
+                    if isinstance(c, dict):
+                        if c.get('type') == 'tool_result':
+                            condensed_content.append({
+                                'type': 'tool_result',
+                                'tool_use_id': trunc_uuid(c.get('tool_use_id')),
+                                'content': (c.get('content', '')[:60] + '...'
+                                           if len(c.get('content', '')) > 60 else c.get('content', '')),
+                                **({'is_error': True} if c.get('is_error') else {})
+                            })
+                        elif c.get('type') == 'text':
+                            text = c.get('text', '')
+                            condensed_content.append({
+                                'type': 'text',
+                                'text': text[:60] + ('...' if len(text) > 60 else '')
+                            })
+                result['message'] = {'role': 'user', 'content': condensed_content}
+
+        elif msg_type == 'assistant':
+            message = msg.get('message', {})
+            content = message.get('content', [])
+
+            condensed_content = []
+            for c in content[:3]:  # Only first 3 blocks
+                if isinstance(c, dict):
+                    if c.get('type') == 'text':
+                        text = c.get('text', '')
+                        condensed_content.append({
+                            'type': 'text',
+                            'text': text[:60] + ('...' if len(text) > 60 else '')
+                        })
+                    elif c.get('type') == 'tool_use':
+                        tool_input = c.get('input', {})
+                        condensed_input = {}
+                        for k, v in list(tool_input.items())[:2]:
+                            if isinstance(v, str) and len(v) > 50:
+                                v = v[:50] + '...'
+                            condensed_input[k] = v
+                        condensed_content.append({
+                            'type': 'tool_use',
+                            'id': trunc_uuid(c.get('id')),
+                            'name': c.get('name'),
+                            'input': condensed_input
+                        })
+
+            result['message'] = {
+                'model': message.get('model'),
+                'id': trunc_uuid(message.get('id')),
+                'role': 'assistant',
+                'content': condensed_content,
+                'stop_reason': message.get('stop_reason'),
+                'usage': message.get('usage', {})
+            }
+
+        elif msg_type == 'system':
+            result['subtype'] = msg.get('subtype')
+            content = msg.get('content', '')
+            result['content'] = content[:60] + ('...' if len(content) > 60 else '')
+            result['level'] = msg.get('level')
+
+        elif msg_type == 'queue-operation':
+            result['operation'] = msg.get('operation')
+            result['sessionId'] = trunc_uuid(msg.get('sessionId'))
+            content = msg.get('content', '')
+            result['content'] = content[:80] + ('...' if len(content) > 80 else '')
+
+        return result
+
+    def print_examples(self, session_id: Optional[str] = None):
+        """Print condensed examples of each message type."""
+        examples = self.extract_examples(session_id)
+
+        if 'error' in examples:
+            print(f"Error: {examples['error']}")
+            return
+
+        for name, msg in examples.items():
+            print(f"\n{'='*60}")
+            print(f"{name.upper()}")
+            print(f"{'='*60}")
+            if msg:
+                condensed = self.condense_message(msg)
+                print(json.dumps(condensed, indent=2))
+            else:
+                print("(no example found)")
+
+    # =========================================================================
     # JSONL helpers
     # =========================================================================
 
     def _find_jsonl_file(self, session_id: str) -> Optional[Path]:
         """Find JSONL file for a session."""
         for jsonl in JSONL_BASE.rglob(f"*{session_id}*.jsonl"):
+            return jsonl
+        # Also check for exact match (session ID is the filename)
+        for jsonl in JSONL_BASE.rglob(f"{session_id}.jsonl"):
             return jsonl
         return None
 
@@ -529,6 +743,8 @@ def main():
     parser.add_argument('--tools', action='store_true', help='Show tool summary')
     parser.add_argument('--duplicates', '-d', action='store_true', help='Find duplicates')
     parser.add_argument('--transcript', action='store_true', help='Show transcript file status')
+    parser.add_argument('--examples', '-e', action='store_true', help='Extract example messages')
+    parser.add_argument('--jsonl', help='Path to specific JSONL file')
 
     args = parser.parse_args()
 
@@ -582,6 +798,9 @@ def main():
         print(f"\nTranscript Status:")
         for k, v in status.items():
             print(f"  {k}: {v}")
+    elif args.examples:
+        file_path = Path(args.jsonl) if args.jsonl else None
+        dh.print_examples(args.session if not file_path else None)
     else:
         dh.print_session_info(args.session)
 

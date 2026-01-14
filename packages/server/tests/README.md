@@ -52,6 +52,12 @@ python -m tests.debug_helpers -s <session-id> --tools
 
 # Check transcript file status
 python -m tests.debug_helpers -s <session-id> --transcript
+
+# Extract example messages (for documentation)
+python -m tests.debug_helpers --examples
+
+# Extract from specific JSONL file
+python -m tests.debug_helpers --examples --jsonl /path/to/session.jsonl
 ```
 
 ### Programmatic Usage
@@ -81,6 +87,15 @@ tokens = dh.get_token_summary("session-id")
 
 # Tool summary
 tools = dh.get_tool_summary("session-id")
+
+# Extract example messages
+examples = dh.extract_examples("session-id")
+# Returns dict with: user_prompt, tool_result_success, tool_result_error,
+#                    assistant_text, assistant_tool, system, queue_operation
+
+# Condense message for display
+condensed = dh.condense_message(examples['assistant_tool'])
+print(json.dumps(condensed, indent=2))
 ```
 
 ## Tool Count Analysis
@@ -106,10 +121,19 @@ python tests/test_tool_counts.py --prompts 9,20
 
 ```python
 from conftest import (
+    # Basic samples
     SAMPLE_USER_MESSAGE,
     SAMPLE_ASSISTANT_MESSAGE,
     SAMPLE_TOOL_RESULT,
     SAMPLE_USER_MESSAGE_LIST_CONTENT,
+
+    # Real-world examples (based on actual JSONL files)
+    REAL_USER_PROMPT,
+    REAL_TOOL_RESULT_SUCCESS,
+    REAL_TOOL_RESULT_ERROR,
+    REAL_ASSISTANT_WITH_TOOL,
+    REAL_SYSTEM_MESSAGE,
+    REAL_QUEUE_OPERATION,
 )
 ```
 
@@ -162,6 +186,12 @@ def test_custom(temp_jsonl_with_data):
 | `test_messages_to_events_token_usage` | Converts to event format |
 | `test_preprocess_token_totals` | Aggregates tokens correctly |
 | `test_full_pipeline_token_accuracy` | End-to-end token verification |
+| `test_real_user_prompt` | Parse real user prompt with all fields |
+| `test_real_tool_result_success` | Parse successful tool result |
+| `test_real_tool_result_error` | Parse error tool result with is_error flag |
+| `test_real_assistant_with_tool` | Parse real assistant with full token usage |
+| `test_real_system_message` | Parse system message with subtype |
+| `test_real_queue_operation` | Parse queue operation message |
 
 ### test_tool_counts.py
 

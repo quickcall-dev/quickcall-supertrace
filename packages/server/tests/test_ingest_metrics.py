@@ -22,6 +22,12 @@ from conftest import (
     SAMPLE_ASSISTANT_MESSAGE,
     SAMPLE_ASSISTANT_MESSAGE_2,
     SAMPLE_TOOL_RESULT,
+    REAL_USER_PROMPT,
+    REAL_TOOL_RESULT_SUCCESS,
+    REAL_TOOL_RESULT_ERROR,
+    REAL_ASSISTANT_WITH_TOOL,
+    REAL_SYSTEM_MESSAGE,
+    REAL_QUEUE_OPERATION,
     make_user_message,
     make_assistant_message,
     assert_tokens_match,
@@ -87,6 +93,74 @@ class TestParser:
         assert msg.tool_use_count == 1
         assert msg.tool_names == ["Read"]
         assert msg.stop_reason == "tool_use"
+
+
+class TestRealWorldExamples:
+    """Test parsing with real-world JSONL examples."""
+
+    def test_real_user_prompt(self):
+        """Parse real user prompt with all fields."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_USER_PROMPT, line_num=1)
+
+        assert msg.msg_type == "user"
+        assert msg.prompt_text == "how hard is it to use postgres?"
+        assert msg.is_tool_result is False
+        assert msg.version == "2.1.6"
+        assert msg.git_branch == "main"
+
+    def test_real_tool_result_success(self):
+        """Parse successful tool result."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_TOOL_RESULT_SUCCESS, line_num=2)
+
+        assert msg.msg_type == "user"
+        assert msg.is_tool_result is True
+        assert msg.prompt_text is None
+
+    def test_real_tool_result_error(self):
+        """Parse error tool result with is_error flag."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_TOOL_RESULT_ERROR, line_num=3)
+
+        assert msg.msg_type == "user"
+        assert msg.is_tool_result is True
+
+    def test_real_assistant_with_tool(self):
+        """Parse real assistant message with tool use and full token usage."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_ASSISTANT_WITH_TOOL, line_num=4)
+
+        assert msg.msg_type == "assistant"
+        assert msg.model == "claude-opus-4-5-20251101"
+        assert msg.input_tokens == 9
+        assert msg.output_tokens == 3
+        assert msg.cache_read_tokens == 14052
+        assert msg.cache_create_tokens == 12391
+        assert msg.tool_use_count == 1
+        assert msg.tool_names == ["Read"]
+        assert msg.stop_reason == "tool_use"
+
+    def test_real_system_message(self):
+        """Parse system message with subtype and level."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_SYSTEM_MESSAGE, line_num=5)
+
+        assert msg.msg_type == "system"
+        assert msg.subtype == "local_command"
+
+    def test_real_queue_operation(self):
+        """Parse queue operation message."""
+        from supertrace_server.ingest.parser import parse_message
+
+        msg = parse_message(REAL_QUEUE_OPERATION, line_num=6)
+
+        assert msg.msg_type == "queue-operation"
 
     def test_parse_jsonl_file(self):
         """Test parsing a complete JSONL file."""
