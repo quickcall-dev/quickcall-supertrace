@@ -1,6 +1,6 @@
 # Installation
 
-Install SuperTrace server and frontend.
+Install QuickCall SuperTrace server and frontend.
 
 ## Prerequisites
 
@@ -44,10 +44,10 @@ npm install
 ```bash
 # Start server (from packages/server/)
 cd packages/server
-uv run supertrace-server
+uv run quickcall-supertrace
 
 # In another terminal, check health
-curl http://localhost:3456/api/health
+curl http://localhost:7845/api/health
 # Expected: {"status":"healthy"}
 ```
 
@@ -73,4 +73,4 @@ quickcall-supertrace/
 
 ## Next Steps
 
-- [Quick Start](quickstart.md) - Run SuperTrace and view sessions
+- [Quick Start](quickstart.md) - Run QuickCall SuperTrace and view sessions

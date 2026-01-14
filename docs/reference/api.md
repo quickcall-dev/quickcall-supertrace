@@ -1,11 +1,11 @@
 # API Reference
 
-REST API endpoints for SuperTrace server.
+REST API endpoints for QuickCall SuperTrace server.
 
 ## Base URL
 
 ```
-http://localhost:3456
+http://localhost:7845
 ```
 
 ## Authentication
@@ -21,7 +21,7 @@ None required (localhost only).
 Root health check.
 
 ```bash
-curl http://localhost:3456/
+curl http://localhost:7845/
 ```
 
 **Response:**
@@ -34,7 +34,7 @@ curl http://localhost:3456/
 API health check.
 
 ```bash
-curl http://localhost:3456/api/health
+curl http://localhost:7845/api/health
 ```
 
 **Response:**
@@ -59,7 +59,7 @@ List all sessions, sorted by most recent.
 
 **Example:**
 ```bash
-curl "http://localhost:3456/api/sessions?limit=10"
+curl "http://localhost:7845/api/sessions?limit=10"
 ```
 
 **Response:**
@@ -90,7 +90,7 @@ Get a single session with events.
 
 **Example:**
 ```bash
-curl "http://localhost:3456/api/sessions/abc123-def456"
+curl "http://localhost:7845/api/sessions/abc123-def456"
 ```
 
 **Response:**
@@ -144,7 +144,7 @@ Get paginated events for a session.
 
 **Example:**
 ```bash
-curl "http://localhost:3456/api/sessions/abc123/events?limit=20&offset=0"
+curl "http://localhost:7845/api/sessions/abc123/events?limit=20&offset=0"
 ```
 
 ### GET /api/sessions/{id}/export
@@ -160,10 +160,10 @@ Export session as JSON or Markdown.
 **Example:**
 ```bash
 # JSON export
-curl "http://localhost:3456/api/sessions/abc123/export?format=json" -o session.json
+curl "http://localhost:7845/api/sessions/abc123/export?format=json" -o session.json
 
 # Markdown export
-curl "http://localhost:3456/api/sessions/abc123/export?format=md" -o session.md
+curl "http://localhost:7845/api/sessions/abc123/export?format=md" -o session.md
 ```
 
 ---
@@ -182,7 +182,7 @@ Compute metrics for a session.
 
 **Example:**
 ```bash
-curl "http://localhost:3456/api/metrics/session/abc123?hours_back=2"
+curl "http://localhost:7845/api/metrics/session/abc123?hours_back=2"
 ```
 
 **Response:**
@@ -245,7 +245,7 @@ Trigger import of JSONL files.
 
 **Example:**
 ```bash
-curl -X POST "http://localhost:3456/api/ingest?limit=5"
+curl -X POST "http://localhost:7845/api/ingest?limit=5"
 ```
 
 **Response:**
@@ -261,7 +261,7 @@ curl -X POST "http://localhost:3456/api/ingest?limit=5"
 Trigger a single poll cycle (same as background poller).
 
 ```bash
-curl -X POST "http://localhost:3456/api/ingest/poll"
+curl -X POST "http://localhost:7845/api/ingest/poll"
 ```
 
 ### GET /api/ingest/status
@@ -269,7 +269,7 @@ curl -X POST "http://localhost:3456/api/ingest/poll"
 Show status of tracked transcript files.
 
 ```bash
-curl "http://localhost:3456/api/ingest/status"
+curl "http://localhost:7845/api/ingest/status"
 ```
 
 **Response:**
@@ -291,7 +291,7 @@ curl "http://localhost:3456/api/ingest/status"
 Preview available JSONL files without importing.
 
 ```bash
-curl "http://localhost:3456/api/ingest/scan"
+curl "http://localhost:7845/api/ingest/scan"
 ```
 
 ---
@@ -303,7 +303,7 @@ curl "http://localhost:3456/api/ingest/scan"
 Retrieve a stored image.
 
 ```bash
-curl "http://localhost:3456/api/media/abc123_f7e8d9a1.png" -o image.png
+curl "http://localhost:7845/api/media/abc123_f7e8d9a1.png" -o image.png
 ```
 
 ### POST /api/media
@@ -311,7 +311,7 @@ curl "http://localhost:3456/api/media/abc123_f7e8d9a1.png" -o image.png
 Upload an image (base64).
 
 ```bash
-curl -X POST "http://localhost:3456/api/media" \
+curl -X POST "http://localhost:7845/api/media" \
   -H "Content-Type: application/json" \
   -d '{"data": "base64...", "media_type": "image/png"}'
 ```
@@ -326,7 +326,7 @@ Real-time event stream.
 
 **Connect:**
 ```javascript
-const ws = new WebSocket('ws://localhost:3456/ws');
+const ws = new WebSocket('ws://localhost:7845/ws');
 ```
 
 **Subscribe to session:**

@@ -1,8 +1,8 @@
-# SuperTrace Documentation
+# QuickCall SuperTrace Documentation
 
 > Session monitoring and analytics dashboard for Claude Code
 
-SuperTrace automatically captures Claude Code sessions from JSONL transcript files and provides real-time analytics including token usage, costs, tool metrics, and timing analysis.
+QuickCall SuperTrace automatically captures Claude Code sessions from JSONL transcript files and provides real-time analytics including token usage, costs, tool metrics, and timing analysis.
 
 ## Quick Reference
 
@@ -12,7 +12,7 @@ SuperTrace automatically captures Claude Code sessions from JSONL transcript fil
 | Frontend | `packages/web/` - React dashboard |
 | Database | `~/.supertrace/data.db` (SQLite) |
 | Source data | `~/.claude/projects/*/*.jsonl` |
-| Default ports | Server: 3456, Frontend: 5173 |
+| Default ports | Server: 7845, Frontend: 2255 |
 
 ## Documentation Structure
 
@@ -54,19 +54,19 @@ docs/
                                WebSocket broadcast
 ```
 
-SuperTrace polls Claude Code's transcript files, parses messages, computes metrics, and serves them via REST API with real-time WebSocket updates.
+QuickCall SuperTrace polls Claude Code's transcript files, parses messages, computes metrics, and serves them via REST API with real-time WebSocket updates.
 
 ## For LLMs
 
-When helping users with SuperTrace:
+When helping users with QuickCall SuperTrace:
 
 - **No hooks required** - The system reads JSONL files directly, no Claude Code configuration needed
 - **Sessions appear automatically** - After ~2 minutes of Claude Code activity
 - **Manual import available** - Click "Import Sessions" in UI or `POST /api/ingest`
 - **Database location** - `~/.supertrace/data.db` (SQLite with WAL mode)
-- **Logs** - Server outputs to stdout, check terminal running `supertrace-server`
+- **Logs** - Server outputs to stdout, check terminal running `quickcall-supertrace`
 
 Common troubleshooting:
 - Sessions not appearing → Check if `~/.claude/projects/` has JSONL files
 - Empty metrics → Session may be too new, wait for assistant responses
-- Port conflict → Change with `SUPERTRACE_PORT=8080`
+- Port conflict → Change with `QUICKCALL_SUPERTRACE_PORT=8080`

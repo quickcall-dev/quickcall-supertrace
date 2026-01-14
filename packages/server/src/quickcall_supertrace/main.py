@@ -2,7 +2,7 @@
 FastAPI application entry point.
 
 Sets up routes, WebSocket endpoint, CORS, background poller, and runs the server.
-Use `supertrace-server` CLI or `uvicorn supertrace_server.main:app`.
+Use `quickcall-supertrace` CLI or `uvicorn quickcall_supertrace.main:app`.
 
 Related: routes/ (API endpoints), ws/ (WebSocket), db/ (storage), ingest/ (session import)
 """
@@ -38,13 +38,13 @@ async def lifespan(app: FastAPI):
     global _poller_task
 
     # Startup
-    logger.info("Starting SuperTrace server...")
+    logger.info("Starting QuickCall SuperTrace server...")
     await get_db()
 
     # Start background poller if enabled
-    enable_poller = os.environ.get("SUPERTRACE_ENABLE_POLLER", "true").lower() == "true"
+    enable_poller = os.environ.get("QUICKCALL_SUPERTRACE_ENABLE_POLLER", "true").lower() == "true"
     if enable_poller:
-        poll_interval = int(os.environ.get("SUPERTRACE_POLL_INTERVAL", "120"))
+        poll_interval = int(os.environ.get("QUICKCALL_SUPERTRACE_POLL_INTERVAL", "120"))
         logger.info(f"Starting session poller (interval: {poll_interval}s)")
         _poller_task = asyncio.create_task(polling_loop(interval=poll_interval))
 
@@ -59,20 +59,20 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
 
-    logger.info("SuperTrace server stopped")
+    logger.info("QuickCall SuperTrace server stopped")
 
 
 app = FastAPI(
-    title="SuperTrace",
+    title="QuickCall SuperTrace",
     description="Tracing server for AI coding assistant sessions",
     version="0.1.0",
     lifespan=lifespan,
 )
 
 # CORS for frontend - configurable via environment variable
-# Set SUPERTRACE_CORS_ORIGINS to comma-separated list of allowed origins
-# Example: SUPERTRACE_CORS_ORIGINS="http://localhost:5173,https://myapp.com"
-_cors_origins_env = os.environ.get("SUPERTRACE_CORS_ORIGINS", "*")
+# Set QUICKCALL_SUPERTRACE_CORS_ORIGINS to comma-separated list of allowed origins
+# Example: QUICKCALL_SUPERTRACE_CORS_ORIGINS="http://localhost:2255,https://myapp.com"
+_cors_origins_env = os.environ.get("QUICKCALL_SUPERTRACE_CORS_ORIGINS", "*")
 _cors_origins = (
     ["*"] if _cors_origins_env == "*"
     else [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
@@ -96,7 +96,7 @@ app.include_router(metrics_router)
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {"status": "ok", "service": "supertrace"}
+    return {"status": "ok", "service": "quickcall-supertrace"}
 
 
 @app.get("/api/health")
@@ -137,11 +137,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
 def run():
     """CLI entry point."""
-    port = int(os.environ.get("SUPERTRACE_PORT", "3456"))
-    host = os.environ.get("SUPERTRACE_HOST", "127.0.0.1")
+    port = int(os.environ.get("QUICKCALL_SUPERTRACE_PORT", "7845"))
+    host = os.environ.get("QUICKCALL_SUPERTRACE_HOST", "127.0.0.1")
 
     uvicorn.run(
-        "supertrace_server.main:app",
+        "quickcall_supertrace.main:app",
         host=host,
         port=port,
         reload=False,

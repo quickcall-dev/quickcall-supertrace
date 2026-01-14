@@ -1,6 +1,6 @@
 # Quick Start
 
-Get SuperTrace running in 5 minutes.
+Get QuickCall SuperTrace running in 5 minutes.
 
 ## Prerequisites
 
@@ -14,12 +14,12 @@ Open two terminals:
 
 ```bash
 cd quickcall-supertrace/packages/server
-uv run supertrace-server
+uv run quickcall-supertrace
 ```
 
 Output:
 ```
-INFO:     Uvicorn running on http://127.0.0.1:3456
+INFO:     Uvicorn running on http://127.0.0.1:7845
 INFO:     Poller started (interval: 120s)
 ```
 
@@ -33,12 +33,12 @@ npm run dev
 Output:
 ```
 VITE ready in 500ms
-➜  Local:   http://localhost:5173/
+➜  Local:   http://localhost:2255/
 ```
 
 ## View Dashboard
 
-1. Open http://localhost:5173
+1. Open http://localhost:2255
 2. Sessions appear automatically from `~/.claude/projects/`
 
 ### Dashboard Layout
@@ -60,7 +60,7 @@ VITE ready in 500ms
 Sessions auto-import every 2 minutes. To import immediately:
 
 - **UI**: Click "Import Sessions" button in sidebar
-- **API**: `curl -X POST http://localhost:3456/api/ingest`
+- **API**: `curl -X POST http://localhost:7845/api/ingest`
 
 ## Using tmux (Optional)
 
@@ -69,7 +69,7 @@ Run both services in background:
 ```bash
 # Start server
 tmux new-session -d -s supertrace-server \
-  "cd packages/server && uv run supertrace-server"
+  "cd packages/server && uv run quickcall-supertrace"
 
 # Start frontend
 tmux new-session -d -s supertrace-web \
@@ -93,7 +93,7 @@ tmux kill-session -t supertrace-web
    ```
 2. Trigger manual import:
    ```bash
-   curl -X POST http://localhost:3456/api/ingest
+   curl -X POST http://localhost:7845/api/ingest
    ```
 3. Check server logs for errors
 
@@ -104,7 +104,7 @@ Session may only have metadata. Use Claude Code to generate some activity, then 
 ### Port already in use
 
 ```bash
-SUPERTRACE_PORT=8080 uv run supertrace-server
+QUICKCALL_SUPERTRACE_PORT=8080 uv run quickcall-supertrace
 ```
 
 Update frontend proxy in `packages/web/vite.config.ts` to match.

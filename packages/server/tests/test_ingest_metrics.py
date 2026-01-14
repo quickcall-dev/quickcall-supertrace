@@ -39,7 +39,7 @@ class TestParser:
 
     def test_parse_user_message(self):
         """Test parsing a user message extracts correct fields."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_USER_MESSAGE, line_num=1)
 
@@ -56,7 +56,7 @@ class TestParser:
 
     def test_parse_user_message_list_content(self):
         """Test parsing user message with content as list of blocks."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_USER_MESSAGE_LIST_CONTENT, line_num=1)
 
@@ -67,7 +67,7 @@ class TestParser:
 
     def test_parse_tool_result(self):
         """Test that tool result messages are correctly identified."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_TOOL_RESULT, line_num=1)
 
@@ -78,7 +78,7 @@ class TestParser:
 
     def test_parse_assistant_message(self):
         """Test parsing an assistant message extracts token usage."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_ASSISTANT_MESSAGE, line_num=2)
 
@@ -100,7 +100,7 @@ class TestRealWorldExamples:
 
     def test_real_user_prompt(self):
         """Parse real user prompt with all fields."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_USER_PROMPT, line_num=1)
 
@@ -112,7 +112,7 @@ class TestRealWorldExamples:
 
     def test_real_tool_result_success(self):
         """Parse successful tool result."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_TOOL_RESULT_SUCCESS, line_num=2)
 
@@ -122,7 +122,7 @@ class TestRealWorldExamples:
 
     def test_real_tool_result_error(self):
         """Parse error tool result with is_error flag."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_TOOL_RESULT_ERROR, line_num=3)
 
@@ -131,7 +131,7 @@ class TestRealWorldExamples:
 
     def test_real_assistant_with_tool(self):
         """Parse real assistant message with tool use and full token usage."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_ASSISTANT_WITH_TOOL, line_num=4)
 
@@ -147,7 +147,7 @@ class TestRealWorldExamples:
 
     def test_real_system_message(self):
         """Parse system message with subtype and level."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_SYSTEM_MESSAGE, line_num=5)
 
@@ -156,7 +156,7 @@ class TestRealWorldExamples:
 
     def test_real_queue_operation(self):
         """Parse queue operation message."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(REAL_QUEUE_OPERATION, line_num=6)
 
@@ -164,7 +164,7 @@ class TestRealWorldExamples:
 
     def test_parse_jsonl_file(self):
         """Test parsing a complete JSONL file."""
-        from supertrace_server.ingest.parser import parse_jsonl_file
+        from quickcall_supertrace.ingest.parser import parse_jsonl_file
 
         # Create temp JSONL file
         with tempfile.NamedTemporaryFile(
@@ -201,7 +201,7 @@ class TestMetricsConversion:
     def test_messages_to_events_token_usage(self):
         """Test that token usage is correctly converted to event format."""
         # Simulate what get_messages_as_events does
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_ASSISTANT_MESSAGE, line_num=1)
 
@@ -236,7 +236,7 @@ class TestTokenAggregation:
 
     def test_preprocess_token_totals(self):
         """Test that preprocessing correctly totals tokens."""
-        from supertrace_server.metrics.preprocess import preprocess_events
+        from quickcall_supertrace.metrics.preprocess import preprocess_events
 
         # Create events in the format metrics expects
         events = [
@@ -290,8 +290,8 @@ class TestEndToEndTokens:
     def test_full_pipeline_token_accuracy(self):
         """Test that tokens are accurate through the full pipeline."""
         import pandas as pd
-        from supertrace_server.ingest.parser import parse_jsonl_file
-        from supertrace_server.metrics.preprocess import preprocess_events
+        from quickcall_supertrace.ingest.parser import parse_jsonl_file
+        from quickcall_supertrace.metrics.preprocess import preprocess_events
 
         # Create temp JSONL with known token values
         messages_data = [

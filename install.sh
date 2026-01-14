@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SuperTrace installer script.
+# QuickCall SuperTrace installer script.
 #
 # Installs Python hooks, configures settings, and sets up the server.
 # Run: ./install.sh
@@ -14,7 +14,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${YELLOW}Installing SuperTrace...${NC}"
+echo -e "${YELLOW}Installing QuickCall SuperTrace...${NC}"
 
 # Check for uv
 if ! command -v uv &> /dev/null; then
@@ -94,9 +94,9 @@ HOOKS
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
 echo ""
-echo "To start SuperTrace:"
-echo "  1. Start the server:  supertrace-server"
+echo "To start QuickCall SuperTrace:"
+echo "  1. Start the server:  quickcall-supertrace"
 echo "  2. Start the frontend: cd packages/web && npm run dev"
-echo "  3. Open http://localhost:5173"
+echo "  3. Open http://localhost:2255"
 echo ""
 echo "Make sure to configure the hooks in ~/.claude/settings.json"

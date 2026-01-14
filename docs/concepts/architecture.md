@@ -1,12 +1,12 @@
 # Architecture
 
-How SuperTrace captures and displays Claude Code sessions.
+How QuickCall SuperTrace captures and displays Claude Code sessions.
 
 ## System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           SuperTrace System                              │
+│                       QuickCall SuperTrace System                        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ~/.claude/projects/                                                    │
@@ -47,22 +47,22 @@ Each line is a JSON object representing a message:
 
 ### 2. Ingestion Pipeline
 
-**Scanner** (`packages/server/supertrace/ingest/scanner.py`)
+**Scanner** (`packages/server/quickcall_supertrace/ingest/scanner.py`)
 - Finds all JSONL files in `~/.claude/projects/`
 - Returns file metadata (path, mtime, size)
 - Sorted by modification time (newest first)
 
-**Parser** (`packages/server/supertrace/ingest/parser.py`)
+**Parser** (`packages/server/quickcall_supertrace/ingest/parser.py`)
 - Parses JSONL lines into structured `ParsedMessage` objects
 - Extracts: prompt text, token usage, tool names, model, timestamps
 - Preserves raw JSON for future reprocessing
 
-**Importer** (`packages/server/supertrace/ingest/importer.py`)
+**Importer** (`packages/server/quickcall_supertrace/ingest/importer.py`)
 - Batch inserts parsed messages into SQLite
 - Supports incremental imports (only new lines)
 - Deduplicates by message UUID
 
-**Poller** (`packages/server/supertrace/ingest/poller.py`)
+**Poller** (`packages/server/quickcall_supertrace/ingest/poller.py`)
 - Background task running every 120 seconds
 - Scans for new/modified files
 - Triggers incremental imports
@@ -221,11 +221,11 @@ CREATE TABLE transcript_files (
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SUPERTRACE_PORT` | `3456` | Server port |
-| `SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
-| `SUPERTRACE_ENABLE_POLLER` | `true` | Enable background polling |
-| `SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
-| `SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage |
+| `QUICKCALL_SUPERTRACE_PORT` | `7845` | Server port |
+| `QUICKCALL_SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
+| `QUICKCALL_SUPERTRACE_ENABLE_POLLER` | `true` | Enable background polling |
+| `QUICKCALL_SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
+| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage |
 
 ## Security Considerations
 

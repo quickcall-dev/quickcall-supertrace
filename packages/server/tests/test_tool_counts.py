@@ -39,7 +39,7 @@ class TestToolParsing:
 
     def test_tool_count_extraction(self):
         """Test that tool_use blocks are correctly counted."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         msg = parse_message(SAMPLE_ASSISTANT_MESSAGE, line_num=1)
 
@@ -48,7 +48,7 @@ class TestToolParsing:
 
     def test_multiple_tools(self):
         """Test counting multiple tools in one message."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         multi_tool_msg = make_assistant_message(
             uuid="asst-multi",
@@ -62,7 +62,7 @@ class TestToolParsing:
 
     def test_no_tools(self):
         """Test message with no tools."""
-        from supertrace_server.ingest.parser import parse_message
+        from quickcall_supertrace.ingest.parser import parse_message
 
         no_tool_msg = make_assistant_message(uuid="asst-no-tool", tools=None)
 
@@ -77,7 +77,7 @@ class TestToolAggregation:
 
     def test_tool_distribution(self, temp_jsonl_with_data):
         """Test that tool distribution is correctly aggregated."""
-        from supertrace_server.ingest.parser import parse_jsonl_file
+        from quickcall_supertrace.ingest.parser import parse_jsonl_file
 
         messages = [
             SAMPLE_USER_MESSAGE,
@@ -237,7 +237,7 @@ def check_metrics_calculation(file_path: Path):
     print("CHECKING METRICS CALCULATION")
     print(f"{'='*60}\n")
 
-    from supertrace_server.ingest.parser import parse_jsonl_file
+    from quickcall_supertrace.ingest.parser import parse_jsonl_file
 
     messages = list(parse_jsonl_file(file_path))
 

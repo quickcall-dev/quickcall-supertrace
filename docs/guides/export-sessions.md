@@ -11,7 +11,7 @@ Export captured sessions for backup, sharing, or analysis.
 
 ## Export via UI
 
-1. Open http://localhost:5173
+1. Open http://localhost:2255
 2. Select a session from the sidebar
 3. Click **Export JSON** or **Export MD** in the header
 4. File downloads automatically
@@ -21,7 +21,7 @@ Export captured sessions for backup, sharing, or analysis.
 ### JSON Export
 
 ```bash
-curl "http://localhost:3456/api/sessions/{session_id}/export?format=json" \
+curl "http://localhost:7845/api/sessions/{session_id}/export?format=json" \
   -o session.json
 ```
 
@@ -50,7 +50,7 @@ curl "http://localhost:3456/api/sessions/{session_id}/export?format=json" \
 ### Markdown Export
 
 ```bash
-curl "http://localhost:3456/api/sessions/{session_id}/export?format=md" \
+curl "http://localhost:7845/api/sessions/{session_id}/export?format=md" \
   -o session.md
 ```
 
@@ -79,13 +79,13 @@ I'll help you write that function...
 
 ```bash
 # Get all session IDs
-session_ids=$(curl -s http://localhost:3456/api/sessions?limit=1000 | \
+session_ids=$(curl -s http://localhost:7845/api/sessions?limit=1000 | \
   jq -r '.sessions[].id')
 
 # Export each as JSON
 mkdir -p exports
 for id in $session_ids; do
-  curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \
+  curl -s "http://localhost:7845/api/sessions/$id/export?format=json" \
     -o "exports/$id.json"
 done
 ```
@@ -94,10 +94,10 @@ done
 
 ```bash
 # Export sessions from 2026
-curl -s "http://localhost:3456/api/sessions?limit=1000" | \
+curl -s "http://localhost:7845/api/sessions?limit=1000" | \
   jq -r '.sessions[] | select(.started_at > "2026-01-01") | .id' | \
   while read id; do
-    curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \
+    curl -s "http://localhost:7845/api/sessions/$id/export?format=json" \
       -o "exports/$id.json"
   done
 ```
@@ -128,7 +128,7 @@ sqlite3 ~/.supertrace/data.db ".backup backup.db"
 Include session export in PR:
 
 ```bash
-curl -s "http://localhost:3456/api/sessions/$SESSION_ID/export?format=md" \
+curl -s "http://localhost:7845/api/sessions/$SESSION_ID/export?format=md" \
   >> docs/implementation-notes.md
 ```
 
@@ -138,12 +138,12 @@ curl -s "http://localhost:3456/api/sessions/$SESSION_ID/export?format=md" \
 import json
 import requests
 
-sessions = requests.get("http://localhost:3456/api/sessions?limit=1000").json()
+sessions = requests.get("http://localhost:7845/api/sessions?limit=1000").json()
 
 training_data = []
 for session in sessions["sessions"]:
     data = requests.get(
-        f"http://localhost:3456/api/sessions/{session['id']}/export?format=json"
+        f"http://localhost:7845/api/sessions/{session['id']}/export?format=json"
     ).json()
     training_data.append(data)
 
@@ -164,10 +164,10 @@ mkdir -p "$BACKUP_DIR"
 sqlite3 ~/.supertrace/data.db ".backup $BACKUP_DIR/data.db"
 
 # Export recent sessions as JSON
-curl -s "http://localhost:3456/api/sessions?limit=100" | \
+curl -s "http://localhost:7845/api/sessions?limit=100" | \
   jq -r '.sessions[].id' | \
   while read id; do
-    curl -s "http://localhost:3456/api/sessions/$id/export?format=json" \
+    curl -s "http://localhost:7845/api/sessions/$id/export?format=json" \
       -o "$BACKUP_DIR/$id.json"
   done
 

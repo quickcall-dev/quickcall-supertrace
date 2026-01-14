@@ -1,4 +1,4 @@
-# SuperTrace
+# QuickCall SuperTrace
 
 Monitoring and observability tool for AI coding assistant sessions.
 
@@ -78,12 +78,12 @@ See [Configure Hooks Guide](docs/guides/configure-hooks.md) for detailed options
 
 ```bash
 # Terminal 1: Start server
-supertrace-server
+quickcall-supertrace
 
 # Terminal 2: Start frontend
 cd packages/web && npm run dev
 
-# Open http://localhost:5173
+# Open http://localhost:2255
 ```
 
 ## Features
@@ -108,11 +108,11 @@ quickcall-supertrace/
 
 ## Configuration
 
-| Env Variable     | Default              | Description          |
-|------------------|----------------------|----------------------|
-| SUPERTRACE_PORT  | 3456                 | Server port          |
-| SUPERTRACE_HOST  | 127.0.0.1            | Server host          |
-| SUPERTRACE_URL   | http://localhost:3456| Server URL for hooks |
+| Env Variable                    | Default              | Description          |
+|---------------------------------|----------------------|----------------------|
+| QUICKCALL_SUPERTRACE_PORT       | 7845                 | Server port          |
+| QUICKCALL_SUPERTRACE_HOST       | 127.0.0.1            | Server host          |
+| QUICKCALL_SUPERTRACE_URL        | http://localhost:7845| Server URL for hooks |
 
 ## Development
 
@@ -123,7 +123,7 @@ cd packages/server && uv pip install -e ".[dev]"
 cd packages/web && npm install
 
 # Run with hot reload
-cd packages/server && uvicorn supertrace_server.main:app --reload
+cd packages/server && uvicorn quickcall_supertrace.main:app --reload
 cd packages/web && npm run dev
 ```
 

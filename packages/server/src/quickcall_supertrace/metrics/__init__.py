@@ -5,7 +5,7 @@ Exposes compute_metrics() for calculating all session metrics
 and the metric decorator for adding new metrics.
 
 Usage:
-    from supertrace_server.metrics import compute_metrics
+    from quickcall_supertrace.metrics import compute_metrics
 
     events = [...]  # list of event dicts
     metrics = compute_metrics(events)

@@ -1,6 +1,6 @@
 # Token Usage Tracking
 
-How SuperTrace captures and displays token consumption and costs.
+How QuickCall SuperTrace captures and displays token consumption and costs.
 
 ## Overview
 
@@ -34,7 +34,7 @@ Claude Code writes token usage to JSONL files. Each assistant message includes:
 
 ```
 1. Claude Code writes to JSONL file
-2. SuperTrace poller detects file change
+2. QuickCall SuperTrace poller detects file change
 3. Parser extracts token counts from assistant messages
 4. Importer stores in database
 5. Metrics system aggregates per-session
@@ -58,7 +58,7 @@ Claude Code uses **prompt caching** to reduce costs:
 
 Large `cache_read` values indicate cost savings.
 
-## Display in SuperTrace
+## Display in QuickCall SuperTrace
 
 ### Analytics Panel
 
@@ -91,7 +91,7 @@ Each assistant response shows token usage below:
 
 ## Cost Estimation
 
-SuperTrace estimates costs using current Claude pricing:
+QuickCall SuperTrace estimates costs using current Claude pricing:
 
 | Cost Type | Rate (per 1M tokens) |
 |-----------|---------------------|
@@ -107,7 +107,7 @@ Check [Anthropic pricing](https://www.anthropic.com/pricing) for current rates.
 Get token metrics via API:
 
 ```bash
-curl "http://localhost:3456/api/metrics/session/{id}"
+curl "http://localhost:7845/api/metrics/session/{id}"
 ```
 
 Response includes:
@@ -129,7 +129,7 @@ Response includes:
 Get metrics for last N hours:
 
 ```bash
-curl "http://localhost:3456/api/metrics/session/{id}?hours_back=2"
+curl "http://localhost:7845/api/metrics/session/{id}?hours_back=2"
 ```
 
 ## Tips for Reducing Token Usage
@@ -168,12 +168,12 @@ Requires Admin API key. See [Anthropic docs](https://docs.anthropic.com/en/api/c
 
 ## Limitations
 
-**What SuperTrace captures:**
+**What QuickCall SuperTrace captures:**
 - Token counts per assistant response
 - Aggregated session totals
 - Cost estimates
 
-**What SuperTrace doesn't capture:**
+**What QuickCall SuperTrace doesn't capture:**
 - Real-time streaming counts
 - Cross-instance usage
 - API-level usage (only CLI/IDE)

@@ -1,6 +1,6 @@
-# SuperTrace Server Tests
+# QuickCall SuperTrace Server Tests
 
-Testing suite for the SuperTrace server, including unit tests and debugging utilities.
+Testing suite for the QuickCall SuperTrace server, including unit tests and debugging utilities.
 
 ## Structure
 

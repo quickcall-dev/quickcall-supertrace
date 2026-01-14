@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Environment variables and file locations for SuperTrace.
+Environment variables and file locations for QuickCall SuperTrace.
 
 ## Environment Variables
 
@@ -8,28 +8,28 @@ Environment variables and file locations for SuperTrace.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SUPERTRACE_PORT` | `3456` | HTTP/WebSocket server port |
-| `SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
-| `SUPERTRACE_ENABLE_POLLER` | `true` | Enable background JSONL polling |
-| `SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
-| `SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage directory |
+| `QUICKCALL_SUPERTRACE_PORT` | `7845` | HTTP/WebSocket server port |
+| `QUICKCALL_SUPERTRACE_HOST` | `127.0.0.1` | Server bind address |
+| `QUICKCALL_SUPERTRACE_ENABLE_POLLER` | `true` | Enable background JSONL polling |
+| `QUICKCALL_SUPERTRACE_POLL_INTERVAL` | `120` | Poll interval in seconds |
+| `QUICKCALL_SUPERTRACE_MEDIA_DIR` | `~/.supertrace/media` | Image storage directory |
 
 **Examples:**
 
 ```bash
 # Change server port
-SUPERTRACE_PORT=8080 uv run supertrace-server
+QUICKCALL_SUPERTRACE_PORT=8080 uv run quickcall-supertrace
 
 # Disable background poller (manual import only)
-SUPERTRACE_ENABLE_POLLER=false uv run supertrace-server
+QUICKCALL_SUPERTRACE_ENABLE_POLLER=false uv run quickcall-supertrace
 
 # Faster polling (every 30 seconds)
-SUPERTRACE_POLL_INTERVAL=30 uv run supertrace-server
+QUICKCALL_SUPERTRACE_POLL_INTERVAL=30 uv run quickcall-supertrace
 ```
 
 ## File Locations
 
-### SuperTrace Data
+### QuickCall SuperTrace Data
 
 | Path | Description |
 |------|-------------|
@@ -56,14 +56,14 @@ The frontend proxies API and WebSocket connections:
 // packages/web/vite.config.ts
 export default defineConfig({
   server: {
-    port: 5173,
+    port: 2255,
     proxy: {
       '/api': {
-        target: 'http://localhost:3456',
+        target: 'http://localhost:7845',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:3456',
+        target: 'ws://localhost:7845',
         ws: true,
       },
     },
@@ -153,10 +153,10 @@ Server logs to stdout. Set log level via uvicorn:
 
 ```bash
 # More verbose
-uv run uvicorn supertrace.main:app --log-level debug
+uv run uvicorn quickcall_supertrace.main:app --log-level debug
 
 # Default
-uv run supertrace-server  # INFO level
+uv run quickcall-supertrace  # INFO level
 ```
 
 ## Backup
@@ -176,5 +176,5 @@ sqlite3 ~/.supertrace/data.db ".backup backup.db"
 rm ~/.supertrace/data.db*
 
 # Restart server - new database created automatically
-uv run supertrace-server
+uv run quickcall-supertrace
 ```

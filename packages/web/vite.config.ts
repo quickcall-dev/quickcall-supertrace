@@ -1,5 +1,5 @@
 /**
- * Vite config for SuperTrace frontend.
+ * Vite config for QuickCall SuperTrace frontend.
  *
  * Configures React, Tailwind, and API proxy to backend server.
  *
@@ -13,14 +13,14 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
+    port: 2255,
     proxy: {
       '/api': {
-        target: 'http://localhost:3456',
+        target: 'http://localhost:7845',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:3456',
+        target: 'ws://localhost:7845',
         ws: true,
       },
     },
