@@ -286,3 +286,45 @@ Claude Code may compact sessions, rewriting the JSONL with new UUIDs and trimmed
 3. **Count Tools**: Look for `type: "tool_use"` in assistant content
 4. **Handle List Content**: User `message.content` can be string OR array
 5. **Detect Compaction**: Compare first message UUID across imports
+
+---
+
+## Actual JSONL Examples (Condensed)
+
+Real examples from session files with UUIDs truncated for readability.
+
+### User Prompt
+
+```json
+{"type":"user","uuid":"9705493c...","timestamp":"2026-01-13T07:52:24.654Z","message":{"role":"user","content":"how hard is it to use postgres?"}}
+```
+
+### Tool Result (Success)
+
+```json
+{"type":"user","uuid":"37c3412f...","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01McMnp9ikSZEV...","content":"File created successfully at: /Users/sagar/.claude/plans/eager-snuggling-galaxy.md"}]}}
+```
+
+### Tool Result (Error)
+
+```json
+{"type":"user","uuid":"71b60e49...","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01WWRCHMDLo4nM...","content":"<tool_use_error>File does not exist.</tool_use_error>","is_error":true}]},"toolUseResult":"Error: File does not exist."}
+```
+
+### Assistant with Tool Use
+
+```json
+{"type":"assistant","uuid":"e48dad73...","message":{"model":"claude-opus-4-5-20251101","id":"msg_01LBacPo...","role":"assistant","content":[{"type":"tool_use","id":"toolu_01WWRC...","name":"Read","input":{"file_path":"/Users/sagar/work/project/file.py"}}],"stop_reason":null,"usage":{"input_tokens":9,"output_tokens":3,"cache_read_input_tokens":14052,"cache_creation_input_tokens":12391}}}
+```
+
+### System Message
+
+```json
+{"type":"system","uuid":"b1696e28...","subtype":"local_command","content":"<command-name>/ide</command-name>...","level":"info"}
+```
+
+### Queue Operation
+
+```json
+{"type":"queue-operation","operation":"enqueue","sessionId":"f0fa7faf...","content":"<task-notification>\n<task-id>b2a464b</task-id>\n<status>failed</status>\n</task-notification>"}
+```
