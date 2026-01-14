@@ -15,7 +15,7 @@ tests/
 ## Running Tests
 
 ```bash
-# Run all tests
+# From packages/server/
 uv run pytest tests/ -v
 
 # Run specific test file
@@ -27,43 +27,41 @@ uv run pytest tests/ -v -s
 
 ## Debug Helpers
 
-The `debug_helpers.py` module provides reusable utilities for investigating data issues without writing one-off scripts.
-
-### CLI Usage
+Run from `packages/server/tests/`:
 
 ```bash
 # List recent sessions
-python -m tests.debug_helpers --list
+uv run python debug_helpers.py --list
 
 # Inspect a session (uses most recent if not specified)
-python -m tests.debug_helpers -s <session-id>
+uv run python debug_helpers.py -s <session-id>
 
 # View specific prompts
-python -m tests.debug_helpers -s <session-id> --prompts 62-67
+uv run python debug_helpers.py -s <session-id> --prompts 62-67
 
 # Check for duplicates
-python -m tests.debug_helpers -s <session-id> --duplicates
+uv run python debug_helpers.py -s <session-id> --duplicates
 
 # View token summary
-python -m tests.debug_helpers -s <session-id> --tokens
+uv run python debug_helpers.py -s <session-id> --tokens
 
 # View tool summary
-python -m tests.debug_helpers -s <session-id> --tools
+uv run python debug_helpers.py -s <session-id> --tools
 
 # Check transcript file status
-python -m tests.debug_helpers -s <session-id> --transcript
+uv run python debug_helpers.py -s <session-id> --transcript
 
 # Extract example messages (for documentation)
-python -m tests.debug_helpers --examples
+uv run python debug_helpers.py --examples
 
 # Extract from specific JSONL file
-python -m tests.debug_helpers --examples --jsonl /path/to/session.jsonl
+uv run python debug_helpers.py --examples --jsonl /path/to/session.jsonl
 ```
 
 ### Programmatic Usage
 
 ```python
-from tests.debug_helpers import DebugHelper
+from debug_helpers import DebugHelper
 
 dh = DebugHelper()
 
@@ -90,27 +88,26 @@ tools = dh.get_tool_summary("session-id")
 
 # Extract example messages
 examples = dh.extract_examples("session-id")
-# Returns dict with: user_prompt, tool_result_success, tool_result_error,
-#                    assistant_text, assistant_tool, system, queue_operation
+# Returns: user_prompt, tool_result_success, tool_result_error,
+#          assistant_text, assistant_tool, system, queue_operation
 
 # Condense message for display
 condensed = dh.condense_message(examples['assistant_tool'])
-print(json.dumps(condensed, indent=2))
 ```
 
 ## Tool Count Analysis
 
-The `test_tool_counts.py` module can analyze tool usage in JSONL files.
+Run from `packages/server/tests/`:
 
 ```bash
 # Analyze most recent session
-python tests/test_tool_counts.py
+uv run python test_tool_counts.py
 
 # Analyze specific file
-python tests/test_tool_counts.py /path/to/session.jsonl
+uv run python test_tool_counts.py /path/to/session.jsonl
 
 # Focus on specific prompts
-python tests/test_tool_counts.py --prompts 9,20
+uv run python test_tool_counts.py --prompts 9,20
 ```
 
 ## Test Fixtures
@@ -127,7 +124,7 @@ from conftest import (
     SAMPLE_TOOL_RESULT,
     SAMPLE_USER_MESSAGE_LIST_CONTENT,
 
-    # Real-world examples (based on actual JSONL files)
+    # Real-world examples (from actual JSONL files)
     REAL_USER_PROMPT,
     REAL_TOOL_RESULT_SUCCESS,
     REAL_TOOL_RESULT_ERROR,
@@ -208,29 +205,26 @@ def test_custom(temp_jsonl_with_data):
 
 ```bash
 # Check for duplicates
-python -m tests.debug_helpers -s <session-id> -d
+uv run python debug_helpers.py -s <session-id> -d
 
 # If duplicates found, check transcript status
-python -m tests.debug_helpers -s <session-id> --transcript
+uv run python debug_helpers.py -s <session-id> --transcript
 ```
 
 ### Wrong Prompt Content
 
-```bash
-# Compare DB vs JSONL for specific prompts
-python -c "
-from tests.debug_helpers import DebugHelper
+```python
+from debug_helpers import DebugHelper
 dh = DebugHelper()
 print(dh.compare_prompt_sources('session-id', [64, 65]))
-"
 ```
 
 ### Token Mismatch
 
 ```bash
 # Check token summary
-python -m tests.debug_helpers -s <session-id> -t
+uv run python debug_helpers.py -s <session-id> -t
 
 # Or use tool counts for detailed breakdown
-python tests/test_tool_counts.py /path/to/session.jsonl
+uv run python test_tool_counts.py /path/to/session.jsonl
 ```
