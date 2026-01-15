@@ -33,7 +33,12 @@
 ## Install
 
 ```bash
-uvx quickcall-supertrace@latest
+curl -fsSL https://quickcall.dev/supertrace/install.sh | sh
+```
+
+Then run:
+```bash
+quickcall-supertrace
 ```
 
 Open http://localhost:7845 in your browser.
@@ -41,20 +46,6 @@ Open http://localhost:7845 in your browser.
 > SuperTrace reads directly from Claude Code's JSONL transcript files at `~/.claude/projects/`. No hooks or configuration needed.
 
 > **100% Local** - All data stays on your machine. Nothing is sent to any external servers.
-
-### Alternative Methods
-
-```bash
-# Install globally
-uv tool install quickcall-supertrace
-
-# Upgrade to latest
-uv tool upgrade quickcall-supertrace
-
-# Or with pip
-pip install quickcall-supertrace
-quickcall-supertrace
-```
 
 ## Features
 
@@ -83,7 +74,7 @@ docker compose up -d
 ### Port Already in Use
 
 ```bash
-QUICKCALL_SUPERTRACE_PORT=8080 uvx quickcall-supertrace@latest
+QUICKCALL_SUPERTRACE_PORT=8080 quickcall-supertrace
 ```
 
 ### Reset Database
