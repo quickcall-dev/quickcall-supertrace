@@ -149,6 +149,121 @@ class Database:
     # Message operations
     # =====================
 
+    async def get_user_messages(self, session_id: str) -> list[dict[str, Any]]:
+        """
+        Get all user messages for a session (excluding tool results).
+
+        Used for intent extraction - returns only actual user prompts.
+
+        Args:
+            session_id: Session to get messages for
+
+        Returns:
+            List of user messages with prompt_text
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT id, uuid, session_id, timestamp, prompt_text, prompt_index
+            FROM messages
+            WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
+            ORDER BY timestamp ASC
+            """,
+            (session_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "uuid": row["uuid"],
+                "session_id": row["session_id"],
+                "timestamp": row["timestamp"],
+                "prompt_text": row["prompt_text"],
+                "prompt_index": row["prompt_index"],
+            }
+            for row in rows
+        ]
+
+    # =====================
+    # Intent operations
+    # =====================
+    #
+    # Intent caching layer for the /api/sessions/{id}/intents endpoint.
+    # Intents are extracted via Claude CLI and cached here to avoid repeated API calls.
+    #
+    # Cache strategy:
+    # - Cache is per-session, stored in session_intents table
+    # - No automatic invalidation (new messages don't invalidate cache)
+    # - Manual invalidation via refresh=true API param or delete_session_intents()
+    # - UPSERT on save (replaces existing cache)
+
+    async def get_session_intents(self, session_id: str) -> dict[str, Any] | None:
+        """
+        Get cached intents for a session.
+
+        Args:
+            session_id: Session to get intents for
+
+        Returns:
+            Dictionary with intents and metadata, or None if not cached
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT session_id, intents, prompt_count, created_at
+            FROM session_intents
+            WHERE session_id = ?
+            """,
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "session_id": row["session_id"],
+            "intents": json.loads(row["intents"]),
+            "prompt_count": row["prompt_count"],
+            "created_at": row["created_at"],
+        }
+
+    async def save_session_intents(
+        self,
+        session_id: str,
+        intents: list[str],
+        prompt_count: int,
+    ) -> None:
+        """
+        Save extracted intents for a session.
+
+        Args:
+            session_id: Session the intents belong to
+            intents: List of extracted intent strings
+            prompt_count: Number of prompts analyzed
+        """
+        await self.conn.execute(
+            """
+            INSERT INTO session_intents (session_id, intents, prompt_count)
+            VALUES (?, ?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET
+                intents = excluded.intents,
+                prompt_count = excluded.prompt_count,
+                created_at = CURRENT_TIMESTAMP
+            """,
+            (session_id, json.dumps(intents), prompt_count),
+        )
+        await self.conn.commit()
+
+    async def delete_session_intents(self, session_id: str) -> None:
+        """
+        Delete cached intents for a session (for refresh).
+
+        Args:
+            session_id: Session to delete intents for
+        """
+        await self.conn.execute(
+            "DELETE FROM session_intents WHERE session_id = ?",
+            (session_id,),
+        )
+        await self.conn.commit()
+
     async def get_messages_as_events(
         self, session_id: str, limit: int = 10000
     ) -> list[dict[str, Any]]:

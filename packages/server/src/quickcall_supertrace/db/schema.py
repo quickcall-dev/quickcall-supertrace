@@ -93,6 +93,26 @@ CREATE TABLE IF NOT EXISTS transcript_files (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Session intents table (cached intent extractions)
+--
+-- Stores results from Claude CLI intent extraction to avoid repeated API calls.
+-- One row per session. UNIQUE constraint enables UPSERT pattern.
+--
+-- Design decisions:
+-- 1. JSON array stored as TEXT (SQLite has no native array type)
+-- 2. No automatic invalidation - cache persists until explicit refresh
+-- 3. prompt_count stored for staleness detection (if new prompts added)
+-- 4. created_at tracks when extraction was performed (for UI "extracted X ago")
+--
+CREATE TABLE IF NOT EXISTS session_intents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL UNIQUE,  -- One cache entry per session
+    intents TEXT NOT NULL,            -- JSON array: ["intent1", "intent2", ...]
+    prompt_count INTEGER,             -- Number of prompts when extracted (staleness hint)
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
 -- Session metrics table (pre-computed aggregates)
 CREATE TABLE IF NOT EXISTS session_metrics (
     session_id TEXT PRIMARY KEY,
@@ -145,6 +165,9 @@ CREATE INDEX IF NOT EXISTS idx_msg_tools ON messages(tool_names);
 -- Indexes for transcript_files
 CREATE INDEX IF NOT EXISTS idx_tf_session ON transcript_files(session_id);
 CREATE INDEX IF NOT EXISTS idx_tf_mtime ON transcript_files(file_mtime DESC);
+
+-- Indexes for session_intents
+CREATE INDEX IF NOT EXISTS idx_intents_session ON session_intents(session_id);
 
 -- Full-text search for messages
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
@@ -213,4 +236,23 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         )
     except Exception:
         # Column already exists
+        pass
+
+    # Migration: Create session_intents table if it doesn't exist
+    try:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS session_intents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL UNIQUE,
+                intents TEXT NOT NULL,
+                prompt_count INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(id)
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_intents_session ON session_intents(session_id)"
+        )
+    except Exception:
+        # Table already exists
         pass
