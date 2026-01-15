@@ -308,8 +308,8 @@ export function SessionView({
     <div className="flex-1 flex flex-col h-full bg-background relative">
       {/* Header - compact single row */}
       <div className="h-12 px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">{getProjectName(session.project_path)}</span>
+        <div className="flex items-center gap-3 text-sm min-w-0 overflow-hidden">
+          <span className="font-semibold text-foreground truncate">{getProjectName(session.project_path)}</span>
           {isActive && (
             <span className="flex items-center gap-1 text-[10px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-1.5 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
@@ -326,7 +326,7 @@ export function SessionView({
             {formatTime(session.started_at)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Refresh button */}
           {onRefresh && (
             <button
@@ -354,10 +354,12 @@ export function SessionView({
                 placeholder="Search messages..."
                 className="bg-transparent border-none outline-none text-xs w-32 text-foreground placeholder:text-muted-foreground"
               />
-              {searchQuery && (
+              {searchQuery ? (
                 <span className="text-[10px] text-muted-foreground">
                   {matchCount} match{matchCount !== 1 ? 'es' : ''}
                 </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/60">⌘F</span>
               )}
               <button
                 onClick={() => { setShowSearch(false); setSearchQuery(''); }}
@@ -369,10 +371,11 @@ export function SessionView({
           ) : (
             <button
               onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors flex items-center gap-1"
               title="Search (⌘F)"
             >
               <i className="ri-search-line text-sm" />
+              <span className="text-[10px] text-muted-foreground/60">⌘F</span>
             </button>
           )}
           <span className="text-muted-foreground/30">|</span>

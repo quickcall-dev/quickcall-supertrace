@@ -6,7 +6,7 @@
  * Clean, professional design matching QuickCall styling.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Session } from '../api/client';
 import { triggerIngest } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
@@ -87,6 +87,19 @@ export function SessionList({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut for sidebar search (Cmd+Shift+F)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleImportSessions = async () => {
     if (isImporting) return;
@@ -171,15 +184,15 @@ export function SessionList({
           >
             {/* QuickCall Logo */}
             <span className="inline-flex items-baseline">
-              <span className="text-lg font-medium tracking-tight text-teal-600 dark:text-teal-500">
+              <span className="text-xl font-semibold tracking-tight text-teal-600 dark:text-teal-500">
                 quick
               </span>
-              <span className="text-lg font-medium tracking-tight text-foreground">
+              <span className="text-xl font-semibold tracking-tight text-foreground">
                 call
               </span>
             </span>
             {/* SuperTrace subscript */}
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
               SuperTrace
             </span>
           </a>
@@ -195,15 +208,17 @@ export function SessionList({
 
         {/* Search */}
         <form onSubmit={handleSearch} className="w-full max-w-full">
-          <div className="relative w-full">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm"></i>
+          <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-ring transition-all">
+            <i className="ri-search-line text-muted-foreground text-sm shrink-0"></i>
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Search..."
+              placeholder="Search sessions..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full max-w-full pl-9 pr-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-all box-border"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground"
             />
+            <span className="text-[10px] text-muted-foreground/60 shrink-0 hidden sm:block">⇧⌘F</span>
           </div>
         </form>
 
@@ -302,7 +317,7 @@ export function SessionList({
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border text-[11px] text-muted-foreground text-center">
+      <div className="px-4 py-3 border-t border-border text-[11px] text-muted-foreground text-center">
         {sessions.length} session{sessions.length !== 1 ? 's' : ''}
       </div>
     </div>

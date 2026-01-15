@@ -157,7 +157,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-start">
-        <div className="max-w-[85%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-4 py-3">
+        <div className="max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-4 py-3">
           <div className="relative">
             <div className="overflow-x-auto max-w-full">
               <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">

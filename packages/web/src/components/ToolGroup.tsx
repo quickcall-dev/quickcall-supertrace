@@ -150,7 +150,7 @@ export function ToolGroup({ events }: ToolGroupProps) {
   const remaining = Object.keys(toolCounts).length - 4;
 
   return (
-    <div className="bg-muted/50 border border-border rounded-xl overflow-hidden">
+    <div className="max-w-[70%] bg-muted/50 border border-border rounded-xl overflow-hidden">
       {/* Group header */}
       <button
         onClick={toggleGroup}
