@@ -25,7 +25,7 @@
 ---
 
 <p align="center">
-  <img src="assets/demo-image.png" alt="SuperTrace Demo" width="800">
+  <img src="assets/demo-image.jpg" alt="SuperTrace Demo" width="800">
 </p>
 
 ---
