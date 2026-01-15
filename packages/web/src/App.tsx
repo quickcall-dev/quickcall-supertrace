@@ -29,7 +29,7 @@ import {
 
 function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useLocalStorage<string | null>('supertrace-selected-session', null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [totalEvents, setTotalEvents] = useState<number>(0);
@@ -40,7 +40,7 @@ function App() {
 
   // Panel widths (persisted)
   const [sessionListWidth, setSessionListWidth] = useLocalStorage('supertrace-session-list-width', 224);
-  const [analyticsWidth, setAnalyticsWidth] = useLocalStorage('supertrace-analytics-width', 400);
+  const [analyticsWidth, setAnalyticsWidth] = useLocalStorage('supertrace-analytics-width', 1000);
 
   // Theme
   const { isDark, toggleTheme } = useTheme();
@@ -58,6 +58,8 @@ function App() {
   const scrollToEventRef = useRef<((eventId: number) => void) | null>(null);
   const [isJumpingToEvent, setIsJumpingToEvent] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [isLoadingAllForSearch, setIsLoadingAllForSearch] = useState(false);
 
   // Handle scroll to event from analytics panel
   // If event not loaded, load all events first then scroll
@@ -128,6 +130,7 @@ function App() {
     // If this is the currently selected session, reload events and metrics
     if (sessionId === selectedSessionId) {
       console.log('[App] Reloading current session data...');
+      setHasNewMessages(true); // Signal to SessionView that new messages arrived
       try {
         const [sessionData, metricsData] = await Promise.all([
           getSession(sessionId, 30),
@@ -148,17 +151,12 @@ function App() {
     onSessionUpdated: handleSessionUpdated,
   });
 
-  // Load sessions on mount and auto-select the most recent
+  // Load sessions on mount (don't auto-select - let user choose from homepage)
   useEffect(() => {
     const loadSessions = async () => {
       try {
         const data = await getSessions();
         setSessions(data.sessions);
-
-        // Auto-select the most recent session if none selected
-        if (!selectedSessionId && data.sessions.length > 0) {
-          setSelectedSessionId(data.sessions[0].id);
-        }
       } catch (error) {
         console.error('Failed to load sessions:', error);
       }
@@ -188,8 +186,9 @@ function App() {
       return;
     }
 
-    // Reset hasMoreEvents when selecting a new session
+    // Reset state when selecting a new session
     setHasMoreEvents(true);
+    setHasNewMessages(false);
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
@@ -322,6 +321,25 @@ function App() {
     }
   }, [selectedSessionId, isRefreshing, metricsHoursBack]);
 
+  // Handle loading all events for search
+  const handleLoadAllForSearch = useCallback(async () => {
+    if (isLoadingAllForSearch || !selectedSessionId) return;
+    if (events.length >= totalEvents) return; // Already have all events
+
+    setIsLoadingAllForSearch(true);
+    try {
+      // Load all events (pass 0 for unlimited)
+      const data = await getSession(selectedSessionId, 0);
+      setEvents(data.events);
+      setTotalEvents(data.total_events || data.events.length);
+      setHasMoreEvents(false); // All events are now loaded
+    } catch (error) {
+      console.error('Failed to load all events for search:', error);
+    } finally {
+      setIsLoadingAllForSearch(false);
+    }
+  }, [selectedSessionId, isLoadingAllForSearch, events.length, totalEvents]);
+
   // Handle search
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -356,7 +374,7 @@ function App() {
             onSessionsImported={() => handleSessionImported('')}
             isDark={isDark}
             onToggleTheme={toggleTheme}
-          />
+                      />
         </div>
 
         {/* Welcome screen spanning main area */}
@@ -370,12 +388,12 @@ function App() {
           <div className="text-center max-w-xl px-8 relative z-10">
             {/* Logo */}
             <div className="mb-10">
-              <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 shadow-lg">
-                <img src="/favicon.svg" alt="QuickCall" className="w-10 h-10 rounded-xl shadow-md" />
-                <div className="text-left">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">QuickCall</div>
-                  <div className="text-lg font-bold text-foreground -mt-0.5">SuperTrace</div>
-                </div>
+              <div className="inline-flex flex-col px-6 py-3 bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 shadow-lg">
+                <span className="inline-flex items-baseline">
+                  <span className="text-lg font-semibold tracking-tight text-teal-600 dark:text-teal-500">quick</span>
+                  <span className="text-lg font-semibold tracking-tight text-foreground">call</span>
+                </span>
+                <span className="text-2xl font-bold text-foreground -mt-1 tracking-tight">SuperTrace</span>
               </div>
             </div>
 
@@ -393,21 +411,21 @@ function App() {
             <div className="grid grid-cols-3 gap-4 mb-10">
               <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-primary/30 transition-colors group">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <i className="ri-coins-line text-primary text-lg"></i>
+                  <i className="ri-line-chart-line text-primary text-lg"></i>
                 </div>
                 <div className="text-sm font-semibold text-foreground">Cost Tracking</div>
                 <div className="text-xs text-muted-foreground mt-1">Monitor API spend</div>
               </div>
               <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-teal-500/30 transition-colors group">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-teal-500/20 to-teal-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <i className="ri-tools-line text-teal-500 text-lg"></i>
+                  <i className="ri-dashboard-3-line text-teal-500 text-lg"></i>
                 </div>
                 <div className="text-sm font-semibold text-foreground">Tool Analytics</div>
                 <div className="text-xs text-muted-foreground mt-1">Usage patterns</div>
               </div>
               <div className="bg-card/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 hover:border-amber-500/30 transition-colors group">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <i className="ri-time-line text-amber-500 text-lg"></i>
+                  <i className="ri-timer-line text-amber-500 text-lg"></i>
                 </div>
                 <div className="text-sm font-semibold text-foreground">Time Analysis</div>
                 <div className="text-xs text-muted-foreground mt-1">Performance insights</div>
@@ -463,7 +481,7 @@ function App() {
         hoursBack={metricsHoursBack}
         onTimeRangeChange={handleTimeRangeChange}
         isJumpingToEvent={isJumpingToEvent}
-        session={selectedSession}
+        session={sessions.find(s => s.id === selectedSessionId) || selectedSession}
         width={analyticsWidth}
       />
 
@@ -483,6 +501,10 @@ function App() {
           onLoadMore={handleLoadMore}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
+          hasNewMessages={hasNewMessages}
+          onClearNewMessages={() => setHasNewMessages(false)}
+          onLoadAllForSearch={handleLoadAllForSearch}
+          isLoadingAllForSearch={isLoadingAllForSearch}
         />
       </div>
     </div>

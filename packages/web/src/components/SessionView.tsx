@@ -23,6 +23,10 @@ interface SessionViewProps {
   onLoadMore?: () => void;
   onRefresh?: () => Promise<void>;
   isRefreshing?: boolean;
+  hasNewMessages?: boolean;
+  onClearNewMessages?: () => void;
+  onLoadAllForSearch?: () => Promise<void>;
+  isLoadingAllForSearch?: boolean;
 }
 
 type GroupedItem =
@@ -63,6 +67,10 @@ export function SessionView({
   onLoadMore,
   onRefresh,
   isRefreshing = false,
+  hasNewMessages = false,
+  onClearNewMessages,
+  onLoadAllForSearch,
+  isLoadingAllForSearch = false,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -105,16 +113,7 @@ export function SessionView({
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [checkIfAtBottom]);
-
-  // Re-check scroll position when events change (in case content height changed)
-  useEffect(() => {
-    // Use setTimeout to let the DOM update first
-    const timeoutId = setTimeout(() => {
-      setIsAtBottom(checkIfAtBottom());
-    }, 50);
-    return () => clearTimeout(timeoutId);
-  }, [events.length, checkIfAtBottom]);
+  }, [checkIfAtBottom, session?.id, events.length]);
 
   // Scroll to bottom function
   const scrollToBottom = useCallback(() => {
@@ -123,10 +122,11 @@ export function SessionView({
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth'
       });
+      onClearNewMessages?.();
     }
-  }, []);
+  }, [onClearNewMessages]);
 
-  // Keyboard shortcut for search (Cmd+F / Ctrl+F)
+  // Keyboard shortcut for search (Cmd+F)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -266,13 +266,80 @@ export function SessionView({
     }
   }, [events]);
 
-  // Loading state - check this BEFORE checking session
+  // Loading state - skeleton UI
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <i className="ri-loader-4-line animate-spin text-xl"></i>
-          <span className="text-sm">Loading session...</span>
+      <div className="flex-1 flex flex-col h-full bg-background animate-pulse">
+        {/* Header skeleton */}
+        <div className="h-12 px-4 border-b border-border flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-32 bg-muted rounded" />
+            <div className="h-4 w-16 bg-muted rounded" />
+            <div className="h-4 w-12 bg-muted rounded" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 bg-muted rounded" />
+            <div className="h-6 w-6 bg-muted rounded" />
+            <div className="h-6 w-12 bg-muted rounded" />
+            <div className="h-6 w-8 bg-muted rounded" />
+          </div>
+        </div>
+
+        {/* Messages skeleton */}
+        <div className="flex-1 overflow-hidden px-6 py-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* User message skeleton */}
+            <div className="flex justify-end">
+              <div className="max-w-[70%] space-y-2">
+                <div className="h-4 w-48 bg-primary/20 rounded ml-auto" />
+                <div className="h-4 w-64 bg-primary/20 rounded ml-auto" />
+              </div>
+            </div>
+
+            {/* Assistant message skeleton */}
+            <div className="flex justify-start">
+              <div className="max-w-[80%] space-y-2">
+                <div className="h-4 w-72 bg-muted rounded" />
+                <div className="h-4 w-96 bg-muted rounded" />
+                <div className="h-4 w-80 bg-muted rounded" />
+              </div>
+            </div>
+
+            {/* Tool group skeleton */}
+            <div className="flex justify-start">
+              <div className="w-full max-w-[90%] bg-muted/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 bg-muted rounded" />
+                  <div className="h-3 w-24 bg-muted rounded" />
+                </div>
+                <div className="h-3 w-48 bg-muted/70 rounded" />
+                <div className="h-3 w-36 bg-muted/70 rounded" />
+              </div>
+            </div>
+
+            {/* Another user message */}
+            <div className="flex justify-end">
+              <div className="max-w-[70%] space-y-2">
+                <div className="h-4 w-56 bg-primary/20 rounded ml-auto" />
+              </div>
+            </div>
+
+            {/* Another assistant message */}
+            <div className="flex justify-start">
+              <div className="max-w-[80%] space-y-2">
+                <div className="h-4 w-64 bg-muted rounded" />
+                <div className="h-4 w-88 bg-muted rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer skeleton */}
+        <div className="px-6 py-3 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-16 bg-muted rounded" />
+            <div className="h-3 w-20 bg-muted rounded" />
+          </div>
         </div>
       </div>
     );
@@ -345,21 +412,30 @@ export function SessionView({
           {/* Search */}
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-lg px-2 py-1">
-              <i className="ri-search-line text-muted-foreground text-sm" />
+              {isLoadingAllForSearch ? (
+                <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
+              ) : (
+                <i className="ri-search-line text-muted-foreground text-sm" />
+              )}
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search messages..."
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  // Load all events when user starts searching and not all are loaded
+                  if (value && events.length < totalEvents && onLoadAllForSearch && !isLoadingAllForSearch) {
+                    onLoadAllForSearch();
+                  }
+                }}
+                placeholder="Search ⌘F"
                 className="bg-transparent border-none outline-none text-xs w-32 text-foreground placeholder:text-muted-foreground"
               />
-              {searchQuery ? (
-                <span className="text-[10px] text-muted-foreground">
-                  {matchCount} match{matchCount !== 1 ? 'es' : ''}
+              {searchQuery && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {isLoadingAllForSearch ? 'Loading...' : `${matchCount} match${matchCount !== 1 ? 'es' : ''}`}
                 </span>
-              ) : (
-                <span className="text-[10px] text-muted-foreground/60">⌘F</span>
               )}
               <button
                 onClick={() => { setShowSearch(false); setSearchQuery(''); }}
@@ -371,11 +447,10 @@ export function SessionView({
           ) : (
             <button
               onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors flex items-center gap-1"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
               title="Search (⌘F)"
             >
               <i className="ri-search-line text-sm" />
-              <span className="text-[10px] text-muted-foreground/60">⌘F</span>
             </button>
           )}
           <span className="text-muted-foreground/30">|</span>
@@ -400,10 +475,19 @@ export function SessionView({
 
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">
+        {/* Refresh loading overlay - centered */}
+        {isRefreshing && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <i className="ri-loader-4-line animate-spin text-xl"></i>
+              <span className="text-sm">Refreshing...</span>
+            </div>
+          </div>
+        )}
         <div ref={scrollRef} className="h-full overflow-y-auto px-6 py-6">
           <div className="max-w-4xl mx-auto space-y-4">
-            {/* Infinite scroll trigger at top */}
-            {events.length > 0 && hasMoreEvents && (
+            {/* Infinite scroll trigger at top - hide when searching */}
+            {events.length > 0 && hasMoreEvents && !searchQuery && (
               <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
                 {isLoadingMore ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -411,9 +495,12 @@ export function SessionView({
                     Loading older messages...
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">
-                    Scroll up for more
-                  </div>
+                  <button
+                    onClick={onLoadMore}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Load older messages
+                  </button>
                 )}
               </div>
             )}
@@ -465,7 +552,9 @@ export function SessionView({
 
       </div>
 
-      {/* Scroll to bottom button - shows when not at bottom
+      {/* Scroll to bottom / New messages button
+          - For active sessions with new messages: show "New messages"
+          - Otherwise when scrolled up: show just arrow
           NOTE: z-50 is critical! The footer has backdrop-blur-sm which creates a
           stacking context. Don't lower the z-index! */}
       {!isAtBottom && (
@@ -474,13 +563,23 @@ export function SessionView({
           <div className="h-16 bg-gradient-to-t from-background via-background/80 to-transparent" />
           {/* Button */}
           <div className="flex justify-center pb-3 bg-background">
-            <button
-              onClick={scrollToBottom}
-              className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-muted hover:bg-accent border border-border rounded-full shadow-sm transition-colors"
-            >
-              <span className="text-sm font-medium text-foreground">New messages</span>
-              <i className="ri-arrow-down-line text-foreground" />
-            </button>
+            {isActive && hasNewMessages ? (
+              <button
+                onClick={scrollToBottom}
+                className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-muted hover:bg-accent border border-border rounded-full shadow-sm transition-colors"
+              >
+                <span className="text-sm font-medium text-foreground">New messages</span>
+                <i className="ri-arrow-down-line text-foreground" />
+              </button>
+            ) : (
+              <button
+                onClick={scrollToBottom}
+                className="pointer-events-auto p-2 bg-muted hover:bg-accent border border-border rounded-full shadow-sm transition-colors"
+                title="Scroll to bottom"
+              >
+                <i className="ri-arrow-down-line text-foreground" />
+              </button>
+            )}
           </div>
         </div>
       )}

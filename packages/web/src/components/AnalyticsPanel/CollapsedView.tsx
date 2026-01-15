@@ -24,10 +24,10 @@ export function CollapsedView({ metrics, onExpand }: CollapsedViewProps) {
 
   return (
     <div className="w-16 bg-card border-x border-border flex flex-col shrink-0">
-      {/* Expand button at top */}
+      {/* Expand button at top - h-12 to match other panel headers */}
       <button
         onClick={onExpand}
-        className="p-4 border-b border-border hover:bg-accent transition-colors"
+        className="h-12 flex items-center justify-center border-b border-border hover:bg-accent transition-colors"
         title="Expand analytics"
       >
         <i className="ri-arrow-right-double-line text-muted-foreground text-lg" />
@@ -37,7 +37,7 @@ export function CollapsedView({ metrics, onExpand }: CollapsedViewProps) {
       <div className="flex-1 flex flex-col items-center gap-8 py-6">
         {/* Cost */}
         <div className="text-center" title={`Cost: $${cost.toFixed(2)}`}>
-          <i className="ri-money-dollar-circle-line text-[color:var(--cost)] text-xl" />
+          <i className="ri-wallet-3-line text-[color:var(--cost)] text-xl" />
           <div className="text-sm font-bold text-[color:var(--cost)] mt-1">
             ${cost >= 100 ? Math.round(cost) : cost.toFixed(0)}
           </div>
@@ -45,7 +45,7 @@ export function CollapsedView({ metrics, onExpand }: CollapsedViewProps) {
 
         {/* Files */}
         <div className="text-center" title={`Files changed: ${filesChanged}`}>
-          <i className="ri-file-edit-line text-[color:var(--info)] text-xl" />
+          <i className="ri-stack-line text-[color:var(--info)] text-xl" />
           <div className="text-sm font-bold text-[color:var(--info)] mt-1">
             {filesChanged}
           </div>
@@ -56,7 +56,7 @@ export function CollapsedView({ metrics, onExpand }: CollapsedViewProps) {
           className="text-center"
           title={`Net lines: ${netLines >= 0 ? '+' : ''}${netLines}`}
         >
-          <i className={`ri-code-line text-xl ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`} />
+          <i className={`ri-terminal-box-line text-xl ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`} />
           <div className={`text-sm font-bold mt-1 ${netLines >= 0 ? 'text-[color:var(--success)]' : 'text-destructive'}`}>
             {netLines >= 0 ? '+' : ''}{formatCompact(netLines)}
           </div>

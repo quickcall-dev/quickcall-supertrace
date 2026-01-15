@@ -221,51 +221,52 @@ export function ExpandedView({
 
   return (
     <div style={{ width }} className="bg-card border-x border-border flex flex-col overflow-hidden shrink-0 relative" data-panel="analytics">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border bg-card/95 backdrop-blur-sm shrink-0">
-        {/* Top row - title and controls */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">Session Analytics</span>
-            {loading && (
-              <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Time range selector */}
-            <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
-              {TIME_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => onTimeRangeChange?.(opt.value)}
-                  className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
-                    hoursBack === opt.value
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={onCollapse}
-              className="p-1.5 hover:bg-accent rounded transition-colors"
-              title="Collapse"
-            >
-              <i className="ri-arrow-left-double-line text-muted-foreground" />
-            </button>
-          </div>
+      {/* Header - h-12 to match other panels */}
+      <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-foreground text-sm">Session Analytics</span>
+          {loading && (
+            <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
+          )}
         </div>
-        {/* Session title row */}
-        {session?.first_prompt && (
-          <div className="text-sm text-muted-foreground line-clamp-2" title={session.first_prompt}>
-            <i className="ri-chat-quote-line mr-1.5" />
-            {session.first_prompt}
+        <div className="flex items-center gap-2">
+          {/* Time range selector */}
+          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+            {TIME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onTimeRangeChange?.(opt.value)}
+                className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  hoursBack === opt.value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-        )}
-        {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs mt-2">
+          <button
+            onClick={onCollapse}
+            className="p-1.5 hover:bg-accent rounded transition-colors"
+            title="Collapse"
+          >
+            <i className="ri-arrow-left-double-line text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+
+      {/* Subheader - session info and stats */}
+      <div className="px-4 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-3">
+        {/* Session title (first prompt) - 2 lines max */}
+        <div
+          className="flex-1 min-w-0 text-xs text-muted-foreground line-clamp-2 leading-tight"
+          title={session?.first_prompt || ''}
+        >
+          {session?.first_prompt || 'New session'}
+        </div>
+        {/* Stats */}
+        <div className="flex items-center gap-3 text-xs shrink-0">
           <Tooltip text="Estimated API cost">
             <span className="text-foreground font-medium">
               ${cost.toFixed(2)}

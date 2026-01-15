@@ -218,31 +218,160 @@ ws.onopen = () => {
 };
 ```
 
-## New Messages Indicator
+### 4. Tracking `events.length` for New Message Detection
 
-When new messages arrive while the user is scrolled up, show a floating indicator:
+**Problem:** Trying to detect new messages by comparing `events.length` in a child component.
 
 ```typescript
-// Track if user is at bottom
-const [isAtBottom, setIsAtBottom] = useState(true);
-const [newMessageCount, setNewMessageCount] = useState(0);
-
-// Scroll listener
-const handleScroll = () => {
-  const threshold = 100;
-  const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-  setIsAtBottom(atBottom);
-  if (atBottom) setNewMessageCount(0);
-};
-
-// Track new messages when not at bottom
+// WRONG - events.length stays at 30 due to pagination
 useEffect(() => {
-  const newCount = events.length - prevEventCount;
-  if (newCount > 0 && !isAtBottom) {
-    setNewMessageCount(prev => prev + newCount);
+  if (events.length > lastSeenCount) {
+    setHasNewMessages(true);
+  }
+}, [events.length]);
+```
+
+**Why it fails:** The API returns paginated results (e.g., latest 30 events). When new messages arrive, the API still returns 30 events—just shifted forward. The count never changes.
+
+**Solution:** Track new messages at the parent level (App.tsx) where WebSocket `session_updated` events arrive, then pass `hasNewMessages` as a prop to child components. See [New Messages Indicator](#new-messages-indicator) below.
+
+## New Messages Indicator
+
+When new messages arrive while the user is scrolled up, show a floating "New messages" button.
+
+### Why Not Track `events.length`?
+
+The naive approach would be to track `events.length` changes in SessionView:
+
+```typescript
+// WRONG - doesn't work with pagination!
+useEffect(() => {
+  if (events.length > lastSeenCount && !isAtBottom) {
+    setHasNewMessages(true);
   }
 }, [events.length, isAtBottom]);
 ```
+
+**This doesn't work** because the API returns paginated results (latest 30 events). When new messages arrive, the API still returns 30 events - just newer ones. So `events.length` stays at 30 and the effect never detects new messages.
+
+### The Fix: Use WebSocket Signal from Parent
+
+The solution is to track new messages at the **App.tsx level** where WebSocket events arrive, then pass that state down to SessionView as a prop.
+
+#### 1. App.tsx - Track `hasNewMessages` state
+
+```typescript
+const [hasNewMessages, setHasNewMessages] = useState(false);
+
+const handleSessionUpdated = useCallback(async (sessionId: string, newMessages: number) => {
+  // Always refresh session list
+  const data = await getSessions();
+  setSessions(data.sessions);
+
+  // If this is the currently selected session, signal new messages
+  if (sessionId === selectedSessionId) {
+    setHasNewMessages(true);  // <-- Signal to SessionView
+
+    // Reload session data
+    const [sessionData, metricsData] = await Promise.all([
+      getSession(sessionId, 30),
+      getSessionMetrics(sessionId, metricsHoursBack),
+    ]);
+    setSelectedSession(sessionData.session);
+    setEvents(sessionData.events);
+    setMetrics(metricsData.metrics);
+  }
+}, [selectedSessionId, metricsHoursBack]);
+
+// Reset when switching sessions
+useEffect(() => {
+  setHasNewMessages(false);
+  // ... rest of session loading
+}, [selectedSessionId]);
+
+// Pass to SessionView
+<SessionView
+  hasNewMessages={hasNewMessages}
+  onClearNewMessages={() => setHasNewMessages(false)}
+  // ... other props
+/>
+```
+
+#### 2. SessionView.tsx - Receive props, track scroll position
+
+```typescript
+interface SessionViewProps {
+  // ... other props
+  hasNewMessages?: boolean;
+  onClearNewMessages?: () => void;
+}
+
+export function SessionView({
+  hasNewMessages = false,
+  onClearNewMessages,
+  // ... other props
+}: SessionViewProps) {
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Track scroll position
+  const checkIfAtBottom = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return true;
+    const threshold = 100;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }, []);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => setIsAtBottom(checkIfAtBottom());
+    handleScroll(); // Check initial position
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [checkIfAtBottom, session?.id, events.length]);
+
+  // Scroll to bottom and clear indicator
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth'
+    });
+    onClearNewMessages?.();
+  }, [onClearNewMessages]);
+
+  // Render button conditionally
+  const isActive = session?.started_at && !session?.ended_at;
+
+  return (
+    // ...
+    {!isAtBottom && (
+      <div className="floating-button-container">
+        {isActive && hasNewMessages ? (
+          <button onClick={scrollToBottom}>
+            New messages <DownArrowIcon />
+          </button>
+        ) : (
+          <button onClick={scrollToBottom}>
+            <DownArrowIcon />
+          </button>
+        )}
+      </div>
+    )}
+  );
+}
+```
+
+### Key Points
+
+1. **WebSocket is the source of truth** - Only App.tsx knows when `session_updated` arrives
+2. **Props flow down** - `hasNewMessages` comes from parent, not calculated locally
+3. **Two button states**:
+   - Active session + new messages: "New messages ↓" button
+   - Just scrolled up (no new messages or inactive session): Simple "↓" arrow button
+4. **Clear on scroll** - When user clicks button or scrolls to bottom, call `onClearNewMessages()`
+5. **Reset on session change** - Clear `hasNewMessages` when switching to a different session
 
 ## Testing WebSocket Updates
 
