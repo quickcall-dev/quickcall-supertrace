@@ -159,11 +159,16 @@ export function SessionList({
   }, [sessions]);
 
   return (
-    <div className="w-56 border-r border-border flex flex-col h-full bg-card shrink-0">
+    <div className="w-full border-r border-border flex flex-col h-full bg-card overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border overflow-hidden shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-col">
+          <a
+            href="https://quickcall.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer"
+          >
             {/* QuickCall Logo */}
             <span className="inline-flex items-baseline">
               <span className="text-lg font-medium tracking-tight text-teal-600 dark:text-teal-500">
@@ -177,7 +182,7 @@ export function SessionList({
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
               SuperTrace
             </span>
-          </div>
+          </a>
           {/* Theme toggle */}
           <button
             onClick={onToggleTheme}
@@ -189,15 +194,15 @@ export function SessionList({
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSearch}>
-          <div className="relative">
+        <form onSubmit={handleSearch} className="w-full max-w-full">
+          <div className="relative w-full">
             <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm"></i>
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-all"
+              className="w-full max-w-full pl-9 pr-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-all box-border"
             />
           </div>
         </form>
@@ -207,22 +212,22 @@ export function SessionList({
           onClick={handleImportSessions}
           disabled={isImporting}
           className={`
-            mt-3 w-full py-2 px-3 rounded-lg text-sm font-medium transition-all
-            flex items-center justify-center gap-2
+            mt-3 w-full max-w-full py-2 px-3 rounded-lg text-sm font-medium transition-all
+            flex items-center justify-center gap-2 box-border
             ${isImporting
               ? 'bg-muted text-muted-foreground cursor-not-allowed'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
             }
           `}
         >
-          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'}`}></i>
-          {isImporting ? 'Importing...' : 'Import Sessions'}
+          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
+          <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
         </button>
 
         {/* Import Status */}
         {importStatus && (
           <div className={`
-            mt-2 text-xs text-center py-1.5 px-2 rounded
+            mt-2 text-xs text-center py-1.5 px-2 rounded w-full max-w-full truncate
             ${importStatus.includes('failed')
               ? 'bg-destructive/10 text-destructive'
               : 'bg-primary/10 text-primary'
