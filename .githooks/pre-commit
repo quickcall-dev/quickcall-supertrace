@@ -27,6 +27,19 @@ for file in $BLOCKED_FILES; do
 done
 
 # ============================================
+# 1b. Block internal directories
+# ============================================
+BLOCKED_DIRS="docs/internal/"
+
+for dir in $BLOCKED_DIRS; do
+    if git diff --cached --name-only | grep -q "^${dir}"; then
+        echo -e "${RED}ERROR: Cannot commit files in ${dir} - this directory should remain local only${NC}"
+        echo -e "Run: git reset HEAD ${dir}"
+        exit 1
+    fi
+done
+
+# ============================================
 # 2. Python linting (if Python files staged)
 # ============================================
 PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
