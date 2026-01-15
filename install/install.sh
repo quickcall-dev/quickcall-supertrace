@@ -3,7 +3,7 @@
 # QuickCall SuperTrace Installer
 # ------------------------------------------------------------------------------
 #
-# Usage: curl -fsSL https://quickcall.dev/install.sh | sh
+# Usage: curl -fsSL https://quickcall.dev/supertrace/install.sh | sh
 #
 # What this script does:
 #   1. Installs uv (Python package manager) if not present
