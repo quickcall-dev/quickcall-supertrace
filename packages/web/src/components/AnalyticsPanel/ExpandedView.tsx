@@ -1,25 +1,123 @@
 /**
  * Expanded analytics view with compact header and charts.
+ *
+ * ============================================================================
+ * TOOLTIP & HOVER DESIGN GUIDELINES
+ * ============================================================================
+ *
+ * PROBLEM: Panels have `overflow-hidden` to prevent layout issues during
+ * resize/refresh. This clips any tooltip/hover content that extends beyond
+ * panel boundaries (especially near the right edge where panels meet).
+ *
+ * SOLUTION: All hover/tooltip content MUST be contained within panel bounds.
+ *
+ * PATTERNS TO FOLLOW:
+ *
+ * 1. EDGE DETECTION (see PromptMetricsChart.tsx for reference):
+ *    - Calculate tooltip position relative to container
+ *    - Detect if tooltip would overflow right edge
+ *    - Flip tooltip direction when near edge (translateX(-100%) instead of -50%)
+ *
+ *    Example:
+ *    ```
+ *    const containerWidth = containerRef.current?.clientWidth || 400;
+ *    const tooltipX = elementX;
+ *    const nearRightEdge = tooltipX + tooltipWidth / 2 > containerWidth - 10;
+ *    transform: nearRightEdge ? 'translateX(-100%)' : 'translateX(-50%)'
+ *    ```
+ *
+ * 2. TOOLTIP POSITIONING:
+ *    - Use `absolute` positioning within a `relative` container
+ *    - NEVER let tooltips extend past parent panel boundaries
+ *    - For right-edge items, anchor tooltip to the LEFT of the trigger
+ *    - For left-edge items, anchor tooltip to the RIGHT of the trigger
+ *
+ * 3. REQUIRED CLASSES:
+ *    - `pointer-events-none` - prevents tooltip from blocking interactions
+ *    - `z-20` or higher - ensures tooltip appears above other content
+ *    - `whitespace-nowrap` OR `max-w-[Xpx]` - controls tooltip width
+ *
+ * 4. DO NOT:
+ *    - Use CSS-only tooltips without edge detection near panel edges
+ *    - Assume tooltips can overflow into adjacent panels
+ *    - Use `position: fixed` (breaks with scrolling containers)
+ *
+ * ============================================================================
  */
 
-import { useState } from 'react';
-import type { MetricsResponse, MetricFormat, PromptTurnsData } from '../../api/client';
+import { useState, useRef, useCallback } from 'react';
+import type { MetricsResponse, MetricFormat, PromptTurnsData, Session } from '../../api/client';
 import { PromptMetricsChart } from './PromptMetricsChart';
 import { TimingChart } from './TimingChart';
 import { ToolDistributionChart } from './ToolDistributionChart';
 
-// Simple tooltip wrapper - shows BELOW the element
+/**
+ * Smart Tooltip with edge detection.
+ *
+ * Automatically adjusts position to stay within parent container bounds.
+ * Shows BELOW the element by default, flips LEFT when near right edge.
+ */
 function Tooltip({ children, text }: { children: React.ReactNode; text: string }) {
   const [show, setShow] = useState(false);
+  const [position, setPosition] = useState<'center' | 'left' | 'right'>('center');
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  const calculatePosition = useCallback(() => {
+    if (!triggerRef.current) return;
+
+    const trigger = triggerRef.current;
+    const rect = trigger.getBoundingClientRect();
+
+    // Find the parent panel (the analytics panel container)
+    const panel = trigger.closest('[data-panel="analytics"]');
+    if (!panel) {
+      setPosition('center');
+      return;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    const tooltipWidth = 180; // Estimated max tooltip width
+
+    // Check if tooltip would overflow right edge
+    const rightSpace = panelRect.right - rect.left - rect.width / 2;
+    const leftSpace = rect.left + rect.width / 2 - panelRect.left;
+
+    if (rightSpace < tooltipWidth / 2 + 10) {
+      setPosition('left'); // Anchor to left side of trigger
+    } else if (leftSpace < tooltipWidth / 2 + 10) {
+      setPosition('right'); // Anchor to right side of trigger
+    } else {
+      setPosition('center');
+    }
+  }, []);
+
+  const handleMouseEnter = () => {
+    calculatePosition();
+    setShow(true);
+  };
+
+  // Position transform based on edge detection
+  const getTransform = () => {
+    switch (position) {
+      case 'left': return 'translateX(-90%)'; // Anchor tooltip to left
+      case 'right': return 'translateX(-10%)'; // Anchor tooltip to right
+      default: return 'translateX(-50%)'; // Center (default)
+    }
+  };
+
   return (
     <span
+      ref={triggerRef}
       className="relative inline-flex"
-      onMouseEnter={() => setShow(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setShow(false)}
     >
       {children}
       {show && (
-        <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 text-[10px] bg-popover text-popover-foreground border border-border rounded shadow-lg whitespace-nowrap z-50">
+        <span
+          className="absolute top-full left-1/2 mt-1.5 px-2 py-1 text-[10px] bg-popover text-popover-foreground border border-border rounded shadow-lg whitespace-nowrap z-50 pointer-events-none"
+          style={{ transform: getTransform() }}
+        >
           {text}
         </span>
       )}
@@ -35,6 +133,8 @@ interface ExpandedViewProps {
   onTimeRangeChange?: (hours: number) => void;
   loading?: boolean;
   isJumpingToEvent?: boolean;
+  session?: Session | null;
+  width?: number;
 }
 
 const TIME_OPTIONS = [
@@ -91,6 +191,8 @@ export function ExpandedView({
   onTimeRangeChange,
   loading = false,
   isJumpingToEvent = false,
+  session,
+  width = 400,
 }: ExpandedViewProps) {
   const byCategory = metrics.by_category || {};
 
@@ -118,62 +220,71 @@ export function ExpandedView({
   const chartData = byCategory.charts?.prompt_turns?.value as PromptTurnsData | null;
 
   return (
-    <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0 relative">
-      {/* Header - compact single row matching SessionView */}
-      <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">Analytics</span>
-          {loading && (
-            <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
-          )}
-          <span className="text-muted-foreground/50">·</span>
+    <div style={{ width }} className="bg-card border-x border-border flex flex-col overflow-hidden shrink-0 relative" data-panel="analytics">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border bg-card/95 backdrop-blur-sm shrink-0">
+        {/* Top row - title and controls */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-foreground">Session Analytics</span>
+            {loading && (
+              <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Time range selector */}
+            <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+              {TIME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onTimeRangeChange?.(opt.value)}
+                  className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                    hoursBack === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={onCollapse}
+              className="p-1.5 hover:bg-accent rounded transition-colors"
+              title="Collapse"
+            >
+              <i className="ri-arrow-left-double-line text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+        {/* Session title row */}
+        {session?.first_prompt && (
+          <div className="text-sm text-muted-foreground line-clamp-2" title={session.first_prompt}>
+            <i className="ri-chat-quote-line mr-1.5" />
+            {session.first_prompt}
+          </div>
+        )}
+        {/* Stats row */}
+        <div className="flex items-center gap-3 text-xs mt-2">
           <Tooltip text="Estimated API cost">
-            <span className="text-xs text-foreground font-medium">
+            <span className="text-foreground font-medium">
               ${cost.toFixed(2)}
             </span>
           </Tooltip>
           {cacheSavings > 0 && (
             <Tooltip text="Savings from prompt caching">
-              <span className="text-xs text-[color:var(--success)]">
-                -${cacheSavings.toFixed(2)}
+              <span className="text-[color:var(--success)]">
+                -${cacheSavings.toFixed(2)} saved
               </span>
             </Tooltip>
           )}
           {duration !== null && (
-            <>
-              <span className="text-muted-foreground/50">·</span>
-              <Tooltip text="Session duration">
-                <span className="text-xs text-muted-foreground">
-                  {formatValue(duration, 'duration')}
-                </span>
-              </Tooltip>
-            </>
+            <Tooltip text="Session duration">
+              <span className="text-muted-foreground">
+                {formatValue(duration, 'duration')}
+              </span>
+            </Tooltip>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Time range selector */}
-          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
-            {TIME_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => onTimeRangeChange?.(opt.value)}
-                className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
-                  hoursBack === opt.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={onCollapse}
-            className="p-1.5 hover:bg-accent rounded transition-colors"
-            title="Collapse"
-          >
-            <i className="ri-arrow-left-double-line text-muted-foreground" />
-          </button>
         </div>
       </div>
 
@@ -246,8 +357,16 @@ export function ExpandedView({
 
         {/* Unified Prompt Metrics Chart */}
         <div className="px-5 py-4 border-b border-border">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
-            Tokens & Tools by Prompt
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+              Tokens & Tools by Prompt
+            </div>
+            <Tooltip text="Click on a bar to jump to that prompt in the conversation">
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70 cursor-help">
+                <i className="ri-cursor-line text-xs" />
+                <span>click to jump</span>
+              </span>
+            </Tooltip>
           </div>
           <PromptMetricsChart data={chartData} onPromptClick={onScrollToEvent} />
         </div>

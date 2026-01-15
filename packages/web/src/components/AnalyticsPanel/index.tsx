@@ -7,7 +7,7 @@
  * Related: App.tsx (parent), api/client.ts (types)
  */
 
-import type { MetricsResponse } from '../../api/client';
+import type { MetricsResponse, Session } from '../../api/client';
 import { ExpandedView } from './ExpandedView';
 import { CollapsedView } from './CollapsedView';
 import { SkeletonView } from './SkeletonView';
@@ -21,6 +21,8 @@ interface AnalyticsPanelProps {
   hoursBack?: number;
   onTimeRangeChange?: (hours: number) => void;
   isJumpingToEvent?: boolean;
+  session?: Session | null;
+  width?: number;
 }
 
 export function AnalyticsPanel({
@@ -32,11 +34,15 @@ export function AnalyticsPanel({
   hoursBack = 0,
   onTimeRangeChange,
   isJumpingToEvent = false,
+  session,
+  width = 400,
 }: AnalyticsPanelProps) {
+  const panelStyle = expanded ? { width } : { width: 64 };
+
   // No session selected - show minimal placeholder
   if (!metrics && !loading) {
     return (
-      <div className={`${expanded ? 'w-[calc(50%-7rem)]' : 'w-16'} bg-card border-x border-border flex flex-col transition-all duration-200`}>
+      <div style={panelStyle} className="bg-card border-x border-border flex flex-col transition-all duration-200 shrink-0">
         {/* Empty - content shown in SessionView */}
         <div className="flex-1" />
         <button
@@ -57,12 +63,13 @@ export function AnalyticsPanel({
           onCollapse={onToggle}
           hoursBack={hoursBack}
           onTimeRangeChange={onTimeRangeChange}
+          width={width}
         />
       );
     }
     // Collapsed loading - just show slim bar with spinner
     return (
-      <div className="w-16 bg-card border-x border-border flex flex-col transition-all duration-200">
+      <div style={{ width: 64 }} className="bg-card border-x border-border flex flex-col transition-all duration-200 shrink-0">
         <div className="flex-1 flex items-center justify-center">
           <i className="ri-loader-4-line animate-spin text-xl text-muted-foreground" />
         </div>
@@ -80,6 +87,8 @@ export function AnalyticsPanel({
         onTimeRangeChange={onTimeRangeChange}
         loading={loading}
         isJumpingToEvent={isJumpingToEvent}
+        session={session}
+        width={width}
       />
     );
   }

@@ -15,6 +15,7 @@ interface SkeletonViewProps {
   onCollapse: () => void;
   hoursBack?: number;
   onTimeRangeChange?: (hours: number) => void;
+  width?: number;
 }
 
 function SkeletonBox({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
@@ -27,9 +28,10 @@ export function SkeletonView({
   onCollapse,
   hoursBack = 0,
   onTimeRangeChange,
+  width = 400,
 }: SkeletonViewProps) {
   return (
-    <div className="w-[calc(50%-7rem)] bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
+    <div style={{ width }} className="bg-card border-x border-border flex flex-col overflow-hidden shrink-0">
       {/* Header */}
       <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 text-sm">
