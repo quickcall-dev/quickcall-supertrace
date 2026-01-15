@@ -13,19 +13,19 @@ interface ToolTimelineProps {
   sessionStart: string | null;
 }
 
-// Tool colors - consistent palette
+// Tool colors - uses muted bar colors for chart segments
 const TOOL_CONFIG: Record<string, { color: string; label: string }> = {
-  Read: { color: 'var(--info)', label: 'Read' },
-  Glob: { color: 'var(--info)', label: 'Glob' },
-  Grep: { color: 'var(--info)', label: 'Grep' },
-  Write: { color: 'var(--success)', label: 'Write' },
-  Edit: { color: 'var(--warning)', label: 'Edit' },
-  Bash: { color: 'var(--cost)', label: 'Bash' },
-  Task: { color: '#a78bfa', label: 'Task' },
-  TodoWrite: { color: '#34d399', label: 'Todo' },
-  WebFetch: { color: '#60a5fa', label: 'Web' },
-  WebSearch: { color: '#60a5fa', label: 'Search' },
-  AskUserQuestion: { color: '#f472b6', label: 'Ask' },
+  Read: { color: 'var(--bar-info)', label: 'Read' },
+  Glob: { color: 'var(--bar-info)', label: 'Glob' },
+  Grep: { color: 'var(--bar-info)', label: 'Grep' },
+  Write: { color: 'var(--bar-success)', label: 'Write' },
+  Edit: { color: 'var(--bar-warning)', label: 'Edit' },
+  Bash: { color: 'var(--bar-cost)', label: 'Bash' },
+  Task: { color: 'var(--tool-task)', label: 'Task' },
+  TodoWrite: { color: 'var(--tool-todo)', label: 'Todo' },
+  WebFetch: { color: 'var(--tool-web)', label: 'Web' },
+  WebSearch: { color: 'var(--tool-web)', label: 'Search' },
+  AskUserQuestion: { color: 'var(--tool-ask)', label: 'Ask' },
 };
 
 const DEFAULT_COLOR = 'var(--muted-foreground)';

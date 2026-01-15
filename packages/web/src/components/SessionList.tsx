@@ -6,7 +6,7 @@
  * Clean, professional design matching QuickCall styling.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Session } from '../api/client';
 import { triggerIngest } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
@@ -87,6 +87,19 @@ export function SessionList({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut for sidebar search (Cmd+Shift+F)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleImportSessions = async () => {
     if (isImporting) return;
@@ -159,25 +172,30 @@ export function SessionList({
   }, [sessions]);
 
   return (
-    <div className="w-56 border-r border-border flex flex-col h-full bg-card shrink-0">
+    <div className="w-full border-r border-border flex flex-col h-full bg-card overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border overflow-hidden shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-col">
+          <a
+            href="https://quickcall.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer"
+          >
             {/* QuickCall Logo */}
             <span className="inline-flex items-baseline">
-              <span className="text-lg font-medium tracking-tight text-teal-600 dark:text-teal-500">
+              <span className="text-xl font-semibold tracking-tight text-teal-600 dark:text-teal-500">
                 quick
               </span>
-              <span className="text-lg font-medium tracking-tight text-foreground">
+              <span className="text-xl font-semibold tracking-tight text-foreground">
                 call
               </span>
             </span>
             {/* SuperTrace subscript */}
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider -mt-0.5">
               SuperTrace
             </span>
-          </div>
+          </a>
           {/* Theme toggle */}
           <button
             onClick={onToggleTheme}
@@ -189,16 +207,18 @@ export function SessionList({
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSearch}>
-          <div className="relative">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm"></i>
+        <form onSubmit={handleSearch} className="w-full max-w-full">
+          <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-ring transition-all">
+            <i className="ri-search-line text-muted-foreground text-sm shrink-0"></i>
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Search..."
+              placeholder="Search sessions..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-all"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground"
             />
+            <span className="text-[10px] text-muted-foreground/60 shrink-0 hidden sm:block">⇧⌘F</span>
           </div>
         </form>
 
@@ -207,22 +227,22 @@ export function SessionList({
           onClick={handleImportSessions}
           disabled={isImporting}
           className={`
-            mt-3 w-full py-2 px-3 rounded-lg text-sm font-medium transition-all
-            flex items-center justify-center gap-2
+            mt-3 w-full max-w-full py-2 px-3 rounded-lg text-sm font-medium transition-all
+            flex items-center justify-center gap-2 box-border
             ${isImporting
               ? 'bg-muted text-muted-foreground cursor-not-allowed'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
             }
           `}
         >
-          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'}`}></i>
-          {isImporting ? 'Importing...' : 'Import Sessions'}
+          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
+          <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
         </button>
 
         {/* Import Status */}
         {importStatus && (
           <div className={`
-            mt-2 text-xs text-center py-1.5 px-2 rounded
+            mt-2 text-xs text-center py-1.5 px-2 rounded w-full max-w-full truncate
             ${importStatus.includes('failed')
               ? 'bg-destructive/10 text-destructive'
               : 'bg-primary/10 text-primary'
@@ -297,7 +317,7 @@ export function SessionList({
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border text-[11px] text-muted-foreground text-center">
+      <div className="px-4 py-3 border-t border-border text-[11px] text-muted-foreground text-center">
         {sessions.length} session{sessions.length !== 1 ? 's' : ''}
       </div>
     </div>

@@ -4,41 +4,55 @@
  * Establishes WS connection to server, handles reconnection,
  * and provides subscribe/unsubscribe for session-specific updates.
  *
+ * Backend broadcasts these event types:
+ * - session_imported: New session file found {session_id, is_new: true}
+ * - session_updated: New messages in existing session {session_id, new_messages}
+ * - session_refreshed: Manual refresh via API {session_id, new_messages, timestamp}
+ *
  * Related: api/client.ts (Event type), App.tsx (usage)
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import type { Event } from '../api/client';
 
-interface NewEventMessage {
-  type: 'new_event';
-  event: Event;
-}
-
-interface NewSessionMessage {
-  type: 'new_session';
+// WebSocket message types from backend
+interface SessionImportedMessage {
+  type: 'session_imported';
   session_id: string;
+  is_new?: boolean;
 }
 
-type WebSocketMessage = NewEventMessage | NewSessionMessage;
+interface SessionUpdatedMessage {
+  type: 'session_updated';
+  session_id: string;
+  new_messages: number;
+}
+
+interface SessionRefreshedMessage {
+  type: 'session_refreshed';
+  session_id: string;
+  new_messages: number;
+  timestamp: string;
+}
+
+type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage;
 
 interface UseWebSocketOptions {
-  onEvent?: (event: Event) => void;
-  onNewSession?: (sessionId: string) => void;
+  onSessionImported?: (sessionId: string) => void;
+  onSessionUpdated?: (sessionId: string, newMessages: number) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onEvent, onNewSession } = options;
+  const { onSessionImported, onSessionUpdated } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subscribedSessionRef = useRef<string | null>(null);
 
   // Use ref for callbacks to avoid reconnections when callbacks change
-  const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
-  const onNewSessionRef = useRef(onNewSession);
-  onNewSessionRef.current = onNewSession;
+  const onSessionImportedRef = useRef(onSessionImported);
+  onSessionImportedRef.current = onSessionImported;
+  const onSessionUpdatedRef = useRef(onSessionUpdated);
+  onSessionUpdatedRef.current = onSessionUpdated;
 
   // Connect on mount
   useEffect(() => {
@@ -55,6 +69,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
+        console.log('[WebSocket] Connected');
         setIsConnected(true);
         // Re-subscribe to session if we had one before reconnect
         if (subscribedSessionRef.current) {
@@ -65,24 +80,33 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ws.onmessage = (messageEvent) => {
         try {
           const data: WebSocketMessage = JSON.parse(messageEvent.data);
-          if (data.type === 'new_event' && onEventRef.current) {
-            onEventRef.current(data.event);
-          } else if (data.type === 'new_session' && onNewSessionRef.current) {
-            onNewSessionRef.current(data.session_id);
+          console.log('[WebSocket] Received:', data.type, data);
+
+          if (data.type === 'session_imported' && onSessionImportedRef.current) {
+            // New session discovered - refresh session list
+            onSessionImportedRef.current(data.session_id);
+          } else if (data.type === 'session_updated' && onSessionUpdatedRef.current) {
+            // Existing session has new messages - refresh if subscribed
+            onSessionUpdatedRef.current(data.session_id, data.new_messages);
+          } else if (data.type === 'session_refreshed' && onSessionUpdatedRef.current) {
+            // Manual refresh completed - treat same as update
+            onSessionUpdatedRef.current(data.session_id, data.new_messages);
           }
-        } catch {
-          // Ignore parse errors
+        } catch (e) {
+          console.error('[WebSocket] Parse error:', e);
         }
       };
 
       ws.onclose = () => {
+        console.log('[WebSocket] Disconnected, reconnecting in 1s...');
         setIsConnected(false);
         wsRef.current = null;
-        // Reconnect after 3 seconds
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        // Reconnect after 1 second (reduced from 3s for near real-time updates)
+        reconnectTimeoutRef.current = setTimeout(connect, 1000);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (e) => {
+        console.error('[WebSocket] Error:', e);
         ws.close();
       };
 
@@ -104,6 +128,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   // Subscribe to a session's updates
   const subscribe = useCallback((sessionId: string) => {
+    console.log('[WebSocket] Subscribing to session:', sessionId);
     // Unsubscribe from previous session
     if (subscribedSessionRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'unsubscribe', session_id: subscribedSessionRef.current }));

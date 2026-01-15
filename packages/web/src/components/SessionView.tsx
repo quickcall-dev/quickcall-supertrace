@@ -21,6 +21,8 @@ interface SessionViewProps {
   hasMoreEvents?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  onRefresh?: () => Promise<void>;
+  isRefreshing?: boolean;
 }
 
 type GroupedItem =
@@ -59,19 +61,134 @@ export function SessionView({
   hasMoreEvents = true,
   isLoadingMore = false,
   onLoadMore,
+  onRefresh,
+  isRefreshing = false,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
   const eventRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Clear event refs when session changes to prevent memory leak
+  // Scroll to bottom button state
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Clear event refs and search when session changes
   useEffect(() => {
     eventRefs.current.clear();
+    setSearchQuery('');
+    setShowSearch(false);
+    setIsAtBottom(true);
   }, [session?.id]);
+
+  // Check if at bottom helper
+  const checkIfAtBottom = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return true;
+    const threshold = 100; // Within 100px of bottom is considered "at bottom"
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }, []);
+
+  // Track scroll position to detect if user is at bottom
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setIsAtBottom(checkIfAtBottom());
+    };
+
+    // Check initial scroll position
+    handleScroll();
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [checkIfAtBottom]);
+
+  // Re-check scroll position when events change (in case content height changed)
+  useEffect(() => {
+    // Use setTimeout to let the DOM update first
+    const timeoutId = setTimeout(() => {
+      setIsAtBottom(checkIfAtBottom());
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  }, [events.length, checkIfAtBottom]);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  // Keyboard shortcut for search (Cmd+F / Ctrl+F)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
+      }
+      if (e.key === 'Escape' && showSearch) {
+        setShowSearch(false);
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
+
+  // Search matching - check if event contains search query
+  const matchesSearch = useCallback((event: Event, query: string): boolean => {
+    if (!query.trim()) return true;
+    const lowerQuery = query.toLowerCase();
+
+    // Check event type
+    if (event.event_type.toLowerCase().includes(lowerQuery)) return true;
+
+    // Check event data
+    if (event.data) {
+      const dataStr = JSON.stringify(event.data).toLowerCase();
+      if (dataStr.includes(lowerQuery)) return true;
+    }
+
+    return false;
+  }, []);
 
   // Memoize grouped events to avoid recalculating on every render
   const groupedEvents = useMemo(() => groupEvents(events), [events]);
+
+  // Filter events based on search query
+  const filteredGroupedEvents = useMemo(() => {
+    if (!searchQuery.trim()) return groupedEvents;
+
+    return groupedEvents.filter(item => {
+      if (item.type === 'single') {
+        return matchesSearch(item.event, searchQuery);
+      }
+      // For tool groups, include if any event matches
+      return item.events.some(e => matchesSearch(e, searchQuery));
+    });
+  }, [groupedEvents, searchQuery, matchesSearch]);
+
+  // Count matching events
+  const matchCount = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    let count = 0;
+    for (const item of groupedEvents) {
+      if (item.type === 'single') {
+        if (matchesSearch(item.event, searchQuery)) count++;
+      } else {
+        count += item.events.filter(e => matchesSearch(e, searchQuery)).length;
+      }
+    }
+    return count;
+  }, [groupedEvents, searchQuery, matchesSearch]);
 
   // Infinite scroll - load more when scrolling to top
   // Store scroll height before loading to restore position after
@@ -188,11 +305,11 @@ export function SessionView({
 
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background">
+    <div className="flex-1 flex flex-col h-full bg-background relative">
       {/* Header - compact single row */}
       <div className="h-12 px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="font-semibold text-foreground">{getProjectName(session.project_path)}</span>
+        <div className="flex items-center gap-3 text-sm min-w-0 overflow-hidden">
+          <span className="font-semibold text-foreground truncate">{getProjectName(session.project_path)}</span>
           {isActive && (
             <span className="flex items-center gap-1 text-[10px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-1.5 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
@@ -209,7 +326,59 @@ export function SessionView({
             {formatTime(session.started_at)}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Refresh button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className={`p-1.5 rounded transition-colors ${
+                isRefreshing
+                  ? 'text-muted-foreground cursor-not-allowed'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+              title="Refresh session"
+            >
+              <i className={`ri-refresh-line text-sm ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          {/* Search */}
+          {showSearch ? (
+            <div className="flex items-center gap-2 bg-muted rounded-lg px-2 py-1">
+              <i className="ri-search-line text-muted-foreground text-sm" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search messages..."
+                className="bg-transparent border-none outline-none text-xs w-32 text-foreground placeholder:text-muted-foreground"
+              />
+              {searchQuery ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {matchCount} match{matchCount !== 1 ? 'es' : ''}
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/60">⌘F</span>
+              )}
+              <button
+                onClick={() => { setShowSearch(false); setSearchQuery(''); }}
+                className="text-muted-foreground hover:text-foreground p-0.5"
+              >
+                <i className="ri-close-line text-sm" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setShowSearch(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors flex items-center gap-1"
+              title="Search (⌘F)"
+            >
+              <i className="ri-search-line text-sm" />
+              <span className="text-[10px] text-muted-foreground/60">⌘F</span>
+            </button>
+          )}
+          <span className="text-muted-foreground/30">|</span>
           <a
             href={getExportUrl(session.id, 'json')}
             download
@@ -230,66 +399,91 @@ export function SessionView({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {/* Infinite scroll trigger at top */}
-          {events.length > 0 && hasMoreEvents && (
-            <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
-              {isLoadingMore ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <i className="ri-loader-4-line animate-spin" />
-                  Loading older messages...
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  Scroll up for more
-                </div>
-              )}
-            </div>
-          )}
-          {groupedEvents.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 bg-muted rounded-full flex items-center justify-center">
-                <i className="ri-chat-3-line text-muted-foreground text-xl"></i>
+      <div className="flex-1 relative overflow-hidden">
+        <div ref={scrollRef} className="h-full overflow-y-auto px-6 py-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {/* Infinite scroll trigger at top */}
+            {events.length > 0 && hasMoreEvents && (
+              <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <i className="ri-loader-4-line animate-spin" />
+                    Loading older messages...
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    Scroll up for more
+                  </div>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground">No messages yet</p>
-            </div>
-          ) : (
-            groupedEvents.map((item, idx) => {
-              if (item.type === 'tool_group') {
-                // For tool groups, get the first event's ID for the ref
-                const firstEventId = item.events[0]?.id;
+            )}
+            {filteredGroupedEvents.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 mx-auto mb-3 bg-muted rounded-full flex items-center justify-center">
+                  <i className={`${searchQuery ? 'ri-search-line' : 'ri-chat-3-line'} text-muted-foreground text-xl`}></i>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? `No results for "${searchQuery}"` : 'No messages yet'}
+                </p>
+              </div>
+            ) : (
+              filteredGroupedEvents.map((item, idx) => {
+                if (item.type === 'tool_group') {
+                  // For tool groups, get the first event's ID for the ref
+                  const firstEventId = item.events[0]?.id;
+                  return (
+                    <div
+                      key={`group-${idx}`}
+                      ref={(el) => {
+                        if (el && firstEventId) {
+                          eventRefs.current.set(firstEventId, el);
+                          // Also register all events in the group
+                          item.events.forEach(e => eventRefs.current.set(e.id, el));
+                        }
+                      }}
+                      className="transition-all duration-300"
+                    >
+                      <ToolGroup events={item.events} />
+                    </div>
+                  );
+                }
                 return (
                   <div
-                    key={`group-${idx}`}
+                    key={item.event.id}
                     ref={(el) => {
-                      if (el && firstEventId) {
-                        eventRefs.current.set(firstEventId, el);
-                        // Also register all events in the group
-                        item.events.forEach(e => eventRefs.current.set(e.id, el));
-                      }
+                      if (el) eventRefs.current.set(item.event.id, el);
                     }}
                     className="transition-all duration-300"
                   >
-                    <ToolGroup events={item.events} />
+                    <MessageBubble event={item.event} />
                   </div>
                 );
-              }
-              return (
-                <div
-                  key={item.event.id}
-                  ref={(el) => {
-                    if (el) eventRefs.current.set(item.event.id, el);
-                  }}
-                  className="transition-all duration-300"
-                >
-                  <MessageBubble event={item.event} />
-                </div>
-              );
-            })
-          )}
+              })
+            )}
+          </div>
         </div>
+
       </div>
+
+      {/* Scroll to bottom button - shows when not at bottom
+          NOTE: z-50 is critical! The footer has backdrop-blur-sm which creates a
+          stacking context. Don't lower the z-index! */}
+      {!isAtBottom && (
+        <div className="absolute bottom-10 left-0 right-0 pointer-events-none z-50">
+          {/* Gradient fade */}
+          <div className="h-16 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          {/* Button */}
+          <div className="flex justify-center pb-3 bg-background">
+            <button
+              onClick={scrollToBottom}
+              className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-muted hover:bg-accent border border-border rounded-full shadow-sm transition-colors"
+            >
+              <span className="text-sm font-medium text-foreground">New messages</span>
+              <i className="ri-arrow-down-line text-foreground" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-6 py-3 border-t border-border bg-background/95 backdrop-blur-sm">

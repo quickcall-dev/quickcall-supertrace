@@ -4,6 +4,31 @@ Background poller for detecting modified session files.
 Runs periodically to check for new or modified JSONL files
 and triggers incremental imports.
 
+## Architecture Decisions
+
+1. **Polling over file watchers**: We use polling instead of inotify/FSEvents because:
+   - Cross-platform compatibility (works on macOS, Linux, Windows)
+   - Simpler to reason about and debug
+   - No edge cases with editor temp files or atomic saves
+   - 2s interval provides near-realtime updates with minimal overhead
+
+2. **Mtime-based change detection**: We compare file modification times rather than
+   content hashing. This is fast (single stat() call) and sufficient since JSONL
+   files are append-only.
+
+3. **WebSocket broadcasts**: On detecting changes, we broadcast events to connected
+   clients so frontend can update without polling the API:
+   - `session_imported`: New session file discovered
+   - `session_updated`: Existing session has new messages
+
+4. **Incremental imports**: We track last imported line/byte offset per file.
+   On mtime change, we only parse new lines, not the entire file.
+
+## Environment Variables
+
+- SUPERTRACE_POLL_INTERVAL: Polling interval in seconds (default: 2)
+- QUICKCALL_SUPERTRACE_ENABLE_POLLER: Set to "false" to disable (default: true)
+
 Related: scanner.py (finds files), importer.py (imports them)
 """
 
@@ -24,7 +49,8 @@ from .importer import (
 logger = logging.getLogger(__name__)
 
 # Default polling interval in seconds (configurable via env)
-DEFAULT_POLL_INTERVAL = int(os.environ.get("SUPERTRACE_POLL_INTERVAL", "120"))
+# Reduced to 2s for near-realtime updates (frequent polling is safe - it's read-only)
+DEFAULT_POLL_INTERVAL = int(os.environ.get("SUPERTRACE_POLL_INTERVAL", "2"))
 
 
 @dataclass

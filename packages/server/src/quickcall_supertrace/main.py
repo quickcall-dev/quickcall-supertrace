@@ -26,6 +26,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 from .ingest.poller import polling_loop
 from .routes import (
     ingest_router,
+    intents_router,
     media_router,
     metrics_router,
     sessions_router,
@@ -50,7 +51,7 @@ async def lifespan(app: FastAPI):
     # Start background poller if enabled
     enable_poller = os.environ.get("QUICKCALL_SUPERTRACE_ENABLE_POLLER", "true").lower() == "true"
     if enable_poller:
-        poll_interval = int(os.environ.get("QUICKCALL_SUPERTRACE_POLL_INTERVAL", "120"))
+        poll_interval = int(os.environ.get("QUICKCALL_SUPERTRACE_POLL_INTERVAL", "2"))
         logger.info(f"Starting session poller (interval: {poll_interval}s)")
         _poller_task = asyncio.create_task(polling_loop(interval=poll_interval))
 
@@ -94,6 +95,7 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(ingest_router)
+app.include_router(intents_router)
 app.include_router(sessions_router)
 app.include_router(media_router)
 app.include_router(metrics_router)

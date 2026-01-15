@@ -41,7 +41,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
             {promptIndex}
           </div>
         )}
-        <div className="max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
+        <div className="max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
           {/* Render images if present */}
           {images && images.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -79,10 +79,10 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
             {/* Gradient fade + Show more button */}
             {isLong && !expanded && (
-              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-primary via-primary/90 to-transparent">
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-[color:var(--user-bubble)] via-[color:var(--user-bubble)]/90 to-transparent">
                 <button
                   onClick={() => setExpanded(true)}
-                  className="text-sm font-medium text-primary-foreground/80 hover:text-primary-foreground hover:underline transition-colors"
+                  className="text-sm font-medium text-[color:var(--user-bubble-foreground)]/80 hover:text-[color:var(--user-bubble-foreground)] hover:underline transition-colors"
                 >
                   Show more
                 </button>
@@ -94,14 +94,14 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           {isLong && expanded && (
             <button
               onClick={() => setExpanded(false)}
-              className="mt-2 text-sm font-medium text-primary-foreground/80 hover:text-primary-foreground hover:underline transition-colors"
+              className="mt-2 text-sm font-medium text-[color:var(--user-bubble-foreground)]/80 hover:text-[color:var(--user-bubble-foreground)] hover:underline transition-colors"
             >
               Show less
             </button>
           )}
 
           <div className="mt-2 text-right">
-            <span className="text-[11px] text-primary-foreground/60">
+            <span className="text-[11px] text-[color:var(--user-bubble-foreground)]/60">
               {formatTime(event.timestamp)}
             </span>
           </div>
@@ -157,20 +157,20 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-start">
-        <div className="max-w-[85%] bg-muted border border-border rounded-2xl rounded-bl-md px-4 py-3">
+        <div className="max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-4 py-3">
           <div className="relative">
             <div className="overflow-x-auto max-w-full">
-              <pre className="text-foreground text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
+              <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
                 {displayContent || 'Assistant response'}
               </pre>
             </div>
 
             {/* Gradient fade + Show more button */}
             {isLong && !expanded && (
-              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-muted via-muted/90 to-transparent">
+              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-[color:var(--assistant-bubble)] via-[color:var(--assistant-bubble)]/90 to-transparent">
                 <button
                   onClick={() => setExpanded(true)}
-                  className="text-sm font-medium text-foreground hover:underline transition-colors"
+                  className="text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
                 >
                   Show more
                 </button>
@@ -182,7 +182,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           {isLong && expanded && (
             <button
               onClick={() => setExpanded(false)}
-              className="mt-2 text-sm font-medium text-foreground hover:underline transition-colors"
+              className="mt-2 text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
             >
               Show less
             </button>

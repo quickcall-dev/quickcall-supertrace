@@ -11,14 +11,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { SessionList } from './components/SessionList';
 import { SessionView } from './components/SessionView';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
+import { ResizeHandle } from './components/ResizeHandle';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import {
   getSessions,
   getSession,
   getSessionEvents,
   getSessionMetrics,
   searchEvents,
+  triggerIngest,
   type Session,
   type Event,
   type MetricsResponse,
@@ -33,14 +36,28 @@ function App() {
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
+  const [analyticsExpanded, setAnalyticsExpanded] = useLocalStorage('supertrace-analytics-expanded', true);
+
+  // Panel widths (persisted)
+  const [sessionListWidth, setSessionListWidth] = useLocalStorage('supertrace-session-list-width', 224);
+  const [analyticsWidth, setAnalyticsWidth] = useLocalStorage('supertrace-analytics-width', 400);
 
   // Theme
   const { isDark, toggleTheme } = useTheme();
 
+  // Resize handlers
+  const handleSessionListResize = useCallback((deltaX: number) => {
+    setSessionListWidth(prev => Math.max(180, Math.min(400, prev + deltaX)));
+  }, [setSessionListWidth]);
+
+  const handleAnalyticsResize = useCallback((deltaX: number) => {
+    setAnalyticsWidth(prev => Math.max(300, Math.min(1000, prev + deltaX)));
+  }, [setAnalyticsWidth]);
+
   // Ref for scrolling to events in SessionView
   const scrollToEventRef = useRef<((eventId: number) => void) | null>(null);
   const [isJumpingToEvent, setIsJumpingToEvent] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Handle scroll to event from analytics panel
   // If event not loaded, load all events first then scroll
@@ -85,14 +102,9 @@ function App() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [metricsHoursBack, setMetricsHoursBack] = useState<number>(0); // Default: all time
 
-  // Handle new events from WebSocket (only for subscribed session)
-  const handleNewEvent = useCallback((event: Event) => {
-    // Update events - server only sends events for subscribed session
-    setEvents((prev) => [...prev, event]);
-  }, []);
-
-  // Handle new session notifications (refresh session list)
-  const handleNewSession = useCallback(async () => {
+  // Handle new session imported via WebSocket - refresh session list
+  const handleSessionImported = useCallback(async (sessionId: string) => {
+    console.log('[App] Session imported:', sessionId);
     try {
       const data = await getSessions();
       setSessions(data.sessions);
@@ -101,9 +113,39 @@ function App() {
     }
   }, []);
 
+  // Handle session updated via WebSocket - reload events if it's the current session
+  const handleSessionUpdated = useCallback(async (sessionId: string, newMessages: number) => {
+    console.log('[App] Session updated:', sessionId, 'new messages:', newMessages);
+
+    // Always refresh session list to update timestamps/previews
+    try {
+      const data = await getSessions();
+      setSessions(data.sessions);
+    } catch (error) {
+      console.error('Failed to refresh sessions:', error);
+    }
+
+    // If this is the currently selected session, reload events and metrics
+    if (sessionId === selectedSessionId) {
+      console.log('[App] Reloading current session data...');
+      try {
+        const [sessionData, metricsData] = await Promise.all([
+          getSession(sessionId, 30),
+          getSessionMetrics(sessionId, metricsHoursBack),
+        ]);
+        setSelectedSession(sessionData.session);
+        setEvents(sessionData.events);
+        setTotalEvents(sessionData.total_events || sessionData.events.length);
+        setMetrics(metricsData.metrics);
+      } catch (error) {
+        console.error('Failed to reload session:', error);
+      }
+    }
+  }, [selectedSessionId, metricsHoursBack]);
+
   const { subscribe } = useWebSocket({
-    onEvent: handleNewEvent,
-    onNewSession: handleNewSession,
+    onSessionImported: handleSessionImported,
+    onSessionUpdated: handleSessionUpdated,
   });
 
   // Load sessions on mount and auto-select the most recent
@@ -254,6 +296,32 @@ function App() {
     }
   }, [selectedSessionId, isLoadingMore, events, hasMoreEvents]);
 
+  // Handle manual refresh - trigger ingest and reload session data
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing || !selectedSessionId) return;
+
+    setIsRefreshing(true);
+    try {
+      // Trigger ingest to import latest data
+      await triggerIngest(50);
+
+      // Reload current session data and metrics
+      const [sessionData, metricsData] = await Promise.all([
+        getSession(selectedSessionId, 30),
+        getSessionMetrics(selectedSessionId, metricsHoursBack),
+      ]);
+
+      setSelectedSession(sessionData.session);
+      setEvents(sessionData.events);
+      setTotalEvents(sessionData.total_events || sessionData.events.length);
+      setMetrics(metricsData.metrics);
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [selectedSessionId, isRefreshing, metricsHoursBack]);
+
   // Handle search
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -277,17 +345,19 @@ function App() {
   // Show welcome screen when no session selected
   if (!selectedSessionId) {
     return (
-      <div className="h-screen flex bg-background text-foreground">
-        {/* Sessions list - narrow left panel */}
-        <SessionList
-          sessions={sessions}
-          selectedId={selectedSessionId}
-          onSelect={setSelectedSessionId}
-          onSearch={handleSearch}
-          onSessionsImported={handleNewSession}
-          isDark={isDark}
-          onToggleTheme={toggleTheme}
-        />
+      <div className="h-screen flex bg-background text-foreground overflow-hidden">
+        {/* Sessions list - fixed width left panel */}
+        <div style={{ width: sessionListWidth }} className="shrink-0 overflow-hidden">
+          <SessionList
+            sessions={sessions}
+            selectedId={selectedSessionId}
+            onSelect={setSelectedSessionId}
+            onSearch={handleSearch}
+            onSessionsImported={() => handleSessionImported('')}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+          />
+        </div>
 
         {/* Welcome screen spanning main area */}
         <div className="flex-1 flex items-center justify-center bg-background border-l border-border relative overflow-hidden">
@@ -366,19 +436,24 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex bg-background text-foreground">
-      {/* Sessions list - narrow left panel */}
-      <SessionList
-        sessions={sessions}
-        selectedId={selectedSessionId}
-        onSelect={setSelectedSessionId}
-        onSearch={handleSearch}
-        onSessionsImported={handleNewSession}
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-      />
+    <div className="h-screen flex bg-background text-foreground overflow-hidden">
+      {/* Sessions list - resizable left panel */}
+      <div style={{ width: sessionListWidth }} className="shrink-0 overflow-hidden">
+        <SessionList
+          sessions={sessions}
+          selectedId={selectedSessionId}
+          onSelect={setSelectedSessionId}
+          onSearch={handleSearch}
+          onSessionsImported={() => handleSessionImported('')}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
+      </div>
 
-      {/* Analytics - center panel (the hero) */}
+      {/* Resize handle between SessionList and Analytics */}
+      <ResizeHandle onResize={handleSessionListResize} />
+
+      {/* Analytics - resizable center panel (the hero) */}
       <AnalyticsPanel
         metrics={metrics}
         loading={metricsLoading}
@@ -388,19 +463,28 @@ function App() {
         hoursBack={metricsHoursBack}
         onTimeRangeChange={handleTimeRangeChange}
         isJumpingToEvent={isJumpingToEvent}
+        session={selectedSession}
+        width={analyticsWidth}
       />
 
-      {/* Chat/Events - right panel */}
-      <SessionView
-        session={selectedSession}
-        events={events}
-        isLoading={isLoading}
-        onScrollToEventRef={scrollToEventRef}
-        totalEvents={totalEvents}
-        hasMoreEvents={hasMoreEvents}
-        isLoadingMore={isLoadingMore}
-        onLoadMore={handleLoadMore}
-      />
+      {/* Resize handle between Analytics and SessionView */}
+      {analyticsExpanded && <ResizeHandle onResize={handleAnalyticsResize} />}
+
+      {/* Chat/Events - flexible right panel with min-width */}
+      <div className="flex-1 min-w-[300px] overflow-hidden">
+        <SessionView
+          session={selectedSession}
+          events={events}
+          isLoading={isLoading}
+          onScrollToEventRef={scrollToEventRef}
+          totalEvents={totalEvents}
+          hasMoreEvents={hasMoreEvents}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={handleLoadMore}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
+      </div>
     </div>
   );
 }

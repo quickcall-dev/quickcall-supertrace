@@ -66,38 +66,74 @@
   /* Token chart colors - distinct from tool colors */
   --token-input: oklch(0.55 0.25 290);    /* Vivid purple - distinct from tool blues */
   --token-output: oklch(0.7 0.25 165);    /* Bright teal-green - distinct from tool greens */
+
+  /* Tool-specific colors */
+  --tool-task: oklch(0.65 0.18 290);      /* Purple */
+  --tool-todo: oklch(0.65 0.18 160);      /* Teal */
+  --tool-web: oklch(0.6 0.15 240);        /* Blue */
+  --tool-ask: oklch(0.7 0.15 350);        /* Pink */
+
+  /* Tool bar colors - same as semantic for light mode */
+  --bar-cost: var(--cost);
+  --bar-success: var(--success);
+  --bar-info: var(--info);
+  --bar-warning: var(--warning);
+
+  /* Chat bubble colors */
+  --user-bubble: oklch(0.25 0.02 260);    /* Dark blue-grey for user */
+  --user-bubble-foreground: oklch(0.98 0 0);
+  --assistant-bubble: oklch(0.97 0 0);    /* Light grey for assistant */
+  --assistant-bubble-foreground: oklch(0.15 0 0);
 }
 
 .dark {
-  /* Dark mode - rich dark grays */
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.18 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.18 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.24 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.24 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
+  /* Dark mode - neutral dark grey like LeetCode (#1a1a1a) */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.92 0 0);
+  --card: oklch(0.17 0 0);
+  --card-foreground: oklch(0.92 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.92 0 0);
+  --primary: oklch(0.85 0.005 0);
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.92 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.25 0 0);
+  --accent-foreground: oklch(0.92 0 0);
+  --destructive: oklch(0.55 0.12 25);
+  --border: oklch(0.28 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.45 0 0);
 
-  /* Semantic colors for analytics - brighter for dark mode */
-  --cost: oklch(0.8 0.18 55);
-  --success: oklch(0.7 0.22 145);
-  --info: oklch(0.65 0.18 250);
-  --warning: oklch(0.85 0.18 85);
+  /* Semantic colors for analytics - visible but not harsh */
+  --cost: oklch(0.65 0.12 55);            /* Readable orange */
+  --success: oklch(0.62 0.12 145);        /* Readable green */
+  --info: oklch(0.60 0.10 250);           /* Readable blue */
+  --warning: oklch(0.70 0.12 85);         /* Readable yellow */
 
-  /* Token chart colors - distinct from tool colors */
-  --token-input: oklch(0.65 0.28 290);    /* Vivid purple - distinct from tool blues */
-  --token-output: oklch(0.75 0.28 165);   /* Bright teal-green - distinct from tool greens */
+  /* Token chart colors - visible for dark mode */
+  --token-input: oklch(0.58 0.15 290);    /* Visible purple */
+  --token-output: oklch(0.62 0.15 165);   /* Visible teal */
+
+  /* Tool bar colors - muted for dark mode (used in bar segments) */
+  --tool-task: oklch(0.45 0.08 290);      /* Muted purple */
+  --tool-todo: oklch(0.45 0.08 160);      /* Muted teal */
+  --tool-web: oklch(0.42 0.06 240);       /* Muted blue */
+  --tool-ask: oklch(0.45 0.08 350);       /* Muted pink */
+
+  /* Tool bar semantic colors - muted versions for bar segments */
+  --bar-cost: oklch(0.45 0.08 55);
+  --bar-success: oklch(0.42 0.08 145);
+  --bar-info: oklch(0.40 0.06 250);
+  --bar-warning: oklch(0.48 0.08 85);
+
+  /* Chat bubble colors - dark mode */
+  --user-bubble: oklch(0.28 0.015 250);   /* Slightly blue-tinted dark grey for user */
+  --user-bubble-foreground: oklch(0.95 0 0);
+  --assistant-bubble: oklch(0.25 0 0);    /* Lighter grey for assistant - more visible */
+  --assistant-bubble-foreground: oklch(0.90 0 0);
 }
 
 @layer base {
