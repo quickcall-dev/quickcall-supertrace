@@ -8,8 +8,8 @@
 # What this script does:
 #   1. Installs uv (Python package manager) if not present
 #   2. Detects your shell config file (.zshrc or .bashrc)
-#   3. Adds ~/.local/bin to PATH
-#   4. Creates 'quickcall-supertrace' alias that clears cache and auto-updates on every run
+#   3. Adds config block with markers (>>> quickcall-supertrace >>>)
+#   4. Re-running updates the config block (safe to run multiple times)
 #
 # After install, run: quickcall-supertrace
 # Then open: http://localhost:7845
@@ -65,6 +65,14 @@ elif [ -f "$HOME/.bashrc" ]; then
     SHELL_CONFIG="$HOME/.bashrc"
 fi
 
+START_MARKER="# >>> quickcall-supertrace >>>"
+END_MARKER="# <<< quickcall-supertrace <<<"
+
+CONFIG_BLOCK="$START_MARKER
+export PATH=\"\$HOME/.local/bin:\$PATH\"
+alias quickcall-supertrace=\"uv cache clean quickcall-supertrace >/dev/null 2>&1; uvx quickcall-supertrace@latest\"
+$END_MARKER"
+
 if [ -n "$SHELL_CONFIG" ]; then
     # Check write permission
     if [ ! -w "$SHELL_CONFIG" ]; then
@@ -73,21 +81,27 @@ if [ -n "$SHELL_CONFIG" ]; then
         exit 1
     fi
 
-    if ! grep -q 'quickcall-supertrace' "$SHELL_CONFIG" 2>/dev/null; then
-        echo '' >> "$SHELL_CONFIG"
-        echo '# QuickCall SuperTrace (auto-updates on every run)' >> "$SHELL_CONFIG"
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_CONFIG"
-        echo 'alias quickcall-supertrace="uv cache clean quickcall-supertrace >/dev/null 2>&1; uvx quickcall-supertrace@latest"' >> "$SHELL_CONFIG"
-        echo "      Added alias to $SHELL_CONFIG"
+    if grep -q "$START_MARKER" "$SHELL_CONFIG" 2>/dev/null; then
+        # Markers exist - replace content between them
+        awk -v start="$START_MARKER" -v end="$END_MARKER" '
+            $0 == start { skip=1; next }
+            $0 == end { skip=0; next }
+            !skip { print }
+        ' "$SHELL_CONFIG" > "$SHELL_CONFIG.tmp"
+        mv "$SHELL_CONFIG.tmp" "$SHELL_CONFIG"
+        echo "$CONFIG_BLOCK" >> "$SHELL_CONFIG"
+        echo "      Updated config in $SHELL_CONFIG"
     else
-        echo "      Already configured in $SHELL_CONFIG"
+        # Fresh install - add with markers
+        echo '' >> "$SHELL_CONFIG"
+        echo "$CONFIG_BLOCK" >> "$SHELL_CONFIG"
+        echo "      Added config to $SHELL_CONFIG"
     fi
 else
     echo "[!] No .zshrc or .bashrc found."
     echo "    Add this to your shell config manually:"
     echo ""
-    echo '    export PATH="$HOME/.local/bin:$PATH"'
-    echo '    alias quickcall-supertrace="uv cache clean quickcall-supertrace >/dev/null 2>&1; uvx quickcall-supertrace@latest"'
+    echo "$CONFIG_BLOCK"
     echo ""
 fi
 
