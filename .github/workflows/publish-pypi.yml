@@ -32,6 +32,10 @@ jobs:
         run: |
           cp -r packages/web/dist packages/server/src/quickcall_supertrace/static
 
+      - name: Copy README for PyPI
+        run: |
+          cp README.md packages/server/README.md
+
       - name: Build Python package
         run: |
           cd packages/server
