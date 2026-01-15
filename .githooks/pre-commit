@@ -16,6 +16,7 @@ echo -e "${YELLOW}Running pre-commit checks...${NC}"
 # ============================================
 # 1. Block sensitive/local-only files
 # ============================================
+# Add more files space-separated: "CLAUDE.md PLAN.md .env credentials.json"
 BLOCKED_FILES="CLAUDE.md PLAN.md"
 
 for file in $BLOCKED_FILES; do
@@ -29,6 +30,7 @@ done
 # ============================================
 # 1b. Block internal directories
 # ============================================
+# Add more directories space-separated: "docs/internal/ secrets/ local-config/"
 BLOCKED_DIRS="docs/internal/"
 
 for dir in $BLOCKED_DIRS; do
