@@ -9,7 +9,7 @@
 #   1. Installs uv (Python package manager) if not present
 #   2. Detects your shell config file (.zshrc or .bashrc)
 #   3. Adds ~/.local/bin to PATH
-#   4. Creates 'quickcall-supertrace' alias that auto-updates on every run
+#   4. Creates 'quickcall-supertrace' alias that clears cache and auto-updates on every run
 #
 # After install, run: quickcall-supertrace
 # Then open: http://localhost:7845
@@ -77,7 +77,7 @@ if [ -n "$SHELL_CONFIG" ]; then
         echo '' >> "$SHELL_CONFIG"
         echo '# QuickCall SuperTrace (auto-updates on every run)' >> "$SHELL_CONFIG"
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_CONFIG"
-        echo 'alias quickcall-supertrace="uvx quickcall-supertrace@latest"' >> "$SHELL_CONFIG"
+        echo 'alias quickcall-supertrace="uv cache clean quickcall-supertrace >/dev/null 2>&1; uvx quickcall-supertrace@latest"' >> "$SHELL_CONFIG"
         echo "      Added alias to $SHELL_CONFIG"
     else
         echo "      Already configured in $SHELL_CONFIG"
@@ -87,7 +87,7 @@ else
     echo "    Add this to your shell config manually:"
     echo ""
     echo '    export PATH="$HOME/.local/bin:$PATH"'
-    echo '    alias quickcall-supertrace="uvx quickcall-supertrace@latest"'
+    echo '    alias quickcall-supertrace="uv cache clean quickcall-supertrace >/dev/null 2>&1; uvx quickcall-supertrace@latest"'
     echo ""
 fi
 
