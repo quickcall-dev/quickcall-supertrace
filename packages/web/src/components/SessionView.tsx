@@ -373,9 +373,9 @@ export function SessionView({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background relative">
-      {/* Header - compact single row */}
-      <div className="h-12 px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 text-sm min-w-0 overflow-hidden">
+      {/* Header - clean, just project name and actions */}
+      <div className="px-2 sm:px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between gap-2 shrink-0" style={{ height: 'var(--header-height)' }}>
+        <div className="flex items-center gap-1.5 sm:gap-3 text-sm min-w-0">
           <span className="font-semibold text-foreground truncate">{getProjectName(session.project_path)}</span>
           {isActive && (
             <span className="flex items-center gap-1 text-[10px] bg-[color:var(--success)]/20 text-[color:var(--success)] px-1.5 py-0.5 rounded-full">
@@ -383,17 +383,8 @@ export function SessionView({
               Live
             </span>
           )}
-          <span className="text-muted-foreground/50">·</span>
-          <span className="text-muted-foreground text-xs flex items-center gap-1">
-            <i className="ri-calendar-line" />
-            {formatDate(session.started_at)}
-          </span>
-          <span className="text-muted-foreground text-xs flex items-center gap-1">
-            <i className="ri-time-line" />
-            {formatTime(session.started_at)}
-          </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Refresh button */}
           {onRefresh && (
             <button
@@ -484,8 +475,8 @@ export function SessionView({
             </div>
           </div>
         )}
-        <div ref={scrollRef} className="h-full overflow-y-auto px-6 py-6">
-          <div className="max-w-4xl mx-auto space-y-4">
+        <div ref={scrollRef} className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
+          <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
             {/* Infinite scroll trigger at top - hide when searching */}
             {events.length > 0 && hasMoreEvents && !searchQuery && (
               <div ref={loadMoreTriggerRef} className="flex justify-center py-3">
@@ -585,16 +576,27 @@ export function SessionView({
       )}
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-border bg-background/95 backdrop-blur-sm">
+      <div className="px-3 sm:px-6 py-2 sm:py-3 border-t border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <button
-            onClick={copySessionPath}
-            className={`font-mono flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'text-[color:var(--success)]' : 'hover:text-primary'}`}
-            title={getSessionFilePath()}
-          >
-            <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
-            {copied ? 'Copied!' : session.id.slice(0, 8)}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={copySessionPath}
+              className={`font-mono flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'text-[color:var(--success)]' : 'hover:text-primary'}`}
+              title={getSessionFilePath()}
+            >
+              <i className={copied ? 'ri-check-line' : 'ri-fingerprint-line'}></i>
+              {copied ? 'Copied!' : session.id.slice(0, 8)}
+            </button>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="flex items-center gap-1">
+              <i className="ri-calendar-line text-[10px]" />
+              {formatDate(session.started_at)}
+            </span>
+            <span className="flex items-center gap-1">
+              <i className="ri-time-line text-[10px]" />
+              {formatTime(session.started_at)}
+            </span>
+          </div>
           <span>
             {events.length === totalEvents || totalEvents === 0
               ? `${events.length} events`

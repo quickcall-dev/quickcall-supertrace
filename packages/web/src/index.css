@@ -37,6 +37,9 @@
 
 :root {
   --radius: 0.625rem;
+  /* Panel header height - used by all panel headers for consistency */
+  --header-height: 48px;
+
   /* Light mode - clean whites and subtle grays */
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.141 0.005 285.823);

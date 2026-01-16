@@ -53,28 +53,25 @@ export function ToolDistributionChart({ data }: ToolDistributionChartProps) {
         )}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-        {tools.map((tool) => {
+      {/* Legend - responsive with overflow protection */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] overflow-hidden">
+        {tools.slice(0, 6).map((tool) => {
           const percentage = totalTools > 0 ? (tool.count / totalTools) * 100 : 0;
           return (
-            <span key={tool.name} className="flex items-center gap-1">
+            <span key={tool.name} className="flex items-center gap-1 shrink-0">
               <span
-                className="w-2 h-2 rounded-sm"
+                className="w-2 h-2 rounded-sm shrink-0"
                 style={{ backgroundColor: tool.color }}
               />
-              <span className="text-foreground">{tool.name}</span>
+              <span className="text-foreground truncate max-w-[70px]">{tool.name}</span>
               <span className="text-muted-foreground">{tool.count}</span>
               <span className="text-muted-foreground/60">({percentage.toFixed(0)}%)</span>
             </span>
           );
         })}
-        {otherCount > 0 && (
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm bg-muted-foreground/40" />
-            <span className="text-foreground">Other</span>
-            <span className="text-muted-foreground">{otherCount}</span>
-            <span className="text-muted-foreground/60">({((otherCount / totalTools) * 100).toFixed(0)}%)</span>
+        {(tools.length > 6 || otherCount > 0) && (
+          <span className="flex items-center gap-1 text-muted-foreground shrink-0">
+            +{tools.length > 6 ? tools.length - 6 + (otherCount > 0 ? 1 : 0) : 1} more
           </span>
         )}
       </div>

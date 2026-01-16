@@ -41,10 +41,10 @@ export function MessageBubble({ event }: MessageBubbleProps) {
             {promptIndex}
           </div>
         )}
-        <div className="max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
+        <div className="max-w-[85%] sm:max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
           {/* Render images if present */}
           {images && images.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-2 sm:mb-3 flex flex-wrap gap-1.5 sm:gap-2">
               {images.map((img, idx) => {
                 const src = img.url
                   ? img.url
@@ -157,7 +157,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
 
     return (
       <div className="flex justify-start">
-        <div className="max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-4 py-3">
+        <div className="max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
           <div className="relative">
             <div className="overflow-x-auto max-w-full">
               <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
@@ -189,13 +189,13 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           )}
 
           {/* Footer with time and tokens */}
-          <div className="mt-3 pt-2 border-t border-border flex items-center justify-between gap-4 flex-wrap">
+          <div className="mt-2 sm:mt-3 pt-2 border-t border-border flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
             <span className="text-[11px] text-muted-foreground">
               {formatTime(event.timestamp)}
             </span>
 
             {tokenUsage && tokenUsage.total_tokens && tokenUsage.total_tokens > 0 && (
-              <div className="flex items-center gap-3 text-[11px] font-mono">
+              <div className="flex items-center gap-2 sm:gap-3 text-[11px] font-mono">
                 <span className="text-[color:var(--info)] flex items-center gap-1">
                   <i className="ri-arrow-down-line text-[10px]"></i>
                   {formatTokens(tokenUsage.input_tokens || 0)}
