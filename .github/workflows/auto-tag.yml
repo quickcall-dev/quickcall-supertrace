@@ -1,7 +1,7 @@
 # Auto-tag on version bump merge to main.
 #
 # When a PR is merged to main and pyproject.toml version changed,
-# automatically creates and pushes a git tag to trigger PyPI publish.
+# automatically creates git tag and triggers PyPI publish.
 
 name: Auto Tag Release
 
@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
 
     steps:
       - name: Checkout code
@@ -62,3 +63,10 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
           echo "Created and pushed tag: $TAG"
+
+      - name: Trigger PyPI publish
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          gh workflow run publish-pypi.yml --ref v${{ steps.version.outputs.current }}
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -131,13 +131,14 @@ pip index versions quickcall-supertrace
 
 | Item | Convention |
 |------|------------|
-| Branch name | `release/vX.Y.Z` |
+| Branch name | `release/vX.Y.Z` or `fix/issue-name` or `feat/feature-name` |
 | Commit message | `chore: bump version to X.Y.Z` |
 | PR title | Descriptive goal (e.g., `feat: Add feature X and fix Y`) |
 | PR merge | Squash merge, do NOT delete branch |
 | Issue assignment | Always `@me` |
 | PR assignment | Always `@me` |
 | Issue linking | Use `Closes #X, Closes #Y` in PR body |
+| Branch linking | Link PR to branch in GitHub UI or use `gh pr edit --head <branch>` |
 
 ## Quick Release (One-liner)
 
