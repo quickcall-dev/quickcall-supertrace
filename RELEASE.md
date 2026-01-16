@@ -45,15 +45,15 @@ git checkout -b release/v0.1.9  # Use your version
 
 ### 3. Bump Versions
 
-Edit both files:
+Use the bump script to update both files at once:
 
 ```bash
-# packages/server/pyproject.toml
-version = "0.1.9"
-
-# packages/web/package.json
-"version": "0.1.9"
+./scripts/bump-version.sh 0.1.9
 ```
+
+This updates:
+- `packages/server/pyproject.toml`
+- `packages/web/package.json`
 
 ### 4. Commit Changes
 
@@ -148,8 +148,7 @@ For experienced users:
 VERSION=0.1.9 && \
   git checkout main && git pull && \
   git checkout -b release/v$VERSION && \
-  sed -i '' "s/^version = .*/version = \"$VERSION\"/" packages/server/pyproject.toml && \
-  sed -i '' "s/\"version\": .*/\"version\": \"$VERSION\",/" packages/web/package.json && \
+  ./scripts/bump-version.sh $VERSION && \
   git add -A && git commit -m "chore: bump version to $VERSION" && \
   git push origin release/v$VERSION && \
   gh pr create --title "feat: Release $VERSION with improvements" --assignee @me --body "Closes #XX
