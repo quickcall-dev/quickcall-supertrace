@@ -10,9 +10,10 @@ import { useRef, useCallback, useEffect } from 'react';
 interface ResizeHandleProps {
   onResize: (deltaX: number) => void;
   onResizeEnd?: () => void;
+  onDoubleClick?: () => void;
 }
 
-export function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProps) {
+export function ResizeHandle({ onResize, onResizeEnd, onDoubleClick }: ResizeHandleProps) {
   const isDragging = useRef(false);
   const startX = useRef(0);
 
@@ -54,6 +55,7 @@ export function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProps) {
     <div
       className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/30 cursor-col-resize transition-all duration-150 shrink-0 group relative"
       onMouseDown={handleMouseDown}
+      onDoubleClick={onDoubleClick}
     >
       {/* Visible indicator on hover */}
       <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-border group-hover:bg-primary/50 transition-colors" />

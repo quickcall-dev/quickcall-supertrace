@@ -38,20 +38,73 @@ function App() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useLocalStorage('supertrace-analytics-expanded', true);
 
-  // Panel widths (persisted)
-  const [sessionListWidth, setSessionListWidth] = useLocalStorage('supertrace-session-list-width', 224);
-  const [analyticsWidth, setAnalyticsWidth] = useLocalStorage('supertrace-analytics-width', 1000);
+  // Panel widths (persisted) - responsive to viewport
+  // Default: analytics and chat split remaining space roughly equally
+  const getDefaultSessionListWidth = () => typeof window !== 'undefined' && window.innerWidth < 1024 ? 180 : 224;
+  const getMaxAnalyticsWidth = () => typeof window !== 'undefined' ? Math.min(1000, Math.floor(window.innerWidth * 0.5)) : 600;
+  const getDefaultAnalyticsWidth = () => {
+    if (typeof window === 'undefined') return 600;
+    // Split remaining space (after sidebar) roughly 50/50 between analytics and chat
+    const sidebarWidth = window.innerWidth < 1024 ? 180 : 224;
+    const remainingWidth = window.innerWidth - sidebarWidth - 50; // 50px for resize handles and padding
+    return Math.min(getMaxAnalyticsWidth(), Math.floor(remainingWidth * 0.5));
+  };
+
+  const [sessionListWidth, setSessionListWidth] = useLocalStorage('supertrace-session-list-width', getDefaultSessionListWidth());
+  const [analyticsWidth, setAnalyticsWidth] = useLocalStorage('supertrace-analytics-width', getDefaultAnalyticsWidth());
+
+  // Adjust panel widths when switching monitors (significant viewport change)
+  const lastWindowWidth = useRef(typeof window !== 'undefined' ? window.innerWidth : 0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      const widthChange = Math.abs(currentWidth - lastWindowWidth.current);
+
+      // If significant viewport change (e.g., switching monitors), reset to 50/50
+      if (widthChange > 200) {
+        const sidebarWidth = currentWidth < 1024 ? 180 : 224;
+        const remainingWidth = currentWidth - sidebarWidth - 50;
+        const equalWidth = Math.min(getMaxAnalyticsWidth(), Math.floor(remainingWidth * 0.5));
+        setAnalyticsWidth(equalWidth);
+
+        // Also adjust session list
+        if (currentWidth < 1024) {
+          setSessionListWidth(180);
+        }
+      } else {
+        // Small resize - just clamp to max to prevent overflow
+        const maxAnalytics = getMaxAnalyticsWidth();
+        setAnalyticsWidth(prev => Math.min(prev, maxAnalytics));
+      }
+
+      lastWindowWidth.current = currentWidth;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setAnalyticsWidth, setSessionListWidth]);
 
   // Theme
   const { isDark, toggleTheme } = useTheme();
 
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
-    setSessionListWidth(prev => Math.max(180, Math.min(400, prev + deltaX)));
+    const maxWidth = window.innerWidth < 1024 ? 200 : 400;
+    setSessionListWidth(prev => Math.max(180, Math.min(maxWidth, prev + deltaX)));
   }, [setSessionListWidth]);
 
   const handleAnalyticsResize = useCallback((deltaX: number) => {
-    setAnalyticsWidth(prev => Math.max(300, Math.min(1000, prev + deltaX)));
+    const maxWidth = getMaxAnalyticsWidth();
+    setAnalyticsWidth(prev => Math.max(300, Math.min(maxWidth, prev + deltaX)));
+  }, [setAnalyticsWidth]);
+
+  // Double-click on analytics resize handle = reset to 50/50 split
+  const handleAnalyticsResizeReset = useCallback(() => {
+    const sidebarWidth = window.innerWidth < 1024 ? 180 : 224;
+    const remainingWidth = window.innerWidth - sidebarWidth - 50;
+    const equalWidth = Math.min(getMaxAnalyticsWidth(), Math.floor(remainingWidth * 0.5));
+    setAnalyticsWidth(equalWidth);
   }, [setAnalyticsWidth]);
 
   // Ref for scrolling to events in SessionView
@@ -486,7 +539,7 @@ function App() {
       />
 
       {/* Resize handle between Analytics and SessionView */}
-      {analyticsExpanded && <ResizeHandle onResize={handleAnalyticsResize} />}
+      {analyticsExpanded && <ResizeHandle onResize={handleAnalyticsResize} onDoubleClick={handleAnalyticsResizeReset} />}
 
       {/* Chat/Events - flexible right panel with min-width */}
       <div className="flex-1 min-w-[300px] overflow-hidden">
