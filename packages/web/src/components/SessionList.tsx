@@ -176,8 +176,13 @@ export function SessionList({
               call
             </span>
           </span>
-          <span className="text-xl font-bold text-foreground -mt-1 tracking-tight">
-            SuperTrace
+          <span className="inline-flex items-baseline gap-1.5">
+            <span className="text-xl font-bold -mt-1 tracking-tight bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 bg-clip-text text-transparent">
+              SuperTrace
+            </span>
+            <span className="text-[10px] text-amber-500/70 font-medium">
+              v{__APP_VERSION__}
+            </span>
           </span>
         </a>
         {/* Theme toggle */}

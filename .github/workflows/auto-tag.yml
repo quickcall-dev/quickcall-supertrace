@@ -1,0 +1,64 @@
+# Auto-tag on version bump merge to main.
+#
+# When a PR is merged to main and pyproject.toml version changed,
+# automatically creates and pushes a git tag to trigger PyPI publish.
+
+name: Auto Tag Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/server/pyproject.toml'
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: version
+        run: |
+          # Get current version from pyproject.toml
+          CURRENT_VERSION=$(grep -m1 '^version = ' packages/server/pyproject.toml | cut -d'"' -f2)
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Get previous version
+          git show HEAD~1:packages/server/pyproject.toml > /tmp/old_pyproject.toml 2>/dev/null || echo 'version = "0.0.0"' > /tmp/old_pyproject.toml
+          OLD_VERSION=$(grep -m1 '^version = ' /tmp/old_pyproject.toml | cut -d'"' -f2)
+          echo "old=$OLD_VERSION" >> $GITHUB_OUTPUT
+
+          # Check if changed
+          if [ "$CURRENT_VERSION" != "$OLD_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Version changed: $OLD_VERSION -> $CURRENT_VERSION"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Version unchanged: $CURRENT_VERSION"
+          fi
+
+      - name: Create and push tag
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.current }}"
+          TAG="v$VERSION"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
