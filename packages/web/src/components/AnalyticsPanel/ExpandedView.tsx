@@ -221,8 +221,8 @@ export function ExpandedView({
 
   return (
     <div style={{ width }} className="bg-card border-x border-border flex flex-col overflow-hidden shrink-0 relative" data-panel="analytics">
-      {/* Header - h-12 to match other panels */}
-      <div className="h-12 px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+      {/* Header - uses --header-height for consistency */}
+      <div className="px-4 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between shrink-0" style={{ height: 'var(--header-height)' }}>
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground text-sm">Session Analytics</span>
           {loading && (
@@ -357,7 +357,7 @@ export function ExpandedView({
         </div>
 
         {/* Unified Prompt Metrics Chart */}
-        <div className="px-5 py-4 border-b border-border">
+        <div className="px-5 py-4 border-b border-border overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
               Tokens & Tools by Prompt
@@ -373,7 +373,7 @@ export function ExpandedView({
         </div>
 
         {/* Tool Distribution */}
-        <div className="px-5 py-4 border-b border-border">
+        <div className="px-5 py-4 border-b border-border overflow-hidden">
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-semibold">
             Tool Usage
           </div>
@@ -389,7 +389,7 @@ export function ExpandedView({
         </div>
 
         {/* Work Output - Compact row */}
-        <div className="px-5 py-3 flex items-center justify-between text-xs">
+        <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-xs overflow-hidden">
           <div className="flex items-center gap-4">
             {/* Files changed */}
             <div className="flex items-center gap-1.5" title="Files changed">

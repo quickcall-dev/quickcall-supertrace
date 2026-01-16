@@ -409,60 +409,52 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
         })()}
       </div>
 
-      {/* Combined legend */}
-      <div className="flex items-center justify-between text-xs pt-2 border-t border-border">
-        <div className="flex items-center gap-4">
-          {/* Token legend with cache toggle */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
-              <span className="text-muted-foreground">In</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
-              <span className="text-muted-foreground">Out</span>
-            </div>
-            {/* Cache toggle */}
-            <button
-              onClick={() => setShowCache(!showCache)}
-              className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                showCache
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-              title={showCache ? 'Showing total context (with cache)' : 'Showing new tokens only (no cache)'}
-            >
-              {showCache ? '+cache' : 'no cache'}
-            </button>
+      {/* Combined legend - two rows: tokens on top, tools+totals below */}
+      <div className="text-xs pt-2 border-t border-border space-y-1.5">
+        {/* Row 1: Token legend with cache toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-[color:var(--token-input)]" />
+            <span className="text-muted-foreground">In</span>
           </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-[color:var(--token-output)]" />
+            <span className="text-muted-foreground">Out</span>
+          </div>
+          <button
+            onClick={() => setShowCache(!showCache)}
+            className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              showCache
+                ? 'bg-primary/20 text-primary'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+            title={showCache ? 'Showing total context (with cache)' : 'Showing new tokens only (no cache)'}
+          >
+            {showCache ? '+cache' : 'no cache'}
+          </button>
+        </div>
 
-          <span className="text-muted-foreground/30">|</span>
-
-          {/* Tool legend */}
-          <div className="flex items-center gap-2">
-            {toolLegend.slice(0, 4).map((tool) => (
-              <div key={tool.name} className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: tool.color }} />
+        {/* Row 2: Tool legend + totals */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+            {toolLegend.slice(0, 3).map((tool) => (
+              <div key={tool.name} className="flex items-center gap-1 shrink-0">
+                <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: tool.color }} />
                 <span className="text-muted-foreground">{tool.name}</span>
               </div>
             ))}
-            {toolLegend.length > 4 && (
-              <span className="text-muted-foreground">+{toolLegend.length - 4}</span>
+            {toolLegend.length > 3 && (
+              <span className="text-muted-foreground shrink-0">+{toolLegend.length - 3}</span>
             )}
           </div>
-        </div>
-
-        {/* Totals */}
-        <div className="flex items-center gap-3 font-mono text-[10px]">
-          <span className="text-muted-foreground">
+          <div className="flex items-center gap-2 font-mono text-[10px] shrink-0 text-muted-foreground">
             {totals.tools} tools
-          </span>
-          {totals.commits > 0 && (
-            <span className="flex items-center gap-1 text-[color:var(--warning)]">
-              <span>●</span>
-              <span>{totals.commits} commit{totals.commits !== 1 ? 's' : ''}</span>
-            </span>
-          )}
+            {totals.commits > 0 && (
+              <span className="flex items-center gap-1 text-[color:var(--warning)]">
+                ● {totals.commits}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

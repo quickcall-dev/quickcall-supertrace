@@ -24,10 +24,11 @@ export function CollapsedView({ metrics, onExpand }: CollapsedViewProps) {
 
   return (
     <div className="w-16 bg-card border-x border-border flex flex-col shrink-0">
-      {/* Expand button at top - h-12 to match other panel headers */}
+      {/* Expand button at top - uses --header-height for consistency */}
       <button
         onClick={onExpand}
-        className="h-12 flex items-center justify-center border-b border-border hover:bg-accent transition-colors"
+        className="flex items-center justify-center border-b border-border hover:bg-accent transition-colors"
+        style={{ height: 'var(--header-height)' }}
         title="Expand analytics"
       >
         <i className="ri-arrow-right-double-line text-muted-foreground text-lg" />

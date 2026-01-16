@@ -374,7 +374,7 @@ export function SessionView({
   return (
     <div className="flex-1 flex flex-col h-full bg-background relative">
       {/* Header - clean, just project name and actions */}
-      <div className="min-h-12 px-2 sm:px-4 py-2 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between gap-2 shrink-0">
+      <div className="px-2 sm:px-4 border-b border-border bg-background/95 backdrop-blur-sm flex items-center justify-between gap-2 shrink-0" style={{ height: 'var(--header-height)' }}>
         <div className="flex items-center gap-1.5 sm:gap-3 text-sm min-w-0">
           <span className="font-semibold text-foreground truncate">{getProjectName(session.project_path)}</span>
           {isActive && (
