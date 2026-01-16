@@ -44,3 +44,4 @@ logs/
 .uv/
 claude-code-ref/
 claude-code-ref/
+docs/internal/
