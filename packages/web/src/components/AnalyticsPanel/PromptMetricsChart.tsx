@@ -393,15 +393,14 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
           const tooltipWidth = 200;
           const containerWidth = scrollRef.current?.clientWidth || 400;
           const tooltipX = yAxisWidth + hoveredX - scrollLeft;
-          const nearRightEdge = tooltipX + tooltipWidth / 2 > containerWidth - 10;
+          const nearRightEdge = tooltipX + tooltipWidth > containerWidth - 10;
 
           return (
           <div
             className="absolute pointer-events-none z-50 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs w-[200px]"
             style={{
-              left: tooltipX,
-              top: -8,
-              transform: nearRightEdge ? 'translateX(-100%) translateY(-100%)' : 'translateX(-50%) translateY(-100%)',
+              left: nearRightEdge ? tooltipX - tooltipWidth - 20 : tooltipX + 20,
+              top: 8,
             }}
           >
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
