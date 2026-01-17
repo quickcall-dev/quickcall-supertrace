@@ -390,21 +390,21 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
         {/* Custom tooltip */}
         {hoveredTurn && (() => {
           // Calculate tooltip position, flip to left if near right edge
-          const tooltipWidth = 140;
+          const tooltipWidth = 200;
           const containerWidth = scrollRef.current?.clientWidth || 400;
           const tooltipX = yAxisWidth + hoveredX - scrollLeft;
           const nearRightEdge = tooltipX + tooltipWidth / 2 > containerWidth - 10;
 
           return (
           <div
-            className="absolute pointer-events-none z-20 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
+            className="absolute pointer-events-none z-50 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs w-[200px]"
             style={{
               left: tooltipX,
-              top: tokenChartHeight + gapHeight + 8,
-              transform: nearRightEdge ? 'translateX(-100%)' : 'translateX(-50%)',
+              top: -8,
+              transform: nearRightEdge ? 'translateX(-100%) translateY(-100%)' : 'translateX(-50%) translateY(-100%)',
             }}
           >
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="font-semibold text-foreground">Prompt {hoveredTurn.promptIndex}</span>
               {hoveredTurn.hasCommit && (
                 <span className="text-[color:var(--warning)] text-[10px] font-medium px-1.5 py-0.5 bg-[color:var(--warning)]/10 rounded">
@@ -431,11 +431,11 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <div className="border-t border-border pt-1.5 space-y-1">
                 {hoveredTurn.tools.slice(0, 3).map((tool) => (
                   <div key={tool.name} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: tool.color }} />
-                      <span className="text-foreground">{tool.name}</span>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: tool.color }} />
+                      <span className="text-foreground truncate">{tool.name}</span>
                     </div>
-                    <span className="text-muted-foreground font-mono">{tool.count}×</span>
+                    <span className="text-muted-foreground font-mono shrink-0">{tool.count}×</span>
                   </div>
                 ))}
                 {hoveredTurn.tools.length > 3 && (

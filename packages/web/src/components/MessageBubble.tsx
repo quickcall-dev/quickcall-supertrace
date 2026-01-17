@@ -38,10 +38,6 @@ function highlightText(text: string, query: string | undefined): React.ReactNode
 
 export function MessageBubble({ event, searchQuery, showAllThinking = false }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
-  const [localShowThinking, setLocalShowThinking] = useState(false);
-
-  // Global toggle overrides local state
-  const showThinking = showAllThinking || localShowThinking;
 
   const renderUserPrompt = () => {
     const prompt = event.data?.prompt as string;
@@ -184,29 +180,16 @@ export function MessageBubble({ event, searchQuery, showAllThinking = false }: M
     return (
       <div className="flex justify-start">
         <div className="max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
-          {/* Thinking section - collapsible with purple styling */}
-          {thinkingContent && (
-            <div className="mb-3">
-              <button
-                onClick={() => setLocalShowThinking(!localShowThinking)}
-                className="flex items-center gap-1.5 text-xs text-purple-500 hover:text-purple-600 transition-colors"
-              >
-                <i className={`ri-brain-line ${showThinking ? 'text-purple-600' : ''}`} />
-                <span>{showThinking ? 'Hide' : 'Show'} Thinking</span>
-                <i className={`ri-arrow-${showThinking ? 'up' : 'down'}-s-line`} />
-              </button>
-
-              {showThinking && (
-                <div className="mt-2 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                  <div className="text-xs text-purple-400 mb-1 flex items-center gap-1">
-                    <i className="ri-brain-line" />
-                    Extended Thinking
-                  </div>
-                  <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
-                    {thinkingContent}
-                  </pre>
-                </div>
-              )}
+          {/* Thinking section - only visible when global toggle is on */}
+          {thinkingContent && showAllThinking && (
+            <div className="mb-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+              <div className="text-xs text-purple-400 mb-1 flex items-center gap-1">
+                <i className="ri-brain-line" />
+                Extended Thinking
+              </div>
+              <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
+                {thinkingContent}
+              </pre>
             </div>
           )}
 
