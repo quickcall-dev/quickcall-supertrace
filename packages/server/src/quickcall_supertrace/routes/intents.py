@@ -58,30 +58,55 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions", tags=["intents"])
 
 # Prompt for full analysis (first time or forced refresh)
-FULL_ANALYSIS_PROMPT = """Analyze these user prompts from a coding session and extract 2-3 high-level user intents/goals. Be concise.
+FULL_ANALYSIS_PROMPT = """Extract 2-3 high-level user intents/goals from these coding session prompts. Be concise.
 
 Prompts:
-{prompts}
-
-Output JSON array of intents like: ["intent1", "intent2", "intent3"]"""
+{prompts}"""
 
 # Prompt for incremental analysis (subsequent refreshes)
-INCREMENTAL_PROMPT = """You are analyzing user prompts from a coding session.
-
-Previous intents extracted from earlier prompts:
-{existing_intents}
+INCREMENTAL_PROMPT = """Previous intents: {existing_intents}
 
 New prompts since last analysis:
 {new_prompts}
 
-Analyze if the user's intents have changed based on the new prompts.
+Determine if the user's intents have changed based on the new prompts."""
 
-Return JSON:
-{{
-  "intents": ["intent1", "intent2", "intent3"],
-  "changed": true/false,
-  "change_reason": "Brief explanation if changed, null otherwise"
-}}"""
+# JSON schemas for structured output (used with --json-schema flag)
+FULL_ANALYSIS_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {
+        "intents": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 3,
+            "description": "2-3 high-level user intents/goals"
+        }
+    },
+    "required": ["intents"]
+})
+
+INCREMENTAL_ANALYSIS_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {
+        "intents": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 3,
+            "description": "Updated intents (may be same as before)"
+        },
+        "changed": {
+            "type": "boolean",
+            "description": "Whether intents have changed"
+        },
+        "change_reason": {
+            "type": ["string", "null"],
+            "description": "Brief explanation if changed, null otherwise"
+        }
+    },
+    "required": ["intents", "changed", "change_reason"]
+})
 
 
 def _extract_json_from_response(output: str) -> Any:
@@ -89,8 +114,22 @@ def _extract_json_from_response(output: str) -> Any:
     Extract JSON from Claude's response, handling markdown code blocks.
 
     Claude sometimes wraps JSON in ```json blocks. We detect and strip these.
+
+    Raises:
+        HTTPException: If output is empty or not valid JSON
     """
+    original_output = output  # Keep for logging
     output = output.strip()
+
+    if not output:
+        logger.error("Claude CLI returned empty output")
+        raise HTTPException(
+            status_code=500,
+            detail="Claude CLI returned empty response",
+        )
+
+    # Log raw output for debugging (truncated)
+    logger.debug(f"Raw Claude output (first 500 chars): {output[:500]}")
 
     # Handle markdown code blocks
     if output.startswith("```"):
@@ -107,32 +146,124 @@ def _extract_json_from_response(output: str) -> Any:
                 json_lines.append(line)
         output = "\n".join(json_lines)
 
-    return json.loads(output)
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Initial JSON parse failed, attempting extraction: {output[:200]}")
+
+        # Fallback: Try to find JSON array or object in the response
+        # Sometimes Claude prefixes with prose text
+        import re
+
+        # Try to find a JSON array
+        array_match = re.search(r'\[[\s\S]*?\]', output)
+        if array_match:
+            try:
+                result = json.loads(array_match.group())
+                logger.info(f"Successfully extracted JSON array from response")
+                return result
+            except json.JSONDecodeError:
+                pass
+
+        # Try to find a JSON object
+        obj_match = re.search(r'\{[\s\S]*\}', output)
+        if obj_match:
+            try:
+                result = json.loads(obj_match.group())
+                logger.info(f"Successfully extracted JSON object from response")
+                return result
+            except json.JSONDecodeError:
+                pass
+
+        logger.error(f"Failed to parse Claude response as JSON: {output[:200]}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse intent response: {e}",
+        )
 
 
-def _run_claude_cli(prompt: str, timeout: int = 60) -> str:
+def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 60) -> dict[str, Any]:
     """
-    Run Claude CLI with the given prompt.
+    Run Claude CLI with the given prompt and optional JSON schema.
+
+    Uses --output-format json for structured output.
+    When json_schema is provided, uses --json-schema for enforced structure.
+
+    Args:
+        prompt: The prompt to send to Claude
+        json_schema: Optional JSON schema string for structured output
+        timeout: Command timeout in seconds
+
+    Returns:
+        Parsed JSON response. When json_schema is used, returns the structured_output field.
 
     Raises:
         HTTPException: On CLI errors, timeouts, or if CLI not found
     """
     try:
+        logger.info("Running Claude CLI for intent extraction...")
+        logger.debug(f"Prompt (first 300 chars): {prompt[:300]}")
+
+        # Build command with JSON output format
+        cmd = ["claude", "-p", prompt, "--output-format", "json"]
+
+        # Add JSON schema if provided for structured output
+        if json_schema:
+            cmd.extend(["--json-schema", json_schema])
+            logger.debug(f"Using JSON schema: {json_schema[:100]}...")
+
         result = subprocess.run(
-            ["claude", "-p", prompt],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
         )
 
         if result.returncode != 0:
-            logger.error(f"Claude CLI failed: {result.stderr}")
+            logger.error(f"Claude CLI failed (code {result.returncode}): {result.stderr}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Claude CLI error: {result.stderr}",
+                detail=f"Claude CLI error: {result.stderr or 'Unknown error'}",
             )
 
-        return result.stdout.strip()
+        output = result.stdout.strip()
+        if not output:
+            logger.warning(f"Claude CLI returned empty stdout. stderr: {result.stderr}")
+            raise HTTPException(
+                status_code=500,
+                detail="Claude CLI returned empty response",
+            )
+
+        logger.info(f"Claude CLI returned {len(output)} chars")
+        logger.debug(f"Full Claude output: {output}")
+
+        # Parse the JSON response from Claude CLI
+        try:
+            response = json.loads(output)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Claude CLI JSON response: {output[:200]}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to parse Claude CLI response: {e}",
+            )
+
+        # When using --json-schema, the structured output is in 'structured_output' field
+        if json_schema and "structured_output" in response:
+            return response["structured_output"]
+
+        # Fallback: return the 'result' field or the whole response
+        if "result" in response:
+            # Parse the result field if it's a string containing JSON
+            result_content = response["result"]
+            if isinstance(result_content, str):
+                try:
+                    return json.loads(result_content)
+                except json.JSONDecodeError:
+                    # Not JSON, might need extraction
+                    return _extract_json_from_response(result_content)
+            return result_content
+
+        return response
 
     except subprocess.TimeoutExpired:
         logger.error("Claude CLI timed out")
@@ -259,14 +390,13 @@ async def get_session_intents(
                 "intent_changed": False,
             }
 
-        # Run incremental analysis
+        # Run incremental analysis with JSON schema
         prompt = INCREMENTAL_PROMPT.format(
             existing_intents=json.dumps(cached["intents"]),
             new_prompts=new_prompts_text,
         )
 
-        output = _run_claude_cli(prompt)
-        result = _extract_json_from_response(output)
+        result = _run_claude_cli(prompt, json_schema=INCREMENTAL_ANALYSIS_SCHEMA)
 
         intents = result.get("intents", cached["intents"])
         intent_changed = result.get("changed", False)
@@ -330,8 +460,8 @@ async def get_session_intents(
             }
 
         prompt = FULL_ANALYSIS_PROMPT.format(prompts=prompts_text)
-        output = _run_claude_cli(prompt)
-        intents = _extract_json_from_response(output)
+        result = _run_claude_cli(prompt, json_schema=FULL_ANALYSIS_SCHEMA)
+        intents = result.get("intents", [])
 
         # Get the max prompt index
         max_prompt_index = max(
