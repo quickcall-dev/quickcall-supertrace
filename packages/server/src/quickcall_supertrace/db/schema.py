@@ -8,6 +8,7 @@ Uses WAL mode for concurrent access.
 Related: client.py (uses these tables)
 """
 
+import json
 import logging
 
 import aiosqlite
@@ -239,6 +240,9 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
     (4, "add_thinking_content", [
         "ALTER TABLE messages ADD COLUMN thinking_content TEXT",
     ]),
+    # v5: Backfill thinking_content from raw_data (handled by Python, not SQL)
+    # This is a marker migration - actual work done in _backfill_thinking_content()
+    (5, "backfill_thinking_content", []),
     # Add future migrations here with incrementing version numbers
 ]
 
@@ -324,6 +328,8 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
             continue
 
         logger.info(f"Running migration v{version}: {name}")
+
+        # Handle SQL statements
         for sql in statements:
             try:
                 await db.execute(sql)
@@ -332,9 +338,72 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
                 if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
                     logger.warning(f"Migration v{version} statement warning: {e}")
 
+        # Handle Python-based migrations
+        if version == 5:
+            await _backfill_thinking_content(db)
+
         # Mark migration as applied
         await db.execute(
             "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
             (version, name)
         )
         logger.info(f"Migration v{version} complete: {name}")
+
+
+async def _backfill_thinking_content(db: aiosqlite.Connection) -> None:
+    """
+    Backfill thinking_content from raw_data for existing assistant messages.
+
+    This extracts thinking blocks from the stored raw_data JSON and populates
+    the thinking_content column for messages that were imported before the
+    parser was updated to extract thinking content.
+    """
+    # Get all assistant messages with raw_data but no thinking_content
+    cursor = await db.execute("""
+        SELECT id, raw_data FROM messages
+        WHERE msg_type = 'assistant'
+          AND thinking_content IS NULL
+          AND raw_data IS NOT NULL
+    """)
+    rows = await cursor.fetchall()
+
+    if not rows:
+        logger.info("No messages need thinking_content backfill")
+        return
+
+    logger.info(f"Backfilling thinking_content for {len(rows)} assistant messages")
+    updated = 0
+
+    for row in rows:
+        msg_id = row[0]
+        raw_data = row[1]
+
+        try:
+            raw = json.loads(raw_data)
+            message = raw.get("message", {})
+            content_blocks = message.get("content", [])
+
+            # Extract thinking content (same logic as parser.py)
+            thinking_content = None
+            if isinstance(content_blocks, list):
+                for block in content_blocks:
+                    if isinstance(block, dict) and block.get("type") == "thinking":
+                        thinking_text = block.get("thinking", "")
+                        if thinking_text:
+                            if thinking_content:
+                                thinking_content += "\n\n---\n\n" + thinking_text
+                            else:
+                                thinking_content = thinking_text
+
+            if thinking_content:
+                await db.execute(
+                    "UPDATE messages SET thinking_content = ? WHERE id = ?",
+                    (thinking_content, msg_id)
+                )
+                updated += 1
+
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Failed to parse raw_data for message {msg_id}: {e}")
+            continue
+
+    logger.info(f"Backfilled thinking_content for {updated} messages")
