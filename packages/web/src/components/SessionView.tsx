@@ -509,12 +509,12 @@ export function SessionView({
           )}
           <span className="text-muted-foreground/30">|</span>
           <a
-            href={getExportUrl(session.id, 'json')}
+            href={getExportUrl(session.id, 'jsonl')}
             download
             className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
-            title="Export JSON"
+            title="Export JSONL"
           >
-            JSON
+            JSONL
           </a>
           <a
             href={getExportUrl(session.id, 'md')}
