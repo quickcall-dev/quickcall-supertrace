@@ -58,7 +58,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions", tags=["intents"])
 
 # Prompt for full analysis (first time or forced refresh)
-FULL_ANALYSIS_PROMPT = """Extract 2-3 high-level user intents from these coding session prompts.
+FULL_ANALYSIS_PROMPT = """Extract 2-3 user intents from these coding session prompts.
+
+Rules:
+- Each intent must be 3-6 words maximum
+- Use action verbs (Build, Fix, Add, Debug, Refactor)
+- No filler words
 
 Prompts:
 {prompts}"""
@@ -69,7 +74,7 @@ INCREMENTAL_PROMPT = """Previous intents: {existing_intents}
 New prompts since last analysis:
 {new_prompts}
 
-Did the user's intents change based on these new prompts?"""
+Did intents change? Keep each intent to 3-6 words max."""
 
 # JSON schemas for --json-schema flag (forces reliable JSON output)
 FULL_ANALYSIS_SCHEMA = json.dumps({
