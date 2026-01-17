@@ -166,7 +166,7 @@ class Database:
             SELECT id, uuid, session_id, timestamp, prompt_text, prompt_index
             FROM messages
             WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             """,
             (session_id,),
         )
@@ -205,7 +205,7 @@ class Database:
             FROM messages
             WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
                   AND prompt_index > ?
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             """,
             (session_id, from_index),
         )
@@ -364,7 +364,7 @@ class Database:
                    is_tool_result, thinking_content
             FROM messages
             WHERE session_id = ?
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             LIMIT ?
             """,
             (session_id, limit),
@@ -533,7 +533,7 @@ class Database:
                        is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ? AND timestamp >= ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC, id ASC
                 LIMIT ?
                 """,
                 (session_id, since_timestamp, limit),
@@ -548,7 +548,7 @@ class Database:
                        is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC, id ASC
                 LIMIT ?
                 """,
                 (session_id, limit),
