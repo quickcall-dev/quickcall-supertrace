@@ -34,15 +34,25 @@ interface SessionRefreshedMessage {
   timestamp: string;
 }
 
-type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage;
+interface IntentChangedMessage {
+  type: 'intent_changed';
+  session_id: string;
+  intents: string[];
+  changed: boolean;
+  change_reason?: string;
+  previous_intents?: string[];
+}
+
+type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage | IntentChangedMessage;
 
 interface UseWebSocketOptions {
   onSessionImported?: (sessionId: string) => void;
   onSessionUpdated?: (sessionId: string, newMessages: number) => void;
+  onIntentChanged?: (message: IntentChangedMessage) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onSessionImported, onSessionUpdated } = options;
+  const { onSessionImported, onSessionUpdated, onIntentChanged } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +63,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   onSessionImportedRef.current = onSessionImported;
   const onSessionUpdatedRef = useRef(onSessionUpdated);
   onSessionUpdatedRef.current = onSessionUpdated;
+  const onIntentChangedRef = useRef(onIntentChanged);
+  onIntentChangedRef.current = onIntentChanged;
 
   // Connect on mount
   useEffect(() => {
@@ -91,6 +103,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           } else if (data.type === 'session_refreshed' && onSessionUpdatedRef.current) {
             // Manual refresh completed - treat same as update
             onSessionUpdatedRef.current(data.session_id, data.new_messages);
+          } else if (data.type === 'intent_changed' && onIntentChangedRef.current) {
+            // Intent analysis changed - notify for UI update and notification
+            onIntentChangedRef.current(data);
           }
         } catch (e) {
           console.error('[WebSocket] Parse error:', e);

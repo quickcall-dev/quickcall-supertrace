@@ -15,6 +15,8 @@ import { ResizeHandle } from './components/ResizeHandle';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useSettings } from './hooks/useSettings';
+import { useNotifications } from './hooks/useNotifications';
 import {
   getSessions,
   getSession,
@@ -25,6 +27,7 @@ import {
   type Session,
   type Event,
   type MetricsResponse,
+  type IntentResponse,
 } from './api/client';
 
 function App() {
@@ -87,6 +90,39 @@ function App() {
 
   // Theme
   const { isDark, toggleTheme } = useTheme();
+
+  // Settings and notifications
+  const [settings] = useSettings();
+  const { showNotification } = useNotifications();
+
+  // Handle intent changed - show browser notification
+  const handleIntentChanged = useCallback((response: IntentResponse) => {
+    console.log('[App] Intent changed:', response);
+    if (settings.notifications.enabled && settings.notifications.intentChanges && response.intent_changed) {
+      showNotification(
+        'Session Intent Changed',
+        response.change_reason || 'The focus of your session has shifted.'
+      );
+    }
+  }, [settings.notifications, showNotification]);
+
+  // Handle WebSocket intent changed - convert message format and call handler
+  const handleWsIntentChanged = useCallback((message: { session_id: string; intents: string[]; changed: boolean; change_reason?: string; previous_intents?: string[] }) => {
+    // Only handle for currently selected session
+    if (message.session_id !== selectedSessionId) return;
+
+    const response: IntentResponse = {
+      session_id: message.session_id,
+      intents: message.intents,
+      prompt_count: 0, // Not available from WebSocket message
+      last_analyzed_prompt_index: 0,
+      cached: false,
+      intent_changed: message.changed,
+      change_reason: message.change_reason,
+      previous_intents: message.previous_intents,
+    };
+    handleIntentChanged(response);
+  }, [selectedSessionId, handleIntentChanged]);
 
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
@@ -202,6 +238,7 @@ function App() {
   const { subscribe } = useWebSocket({
     onSessionImported: handleSessionImported,
     onSessionUpdated: handleSessionUpdated,
+    onIntentChanged: handleWsIntentChanged,
   });
 
   // Load sessions on mount (don't auto-select - let user choose from homepage)
@@ -536,6 +573,8 @@ function App() {
         isJumpingToEvent={isJumpingToEvent}
         session={sessions.find(s => s.id === selectedSessionId) || selectedSession}
         width={analyticsWidth}
+        settings={settings}
+        onIntentChanged={handleIntentChanged}
       />
 
       {/* Resize handle between Analytics and SessionView */}

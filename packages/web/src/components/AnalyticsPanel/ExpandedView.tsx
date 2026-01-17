@@ -46,10 +46,12 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import type { MetricsResponse, MetricFormat, PromptTurnsData, Session } from '../../api/client';
+import type { MetricsResponse, MetricFormat, PromptTurnsData, Session, IntentResponse } from '../../api/client';
 import { PromptMetricsChart } from './PromptMetricsChart';
 import { TimingChart } from './TimingChart';
 import { ToolDistributionChart } from './ToolDistributionChart';
+import { IntentInsights } from './IntentInsights';
+import type { SuperTraceSettings } from '../../hooks/useSettings';
 
 /**
  * Smart Tooltip with edge detection.
@@ -135,6 +137,8 @@ interface ExpandedViewProps {
   isJumpingToEvent?: boolean;
   session?: Session | null;
   width?: number;
+  settings?: SuperTraceSettings;
+  onIntentChanged?: (response: IntentResponse) => void;
 }
 
 const TIME_OPTIONS = [
@@ -193,6 +197,8 @@ export function ExpandedView({
   isJumpingToEvent = false,
   session,
   width = 400,
+  settings,
+  onIntentChanged,
 }: ExpandedViewProps) {
   const byCategory = metrics.by_category || {};
 
@@ -215,6 +221,7 @@ export function ExpandedView({
   const linesPerHour = byCategory.interaction?.lines_per_hour?.value as number ?? 0;
   const imagesSent = byCategory.interaction?.images_sent?.value as number ?? 0;
   const thinkingUsage = byCategory.interaction?.thinking_usage?.value as string ?? '0/0';
+  const promptCount = byCategory.interaction?.prompt_count?.value as number ?? 0;
 
   // Get chart data from metrics (pre-computed by backend)
   const chartData = byCategory.charts?.prompt_turns?.value as PromptTurnsData | null;
@@ -288,6 +295,16 @@ export function ExpandedView({
           )}
         </div>
       </div>
+
+      {/* AI Insights section */}
+      {session?.id && settings && (
+        <IntentInsights
+          sessionId={session.id}
+          promptCount={promptCount}
+          refreshThreshold={settings.intentRefreshThreshold}
+          onIntentChanged={onIntentChanged}
+        />
+      )}
 
       {/* Loading overlay when jumping to event */}
       {isJumpingToEvent && (
