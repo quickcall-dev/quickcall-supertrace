@@ -27,7 +27,21 @@ async def list_sessions(limit: int = 50, offset: int = 0) -> dict[str, Any]:
 
 
 def _slim_event(event: dict) -> dict:
-    """Strip large data from event for initial load. Keep structure for display."""
+    """
+    Strip large data from event for initial load. Keep structure for display.
+
+    ⚠️  IMPORTANT: When adding new fields to events in db/client.py, you MUST
+    also add them here if they should be visible in the frontend!
+
+    This function explicitly whitelists fields per event_type. Any field not
+    listed here will be stripped from the slim response, causing the frontend
+    to not receive it.
+
+    Common mistake: Adding a field to the database/API but forgetting to add
+    it here, resulting in the field being null in the frontend.
+
+    See: docs/guides/slim-event-fields.md
+    """
     slim = {
         "id": event.get("id"),
         "session_id": event.get("session_id"),
@@ -65,6 +79,7 @@ def _slim_event(event: dict) -> dict:
             "stop_reason": data.get("stop_reason"),
             "transcript": slimmed_transcript,
             "message": data.get("message"),  # Direct message from reimport
+            "thinkingContent": data.get("thinkingContent"),  # Extended thinking
         }
     # For compact events
     elif event_type == "compact":
