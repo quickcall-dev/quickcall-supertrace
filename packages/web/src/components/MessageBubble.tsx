@@ -12,6 +12,7 @@ import { formatTime } from '../utils/time';
 interface MessageBubbleProps {
   event: Event;
   searchQuery?: string;
+  showAllThinking?: boolean;
 }
 
 const MAX_COLLAPSED_LENGTH = 500; // Characters before truncating
@@ -35,9 +36,12 @@ function highlightText(text: string, query: string | undefined): React.ReactNode
   );
 }
 
-export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
+export function MessageBubble({ event, searchQuery, showAllThinking = false }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showThinking, setShowThinking] = useState(false);
+  const [localShowThinking, setLocalShowThinking] = useState(false);
+
+  // Global toggle overrides local state
+  const showThinking = showAllThinking || localShowThinking;
 
   const renderUserPrompt = () => {
     const prompt = event.data?.prompt as string;
@@ -184,7 +188,7 @@ export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
           {thinkingContent && (
             <div className="mb-3">
               <button
-                onClick={() => setShowThinking(!showThinking)}
+                onClick={() => setLocalShowThinking(!localShowThinking)}
                 className="flex items-center gap-1.5 text-xs text-purple-500 hover:text-purple-600 transition-colors"
               >
                 <i className={`ri-brain-line ${showThinking ? 'text-purple-600' : ''}`} />
