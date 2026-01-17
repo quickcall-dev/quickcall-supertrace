@@ -66,6 +66,16 @@ export function SkeletonView({
 
       {/* Scrollable content with skeleton */}
       <div className="flex-1 overflow-y-auto">
+        {/* Intents Skeleton */}
+        <div className="px-4 py-2 border-b border-border bg-muted/20">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <SkeletonBox className="h-3 w-14" />
+            <SkeletonBox className="h-3 w-3 rounded-full" />
+            <SkeletonBox className="h-2 w-32" />
+          </div>
+          <SkeletonBox className="h-3 w-48" />
+        </div>
+
         {/* Hero Metrics Skeleton */}
         <div className="px-5 py-4 border-b border-border">
           <SkeletonBox className="h-3 w-24 mb-3" />
