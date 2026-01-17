@@ -8,7 +8,6 @@ Uses WAL mode for concurrent access.
 Related: client.py (uses these tables)
 """
 
-import json
 import logging
 
 import aiosqlite
@@ -354,56 +353,50 @@ async def _backfill_thinking_content(db: aiosqlite.Connection) -> None:
     """
     Backfill thinking_content from raw_data for existing assistant messages.
 
-    This extracts thinking blocks from the stored raw_data JSON and populates
-    the thinking_content column for messages that were imported before the
-    parser was updated to extract thinking content.
+    Uses SQLite's json_extract to reliably extract thinking blocks from
+    stored raw_data JSON. This is more reliable than Python json.loads
+    for large datasets.
     """
-    # Get all assistant messages with raw_data but no thinking_content
+    # Count messages that need backfill
     cursor = await db.execute("""
-        SELECT id, raw_data FROM messages
+        SELECT COUNT(*) FROM messages
         WHERE msg_type = 'assistant'
           AND thinking_content IS NULL
-          AND raw_data IS NOT NULL
+          AND raw_data LIKE '%"type": "thinking"%'
     """)
-    rows = await cursor.fetchall()
+    row = await cursor.fetchone()
+    count = row[0] if row else 0
 
-    if not rows:
+    if count == 0:
         logger.info("No messages need thinking_content backfill")
         return
 
-    logger.info(f"Backfilling thinking_content for {len(rows)} assistant messages")
-    updated = 0
+    logger.info(f"Backfilling thinking_content for {count} assistant messages")
 
-    for row in rows:
-        msg_id = row[0]
-        raw_data = row[1]
+    # Use SQLite json_extract to extract and concatenate thinking blocks
+    # This is more reliable than Python parsing for large datasets
+    await db.execute("""
+        UPDATE messages
+        SET thinking_content = (
+            SELECT group_concat(json_extract(value, '$.thinking'), '
 
-        try:
-            raw = json.loads(raw_data)
-            message = raw.get("message", {})
-            content_blocks = message.get("content", [])
+---
 
-            # Extract thinking content (same logic as parser.py)
-            thinking_content = None
-            if isinstance(content_blocks, list):
-                for block in content_blocks:
-                    if isinstance(block, dict) and block.get("type") == "thinking":
-                        thinking_text = block.get("thinking", "")
-                        if thinking_text:
-                            if thinking_content:
-                                thinking_content += "\n\n---\n\n" + thinking_text
-                            else:
-                                thinking_content = thinking_text
+')
+            FROM json_each(json_extract(raw_data, '$.message.content'))
+            WHERE json_extract(value, '$.type') = 'thinking'
+        )
+        WHERE msg_type = 'assistant'
+          AND thinking_content IS NULL
+          AND raw_data LIKE '%"type": "thinking"%'
+    """)
 
-            if thinking_content:
-                await db.execute(
-                    "UPDATE messages SET thinking_content = ? WHERE id = ?",
-                    (thinking_content, msg_id)
-                )
-                updated += 1
-
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"Failed to parse raw_data for message {msg_id}: {e}")
-            continue
+    # Count how many were actually updated
+    cursor = await db.execute("""
+        SELECT COUNT(*) FROM messages
+        WHERE msg_type = 'assistant' AND thinking_content IS NOT NULL
+    """)
+    row = await cursor.fetchone()
+    updated = row[0] if row else 0
 
     logger.info(f"Backfilled thinking_content for {updated} messages")
