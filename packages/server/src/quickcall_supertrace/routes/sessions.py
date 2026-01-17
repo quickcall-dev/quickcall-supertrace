@@ -8,6 +8,7 @@ Related: db/client.py (queries), export.py (export logic)
 """
 
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
@@ -253,8 +254,25 @@ async def export_session(session_id: str, format: str = "json") -> Response:
             headers={"Content-Disposition": f"attachment; filename={session_id}.md"},
         )
 
+    elif format == "jsonl":
+        # Return raw JSONL file from ~/.claude/projects/
+        if not session.get("file_path"):
+            raise HTTPException(status_code=404, detail="JSONL file not found")
+
+        file_path = Path(session["file_path"])
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="JSONL file not found")
+
+        return Response(
+            content=file_path.read_text(),
+            media_type="application/x-ndjson",
+            headers={
+                "Content-Disposition": f'attachment; filename="{session_id}.jsonl"'
+            },
+        )
+
     else:
-        raise HTTPException(status_code=400, detail="Invalid format. Use 'json' or 'md'")
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'json', 'md', or 'jsonl'")
 
 
 def _export_markdown(session: dict, events: list[dict]) -> str:
