@@ -8,7 +8,11 @@ Uses WAL mode for concurrent access.
 Related: client.py (uses these tables)
 """
 
+import logging
+
 import aiosqlite
+
+logger = logging.getLogger(__name__)
 
 SCHEMA = """
 -- Sessions table (extended with new columns)
@@ -200,6 +204,37 @@ BEGIN
 END;
 """
 
+# =============================================================================
+# Schema Migrations
+# =============================================================================
+# Ordered list of migrations. Each migration runs exactly once.
+# Format: (version, name, sql_statements[])
+#
+# To add a new migration:
+# 1. Add a new tuple with incrementing version number
+# 2. Restart the server - migration runs automatically
+# 3. Check logs for "Running migration vN: name"
+
+MIGRATIONS: list[tuple[int, str, list[str]]] = [
+    # v1: Already applied via old try-catch pattern (legacy compatibility)
+    (1, "add_first_message_uuid", [
+        "ALTER TABLE transcript_files ADD COLUMN first_message_uuid TEXT",
+    ]),
+    (2, "add_prompt_index", [
+        "ALTER TABLE messages ADD COLUMN prompt_index INTEGER",
+    ]),
+    # v3: Intent table already in SCHEMA, but add new columns for incremental analysis
+    # Note: SQLite ALTER TABLE doesn't support non-constant defaults like CURRENT_TIMESTAMP
+    (3, "add_intent_incremental_columns", [
+        "ALTER TABLE session_intents ADD COLUMN last_analyzed_prompt_index INTEGER",
+        "ALTER TABLE session_intents ADD COLUMN intent_changed INTEGER DEFAULT 0",
+        "ALTER TABLE session_intents ADD COLUMN change_reason TEXT",
+        "ALTER TABLE session_intents ADD COLUMN previous_intents TEXT",
+        "ALTER TABLE session_intents ADD COLUMN updated_at TEXT",  # No default - set in code
+    ]),
+    # Add future migrations here with incrementing version numbers
+]
+
 
 async def init_db(db_path: str) -> None:
     """Initialize database with schema."""
@@ -219,40 +254,71 @@ async def init_db(db_path: str) -> None:
 
 
 async def _run_migrations(db: aiosqlite.Connection) -> None:
-    """Run schema migrations for existing databases."""
-    # Migration: Add first_message_uuid to transcript_files
-    try:
-        await db.execute(
-            "ALTER TABLE transcript_files ADD COLUMN first_message_uuid TEXT"
-        )
-    except Exception:
-        # Column already exists
-        pass
+    """
+    Run schema migrations for existing databases.
 
-    # Migration: Add prompt_index to messages
-    try:
-        await db.execute(
-            "ALTER TABLE messages ADD COLUMN prompt_index INTEGER"
+    Migrations are tracked in schema_migrations table.
+    Each migration runs exactly once, identified by version number.
+    Safe for existing users - handles legacy databases without version table.
+    """
+    # Ensure schema_migrations table exists (for legacy DBs)
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
-    except Exception:
-        # Column already exists
-        pass
+    """)
 
-    # Migration: Create session_intents table if it doesn't exist
-    try:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS session_intents (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL UNIQUE,
-                intents TEXT NOT NULL,
-                prompt_count INTEGER,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (session_id) REFERENCES sessions(id)
+    # Get already-applied migrations
+    cursor = await db.execute("SELECT version FROM schema_migrations")
+    applied = {row[0] for row in await cursor.fetchall()}
+
+    # For legacy databases: detect already-applied migrations by checking columns
+    if not applied:
+        # Check if legacy migrations were applied via old try-catch pattern
+        cursor = await db.execute("PRAGMA table_info(transcript_files)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "first_message_uuid" in columns:
+            await db.execute(
+                "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (1, 'add_first_message_uuid')"
             )
-        """)
+            applied.add(1)
+
+        cursor = await db.execute("PRAGMA table_info(messages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "prompt_index" in columns:
+            await db.execute(
+                "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (2, 'add_prompt_index')"
+            )
+            applied.add(2)
+
+        # Check if v3 columns already exist (in case someone manually added them)
+        cursor = await db.execute("PRAGMA table_info(session_intents)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "last_analyzed_prompt_index" in columns:
+            await db.execute(
+                "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (3, 'add_intent_incremental_columns')"
+            )
+            applied.add(3)
+
+    # Run pending migrations in order
+    for version, name, statements in MIGRATIONS:
+        if version in applied:
+            continue
+
+        logger.info(f"Running migration v{version}: {name}")
+        for sql in statements:
+            try:
+                await db.execute(sql)
+            except Exception as e:
+                # Column/table might already exist (safe to ignore)
+                if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
+                    logger.warning(f"Migration v{version} statement warning: {e}")
+
+        # Mark migration as applied
         await db.execute(
-            "CREATE INDEX IF NOT EXISTS idx_intents_session ON session_intents(session_id)"
+            "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+            (version, name)
         )
-    except Exception:
-        # Table already exists
-        pass
+        logger.info(f"Migration v{version} complete: {name}")
