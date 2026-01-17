@@ -30,6 +30,17 @@ export interface SearchResult extends Event {
   snippet: string;
 }
 
+// Assistant response event data (for event_type: "assistant_response")
+export interface AssistantResponseData {
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheCreateTokens?: number;
+  thinkingContent?: string;  // Extended thinking text from Claude
+  [key: string]: unknown;    // Allow additional fields
+}
+
 // Metrics types
 export type MetricFormat = 'number' | 'currency' | 'duration' | 'percentage' | 'distribution' | 'raw';
 export type MetricCategory = 'tokens' | 'tools' | 'timing' | 'interaction' | 'charts';
@@ -141,7 +152,7 @@ export async function searchEvents(
   );
 }
 
-export function getExportUrl(sessionId: string, format: 'json' | 'md'): string {
+export function getExportUrl(sessionId: string, format: 'jsonl' | 'md'): string {
   return `${BASE_URL}/sessions/${sessionId}/export?format=${format}`;
 }
 
