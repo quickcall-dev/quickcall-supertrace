@@ -65,6 +65,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
   const tokenChartHeight = 80;
   const toolChartHeight = 100;
   const commitLaneHeight = totals.commits > 0 ? 20 : 0;
+  const thinkingLaneHeight = totals.thinking > 0 ? 20 : 0;
   const xAxisHeight = 20;
   const gapHeight = 8;
 
@@ -106,7 +107,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
     y: toolPadding.top + toolGraphHeight - (value / safeMaxTools) * toolGraphHeight,
   }));
 
-  const totalHeight = tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + xAxisHeight;
+  const totalHeight = tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + thinkingLaneHeight + xAxisHeight;
 
   // Get hovered turn data for tooltip
   const hoveredTurn = hoveredPrompt !== null ? turns[hoveredPrompt] : null;
@@ -155,6 +156,13 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
           {commitLaneHeight > 0 && (
             <div style={{ height: commitLaneHeight }} className="flex items-center justify-end pr-1">
               <i className="ri-git-commit-line text-[10px] text-[color:var(--warning)]" />
+            </div>
+          )}
+
+          {/* Thinking lane label */}
+          {thinkingLaneHeight > 0 && (
+            <div style={{ height: thinkingLaneHeight }} className="flex items-center justify-end pr-1">
+              <i className="ri-brain-line text-[10px] text-purple-500" />
             </div>
           )}
 
@@ -296,8 +304,39 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               </g>
             )}
 
+            {/* Thinking lane - thin row with dots for thinking */}
+            {thinkingLaneHeight > 0 && (
+              <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight})`}>
+                {/* Horizontal line for thinking lane */}
+                <line
+                  x1={0}
+                  y1={thinkingLaneHeight / 2}
+                  x2={graphWidth}
+                  y2={thinkingLaneHeight / 2}
+                  stroke="#a855f7"
+                  strokeOpacity={0.2}
+                  strokeDasharray="4,4"
+                />
+                {/* Thinking dots */}
+                {turns.map((turn, idx) => {
+                  if (!turn.hasThinking) return null;
+                  const x = getX(idx);
+                  return (
+                    <circle
+                      key={idx}
+                      cx={x}
+                      cy={thinkingLaneHeight / 2}
+                      r={5}
+                      fill="#a855f7"
+                      className="cursor-pointer"
+                    />
+                  );
+                })}
+              </g>
+            )}
+
             {/* X-axis labels and interaction */}
-            <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight})`}>
+            <g transform={`translate(0, ${tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + thinkingLaneHeight})`}>
               <line x1={0} y1={0} x2={graphWidth} y2={0} stroke="currentColor" strokeOpacity={0.15} />
 
               {turns.map((turn, idx) => {
@@ -309,9 +348,9 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                     {/* Hover zone spanning all charts */}
                     <rect
                       x={x - 24}
-                      y={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight}
+                      y={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight - thinkingLaneHeight}
                       width={48}
-                      height={tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + xAxisHeight}
+                      height={tokenChartHeight + gapHeight + toolChartHeight + commitLaneHeight + thinkingLaneHeight + xAxisHeight}
                       fill="transparent"
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredPrompt(idx)}
@@ -323,7 +362,7 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
                     {isHovered && (
                       <line
                         x1={x}
-                        y1={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight}
+                        y1={-tokenChartHeight - gapHeight - toolChartHeight - commitLaneHeight - thinkingLaneHeight}
                         x2={x}
                         y2={0}
                         stroke="currentColor"
@@ -351,25 +390,29 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
         {/* Custom tooltip */}
         {hoveredTurn && (() => {
           // Calculate tooltip position, flip to left if near right edge
-          const tooltipWidth = 140;
+          const tooltipWidth = 200;
           const containerWidth = scrollRef.current?.clientWidth || 400;
           const tooltipX = yAxisWidth + hoveredX - scrollLeft;
-          const nearRightEdge = tooltipX + tooltipWidth / 2 > containerWidth - 10;
+          const nearRightEdge = tooltipX + tooltipWidth > containerWidth - 10;
 
           return (
           <div
-            className="absolute pointer-events-none z-20 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
+            className="absolute pointer-events-none z-50 bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs w-[200px]"
             style={{
-              left: tooltipX,
-              top: tokenChartHeight + gapHeight + 8,
-              transform: nearRightEdge ? 'translateX(-100%)' : 'translateX(-50%)',
+              left: nearRightEdge ? tooltipX - tooltipWidth - 20 : tooltipX + 20,
+              top: 8,
             }}
           >
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="font-semibold text-foreground">Prompt {hoveredTurn.promptIndex}</span>
               {hoveredTurn.hasCommit && (
                 <span className="text-[color:var(--warning)] text-[10px] font-medium px-1.5 py-0.5 bg-[color:var(--warning)]/10 rounded">
                   COMMIT
+                </span>
+              )}
+              {hoveredTurn.hasThinking && (
+                <span className="text-purple-500 text-[10px] font-medium px-1.5 py-0.5 bg-purple-500/10 rounded">
+                  THINKING
                 </span>
               )}
             </div>
@@ -387,11 +430,11 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
               <div className="border-t border-border pt-1.5 space-y-1">
                 {hoveredTurn.tools.slice(0, 3).map((tool) => (
                   <div key={tool.name} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: tool.color }} />
-                      <span className="text-foreground">{tool.name}</span>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: tool.color }} />
+                      <span className="text-foreground truncate">{tool.name}</span>
                     </div>
-                    <span className="text-muted-foreground font-mono">{tool.count}×</span>
+                    <span className="text-muted-foreground font-mono shrink-0">{tool.count}×</span>
                   </div>
                 ))}
                 {hoveredTurn.tools.length > 3 && (
@@ -452,6 +495,11 @@ export function PromptMetricsChart({ data, onPromptClick }: PromptMetricsChartPr
             {totals.commits > 0 && (
               <span className="flex items-center gap-1 text-[color:var(--warning)]">
                 ● {totals.commits}
+              </span>
+            )}
+            {totals.thinking > 0 && (
+              <span className="flex items-center gap-1 text-purple-500">
+                ● {totals.thinking}
               </span>
             )}
           </div>

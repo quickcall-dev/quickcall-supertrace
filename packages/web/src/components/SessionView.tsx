@@ -79,6 +79,7 @@ export function SessionView({
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [showAllThinking, setShowAllThinking] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom button state
@@ -507,14 +508,25 @@ export function SessionView({
               <i className="ri-search-line text-sm" />
             </button>
           )}
+          <button
+            onClick={() => setShowAllThinking(!showAllThinking)}
+            className={`p-1.5 rounded transition-colors ${
+              showAllThinking
+                ? 'text-purple-500 bg-purple-500/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            }`}
+            title={showAllThinking ? 'Hide all thinking' : 'Show all thinking'}
+          >
+            <i className="ri-brain-line text-sm" />
+          </button>
           <span className="text-muted-foreground/30">|</span>
           <a
-            href={getExportUrl(session.id, 'json')}
+            href={getExportUrl(session.id, 'jsonl')}
             download
             className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
-            title="Export JSON"
+            title="Export JSONL"
           >
-            JSON
+            JSONL
           </a>
           <a
             href={getExportUrl(session.id, 'md')}
@@ -616,7 +628,7 @@ export function SessionView({
                     }}
                     className="transition-all duration-300"
                   >
-                    <MessageBubble event={item.event} searchQuery={searchQuery} />
+                    <MessageBubble event={item.event} searchQuery={searchQuery} showAllThinking={showAllThinking} />
                   </div>
                 );
               })

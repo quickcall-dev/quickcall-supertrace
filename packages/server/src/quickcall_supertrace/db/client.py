@@ -166,7 +166,7 @@ class Database:
             SELECT id, uuid, session_id, timestamp, prompt_text, prompt_index
             FROM messages
             WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             """,
             (session_id,),
         )
@@ -205,7 +205,7 @@ class Database:
             FROM messages
             WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
                   AND prompt_index > ?
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             """,
             (session_id, from_index),
         )
@@ -361,10 +361,10 @@ class Database:
                    prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                    model, input_tokens, output_tokens, cache_read_tokens,
                    cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                   is_tool_result
+                   is_tool_result, thinking_content
             FROM messages
             WHERE session_id = ?
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             LIMIT ?
             """,
             (session_id, limit),
@@ -467,9 +467,9 @@ class Database:
                         elif block.get("type") == "tool_use":
                             has_tool_use = True
 
-                # Only emit assistant_stop if there's actual text content to display
+                # Emit assistant_stop if there's text content OR thinking content
                 # Skip empty assistant bubbles that only contain tool calls
-                if text_content.strip():
+                if text_content.strip() or row["thinking_content"]:
                     events.append({
                         "id": row["id"],
                         "session_id": row["session_id"],
@@ -479,6 +479,7 @@ class Database:
                             "model": row["model"],
                             "stop_reason": row["stop_reason"],
                             "message": text_content,
+                            "thinkingContent": row["thinking_content"],
                             "token_usage": {
                                 "input_tokens": row["input_tokens"] or 0,
                                 "output_tokens": row["output_tokens"] or 0,
@@ -529,10 +530,10 @@ class Database:
                        prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                       is_tool_result
+                       is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ? AND timestamp >= ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC, id ASC
                 LIMIT ?
                 """,
                 (session_id, since_timestamp, limit),
@@ -544,10 +545,10 @@ class Database:
                        prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                       is_tool_result
+                       is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC, id ASC
                 LIMIT ?
                 """,
                 (session_id, limit),
@@ -636,7 +637,8 @@ class Database:
                         if block.get("type") == "text":
                             text_content = block.get("text", "")
 
-                if text_content.strip():
+                # Emit assistant_stop if there's text content OR thinking content
+                if text_content.strip() or row["thinking_content"]:
                     events.append({
                         "id": row["id"],
                         "session_id": row["session_id"],
@@ -646,6 +648,7 @@ class Database:
                             "model": row["model"],
                             "stop_reason": row["stop_reason"],
                             "message": text_content,
+                            "thinkingContent": row["thinking_content"],
                             "token_usage": {
                                 "input_tokens": row["input_tokens"] or 0,
                                 "output_tokens": row["output_tokens"] or 0,

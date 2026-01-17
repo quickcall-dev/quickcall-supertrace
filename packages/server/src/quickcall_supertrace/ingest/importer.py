@@ -311,8 +311,9 @@ async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
                 todo_count, is_tool_result,
                 model, input_tokens, output_tokens, cache_read_tokens,
                 cache_create_tokens, stop_reason, tool_use_count, tool_names,
+                thinking_content,
                 raw_data, line_number
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 msg.uuid,
@@ -339,6 +340,7 @@ async def _insert_message_batch(db: Any, messages: list[ParsedMessage]) -> None:
                 msg.stop_reason,
                 msg.tool_use_count,
                 json.dumps(msg.tool_names) if msg.tool_names else None,
+                msg.thinking_content,
                 msg.raw_data,
                 msg.line_number,
             ),

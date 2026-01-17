@@ -8,6 +8,7 @@ Related: db/client.py (queries), export.py (export logic)
 """
 
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
@@ -26,7 +27,21 @@ async def list_sessions(limit: int = 50, offset: int = 0) -> dict[str, Any]:
 
 
 def _slim_event(event: dict) -> dict:
-    """Strip large data from event for initial load. Keep structure for display."""
+    """
+    Strip large data from event for initial load. Keep structure for display.
+
+    ⚠️  IMPORTANT: When adding new fields to events in db/client.py, you MUST
+    also add them here if they should be visible in the frontend!
+
+    This function explicitly whitelists fields per event_type. Any field not
+    listed here will be stripped from the slim response, causing the frontend
+    to not receive it.
+
+    Common mistake: Adding a field to the database/API but forgetting to add
+    it here, resulting in the field being null in the frontend.
+
+    See: docs/guides/slim-event-fields.md
+    """
     slim = {
         "id": event.get("id"),
         "session_id": event.get("session_id"),
@@ -64,6 +79,7 @@ def _slim_event(event: dict) -> dict:
             "stop_reason": data.get("stop_reason"),
             "transcript": slimmed_transcript,
             "message": data.get("message"),  # Direct message from reimport
+            "thinkingContent": data.get("thinkingContent"),  # Extended thinking
         }
     # For compact events
     elif event_type == "compact":
@@ -253,8 +269,25 @@ async def export_session(session_id: str, format: str = "json") -> Response:
             headers={"Content-Disposition": f"attachment; filename={session_id}.md"},
         )
 
+    elif format == "jsonl":
+        # Return raw JSONL file from ~/.claude/projects/
+        if not session.get("file_path"):
+            raise HTTPException(status_code=404, detail="JSONL file not found")
+
+        file_path = Path(session["file_path"])
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="JSONL file not found")
+
+        return Response(
+            content=file_path.read_text(),
+            media_type="application/x-ndjson",
+            headers={
+                "Content-Disposition": f'attachment; filename="{session_id}.jsonl"'
+            },
+        )
+
     else:
-        raise HTTPException(status_code=400, detail="Invalid format. Use 'json' or 'md'")
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'json', 'md', or 'jsonl'")
 
 
 def _export_markdown(session: dict, events: list[dict]) -> str:

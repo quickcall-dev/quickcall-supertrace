@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS messages (
     tool_use_count INTEGER DEFAULT 0,
     tool_names TEXT,
 
+    -- Thinking Content (from assistant messages)
+    thinking_content TEXT,
+
     -- Raw Data (preserves everything)
     raw_data TEXT NOT NULL,
 
@@ -232,6 +235,13 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
         "ALTER TABLE session_intents ADD COLUMN previous_intents TEXT",
         "ALTER TABLE session_intents ADD COLUMN updated_at TEXT",  # No default - set in code
     ]),
+    # v4: Add thinking content column for extended thinking traces
+    (4, "add_thinking_content", [
+        "ALTER TABLE messages ADD COLUMN thinking_content TEXT",
+    ]),
+    # v5: Backfill thinking_content from raw_data (handled by Python, not SQL)
+    # This is a marker migration - actual work done in _backfill_thinking_content()
+    (5, "backfill_thinking_content", []),
     # Add future migrations here with incrementing version numbers
 ]
 
@@ -302,12 +312,23 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
             )
             applied.add(3)
 
+        # Check if v4 column already exists
+        cursor = await db.execute("PRAGMA table_info(messages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "thinking_content" in columns:
+            await db.execute(
+                "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (4, 'add_thinking_content')"
+            )
+            applied.add(4)
+
     # Run pending migrations in order
     for version, name, statements in MIGRATIONS:
         if version in applied:
             continue
 
         logger.info(f"Running migration v{version}: {name}")
+
+        # Handle SQL statements
         for sql in statements:
             try:
                 await db.execute(sql)
@@ -316,9 +337,66 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
                 if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
                     logger.warning(f"Migration v{version} statement warning: {e}")
 
+        # Handle Python-based migrations
+        if version == 5:
+            await _backfill_thinking_content(db)
+
         # Mark migration as applied
         await db.execute(
             "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
             (version, name)
         )
         logger.info(f"Migration v{version} complete: {name}")
+
+
+async def _backfill_thinking_content(db: aiosqlite.Connection) -> None:
+    """
+    Backfill thinking_content from raw_data for existing assistant messages.
+
+    Uses SQLite's json_extract to reliably extract thinking blocks from
+    stored raw_data JSON. This is more reliable than Python json.loads
+    for large datasets.
+    """
+    # Count messages that need backfill
+    cursor = await db.execute("""
+        SELECT COUNT(*) FROM messages
+        WHERE msg_type = 'assistant'
+          AND thinking_content IS NULL
+          AND raw_data LIKE '%"type": "thinking"%'
+    """)
+    row = await cursor.fetchone()
+    count = row[0] if row else 0
+
+    if count == 0:
+        logger.info("No messages need thinking_content backfill")
+        return
+
+    logger.info(f"Backfilling thinking_content for {count} assistant messages")
+
+    # Use SQLite json_extract to extract and concatenate thinking blocks
+    # This is more reliable than Python parsing for large datasets
+    await db.execute("""
+        UPDATE messages
+        SET thinking_content = (
+            SELECT group_concat(json_extract(value, '$.thinking'), '
+
+---
+
+')
+            FROM json_each(json_extract(raw_data, '$.message.content'))
+            WHERE json_extract(value, '$.type') = 'thinking'
+        )
+        WHERE msg_type = 'assistant'
+          AND thinking_content IS NULL
+          AND raw_data LIKE '%"type": "thinking"%'
+    """)
+
+    # Count how many were actually updated
+    cursor = await db.execute("""
+        SELECT COUNT(*) FROM messages
+        WHERE msg_type = 'assistant' AND thinking_content IS NOT NULL
+    """)
+    row = await cursor.fetchone()
+    updated = row[0] if row else 0
+
+    logger.info(f"Backfilled thinking_content for {updated} messages")

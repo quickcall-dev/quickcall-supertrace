@@ -5,13 +5,14 @@
  * Uses Remix Icons and QuickCall color system.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Event } from '../api/client';
 import { formatTime } from '../utils/time';
 
 interface MessageBubbleProps {
   event: Event;
   searchQuery?: string;
+  showAllThinking?: boolean;
 }
 
 const MAX_COLLAPSED_LENGTH = 500; // Characters before truncating
@@ -35,8 +36,14 @@ function highlightText(text: string, query: string | undefined): React.ReactNode
   );
 }
 
-export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
+export function MessageBubble({ event, searchQuery, showAllThinking = false }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
+  const [thinkingExpanded, setThinkingExpanded] = useState(showAllThinking);
+
+  // Sync with global toggle
+  useEffect(() => {
+    setThinkingExpanded(showAllThinking);
+  }, [showAllThinking]);
 
   const renderUserPrompt = () => {
     const prompt = event.data?.prompt as string;
@@ -139,6 +146,7 @@ export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
       cache_read_input_tokens?: number;
       total_tokens?: number;
     } | null;
+    const thinkingContent = event.data?.thinkingContent as string | undefined;
 
     let content = '';
 
@@ -175,38 +183,81 @@ export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
       ? content
       : content.slice(0, MAX_COLLAPSED_LENGTH);
 
+    // Determine what to show based on content and thinking
+    const hasContent = content.trim().length > 0;
+    const hasThinking = !!thinkingContent;
+
     return (
       <div className="flex justify-start">
         <div className="max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
-          <div className="relative">
-            <div className="overflow-x-auto max-w-full">
-              <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
-                {highlightText(displayContent || 'Assistant response', searchQuery)}
-              </pre>
-            </div>
-
-            {/* Gradient fade + Show more button */}
-            {isLong && !expanded && (
-              <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-[color:var(--assistant-bubble)] via-[color:var(--assistant-bubble)]/90 to-transparent">
+          {/* Thinking section - collapsible dropdown */}
+          {hasThinking && (
+            <div className={hasContent ? "mb-3" : ""}>
+              <div className="flex items-start gap-2">
                 <button
-                  onClick={() => setExpanded(true)}
-                  className="text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
+                  onClick={() => setThinkingExpanded(!thinkingExpanded)}
+                  className="mt-2 hover:opacity-80 transition-opacity"
                 >
-                  Show more
+                  <i className={`ri-arrow-down-s-line text-base text-muted-foreground transition-transform ${thinkingExpanded ? 'rotate-180' : ''}`} />
                 </button>
+                <div className="flex-1 bg-purple-500/10 border border-purple-500/20 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setThinkingExpanded(!thinkingExpanded)}
+                    className="w-full px-3 py-2 flex items-center gap-1.5 text-sm text-purple-400 hover:bg-purple-500/10 transition-colors"
+                  >
+                    <i className="ri-brain-line" />
+                    Thinking
+                  </button>
+                  {thinkingExpanded && (
+                    <div className="px-3 pb-3">
+                      <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
+                        {thinkingContent}
+                      </pre>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Show less button when expanded */}
-          {isLong && expanded && (
-            <button
-              onClick={() => setExpanded(false)}
-              className="mt-2 text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
-            >
-              Show less
-            </button>
+            </div>
           )}
+
+          {/* Content section - only show if there's actual content */}
+          {hasContent ? (
+            <>
+              <div className="relative">
+                <div className="overflow-x-auto max-w-full">
+                  <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
+                    {highlightText(displayContent, searchQuery)}
+                  </pre>
+                </div>
+
+                {/* Gradient fade + Show more button */}
+                {isLong && !expanded && (
+                  <div className="absolute bottom-0 left-0 right-0 pt-10 bg-gradient-to-t from-[color:var(--assistant-bubble)] via-[color:var(--assistant-bubble)]/90 to-transparent">
+                    <button
+                      onClick={() => setExpanded(true)}
+                      className="text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
+                    >
+                      Show more
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Show less button when expanded */}
+              {isLong && expanded && (
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="mt-2 text-sm font-medium text-[color:var(--assistant-bubble-foreground)] hover:underline transition-colors"
+                >
+                  Show less
+                </button>
+              )}
+            </>
+          ) : !hasThinking ? (
+            <div className="text-sm text-muted-foreground italic">
+              No text output
+            </div>
+          ) : null}
 
           {/* Footer with time and tokens */}
           <div className="mt-2 sm:mt-3 pt-2 border-t border-border flex items-center justify-between gap-2 sm:gap-4 flex-wrap">

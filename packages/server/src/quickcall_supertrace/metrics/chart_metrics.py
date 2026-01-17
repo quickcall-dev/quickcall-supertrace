@@ -67,6 +67,16 @@ TOOL_COLORS = {
 }
 
 DEFAULT_TOOL_COLOR = "#94a3b8"  # Slate gray for unknown tools
+MCP_PLUGIN_COLOR = "#14b8a6"   # Teal 500 (brand color) - for mcp__plugin_* tools
+
+
+def get_tool_color(name: str) -> str:
+    """Get color for a tool, with special handling for MCP plugin tools."""
+    if name in TOOL_COLORS:
+        return TOOL_COLORS[name]
+    if name.startswith("mcp__plugin"):
+        return MCP_PLUGIN_COLOR
+    return DEFAULT_TOOL_COLOR
 
 
 @metric(
@@ -120,6 +130,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
     total_output = 0
     total_tools = 0
     total_commits = 0
+    total_thinking = 0
     max_tokens = 0
     max_tokens_no_cache = 0
     max_tools = 0
@@ -159,6 +170,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                 "tools": [],
                 "totalTools": 0,
                 "hasCommit": False,
+                "hasThinking": False,
                 "startTime": event.get("timestamp"),
                 "endTime": None,
                 "durationSeconds": None,
@@ -215,6 +227,11 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                         # Sum output tokens from all assistant_stops in this turn
                         total_output_tokens += token_usage.get("output_tokens", 0)
 
+                    # Check for thinking content
+                    if not turn["hasThinking"] and e.get("data", {}).get("thinkingContent"):
+                        turn["hasThinking"] = True
+                        total_thinking += 1
+
                 j += 1
 
             turn["outputTokens"] = total_output_tokens
@@ -236,7 +253,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                     {
                         "name": name,
                         "count": count,
-                        "color": TOOL_COLORS.get(name, DEFAULT_TOOL_COLOR),
+                        "color": get_tool_color(name),
                     }
                     for name, count in tool_counts.items()
                 ],
@@ -265,7 +282,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
             {
                 "name": name,
                 "count": count,
-                "color": TOOL_COLORS.get(name, DEFAULT_TOOL_COLOR),
+                "color": get_tool_color(name),
             }
             for name, count in global_tool_counts.items()
         ],
@@ -287,6 +304,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
             "outputTokens": total_output,
             "tools": total_tools,
             "commits": total_commits,
+            "thinking": total_thinking,
         },
         "toolLegend": tool_legend,
     }

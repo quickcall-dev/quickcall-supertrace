@@ -56,6 +56,9 @@ class ParsedMessage:
     tool_use_count: int
     tool_names: list[str] = field(default_factory=list)
 
+    # Thinking Content (from assistant messages)
+    thinking_content: str | None = None  # Extended thinking text
+
     # Raw Data
     raw_data: str = ""  # Original JSON line
     line_number: int = 0
@@ -164,6 +167,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
             stop_reason=None,
             tool_use_count=0,
             tool_names=[],
+            thinking_content=None,
         )
 
     # Assistant message extraction
@@ -179,6 +183,19 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
                 if isinstance(c, dict) and c.get("type") == "tool_use"
             ]
         tool_names = [t.get("name", "unknown") for t in tool_uses]
+
+        # Extract thinking content from content blocks
+        thinking_content = None
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "thinking":
+                    thinking_text = block.get("thinking", "")
+                    if thinking_text:
+                        # Concatenate if multiple thinking blocks
+                        if thinking_content:
+                            thinking_content += "\n\n---\n\n" + thinking_text
+                        else:
+                            thinking_content = thinking_text
 
         return ParsedMessage(
             **base,
@@ -199,6 +216,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
             stop_reason=message.get("stop_reason"),
             tool_use_count=len(tool_uses),
             tool_names=tool_names,
+            thinking_content=thinking_content,
         )
 
     # System / other message types
@@ -220,6 +238,7 @@ def parse_message(raw: dict, line_num: int) -> ParsedMessage | None:
             stop_reason=None,
             tool_use_count=0,
             tool_names=[],
+            thinking_content=None,
         )
 
 
