@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS messages (
     tool_use_count INTEGER DEFAULT 0,
     tool_names TEXT,
 
+    -- Thinking Content (from assistant messages)
+    thinking_content TEXT,
+
     -- Raw Data (preserves everything)
     raw_data TEXT NOT NULL,
 
@@ -232,6 +235,10 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
         "ALTER TABLE session_intents ADD COLUMN previous_intents TEXT",
         "ALTER TABLE session_intents ADD COLUMN updated_at TEXT",  # No default - set in code
     ]),
+    # v4: Add thinking content column for extended thinking traces
+    (4, "add_thinking_content", [
+        "ALTER TABLE messages ADD COLUMN thinking_content TEXT",
+    ]),
     # Add future migrations here with incrementing version numbers
 ]
 
@@ -301,6 +308,15 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
                 "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (3, 'add_intent_incremental_columns')"
             )
             applied.add(3)
+
+        # Check if v4 column already exists
+        cursor = await db.execute("PRAGMA table_info(messages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "thinking_content" in columns:
+            await db.execute(
+                "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (4, 'add_thinking_content')"
+            )
+            applied.add(4)
 
     # Run pending migrations in order
     for version, name, statements in MIGRATIONS:
