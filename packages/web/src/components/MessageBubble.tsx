@@ -11,11 +11,31 @@ import { formatTime } from '../utils/time';
 
 interface MessageBubbleProps {
   event: Event;
+  searchQuery?: string;
 }
 
 const MAX_COLLAPSED_LENGTH = 500; // Characters before truncating
 
-export function MessageBubble({ event }: MessageBubbleProps) {
+// Highlight exact substring matches (case-insensitive)
+function highlightText(text: string, query: string | undefined): React.ReactNode {
+  if (!query?.trim() || !text) return text;
+  if (query.length < 2) return text; // Require at least 2 chars
+
+  // Escape regex special characters and do case-insensitive match
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+
+  if (parts.length === 1) return text;
+
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} className="bg-yellow-400/50 dark:bg-yellow-500/40 text-inherit rounded-sm px-0.5">{part}</mark>
+      : part
+  );
+}
+
+export function MessageBubble({ event, searchQuery }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
 
   const renderUserPrompt = () => {
@@ -74,7 +94,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           )}
           <div className="relative">
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-              {displayPrompt || 'User message'}
+              {highlightText(displayPrompt || 'User message', searchQuery)}
             </p>
 
             {/* Gradient fade + Show more button */}
@@ -161,7 +181,7 @@ export function MessageBubble({ event }: MessageBubbleProps) {
           <div className="relative">
             <div className="overflow-x-auto max-w-full">
               <pre className="text-[color:var(--assistant-bubble-foreground)] text-sm leading-relaxed whitespace-pre-wrap font-sans [&_*]:font-sans">
-                {displayContent || 'Assistant response'}
+                {highlightText(displayContent || 'Assistant response', searchQuery)}
               </pre>
             </div>
 
