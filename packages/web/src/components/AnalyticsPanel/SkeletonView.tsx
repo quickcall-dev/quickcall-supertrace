@@ -64,6 +64,15 @@ export function SkeletonView({
         </div>
       </div>
 
+      {/* Subheader - session info skeleton */}
+      <div className="px-4 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-3">
+        <SkeletonBox className="flex-1 h-4" />
+        <div className="flex items-center gap-3 shrink-0">
+          <SkeletonBox className="h-4 w-16" />
+          <SkeletonBox className="h-4 w-12" />
+        </div>
+      </div>
+
       {/* Scrollable content with skeleton */}
       <div className="flex-1 overflow-y-auto">
         {/* Intents Skeleton */}
