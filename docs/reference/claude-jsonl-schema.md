@@ -91,7 +91,7 @@ Content can also be a list of blocks:
 
 ### Tool Result
 
-Tool results are user messages with `tool_result` content:
+Tool results are user messages with `tool_result` content. They link to the originating `tool_use` via `tool_use_id`.
 
 ```json
 {
@@ -116,6 +116,43 @@ Tool results are user messages with `tool_result` content:
 }
 ```
 
+### Tool Result Data Sources
+
+Tool results contain **two data sources**:
+
+1. **`message.content[].content`** - Generic text message (summary)
+2. **`toolUseResult`** - Rich structured data with actual details
+
+**Always prefer `toolUseResult`** when available, as it contains the full structured data.
+
+### `toolUseResult` Structures by Tool
+
+| Tool | Structure | Example |
+|------|-----------|---------|
+| `Bash` | `{stdout, stderr, interrupted, isImage}` | `{"stdout": "total 8\ndrwxr-xr-x 3 user...", "stderr": "", "interrupted": false}` |
+| `TodoWrite` | `{oldTodos, newTodos}` | `{"oldTodos": [], "newTodos": [{"content": "Fix bug", "status": "pending"}]}` |
+| `Edit` | `{filePath, oldString, newString, structuredPatch}` | `{"filePath": "/src/app.ts", "oldString": "foo", "newString": "bar"}` |
+| `Read` | `{content, filePath}` or string | File contents |
+| `Write` | `{filePath}` or string | Write confirmation |
+| `Glob` | `{filenames, durationMs, numFiles, truncated}` | `{"filenames": ["/src/a.ts"], "numFiles": 1}` |
+| `Grep` | `{filenames, durationMs, numFiles, truncated}` | `{"filenames": ["/src/b.ts"], "numFiles": 1}` |
+
+### Linking Tool Use to Tool Result
+
+Tool results are in separate user messages from tool uses. Link them via:
+
+- **Assistant message**: `tool_use` block has `id` field
+- **User message**: `tool_result` block has `tool_use_id` field matching the `id`
+
+```
+Assistant (tool_use):     { "id": "toolu_01ABC...", "name": "Bash", "input": {...} }
+                              │
+                              └── matches ──┐
+                                            │
+User (tool_result):       { "tool_use_id": "toolu_01ABC...", "content": "..." }
+                          + toolUseResult: { "stdout": "...", "stderr": "" }
+```
+
 ### Additional User Fields
 
 | Field | Type | Description |
@@ -123,7 +160,7 @@ Tool results are user messages with `tool_result` content:
 | `imagePasteIds` | number[] | IDs of pasted images |
 | `thinkingMetadata` | object | `{level, disabled, triggers}` |
 | `todos` | array | Current todo items |
-| `toolUseResult` | string | Tool result summary |
+| `toolUseResult` | object \| string | **Rich structured tool result data** (prefer over message.content) |
 | `sourceToolAssistantUUID` | string | UUID of assistant that triggered tool |
 
 ---
@@ -286,6 +323,8 @@ Claude Code may compact sessions, rewriting the JSONL with new UUIDs and trimmed
 3. **Count Tools**: Look for `type: "tool_use"` in assistant content
 4. **Handle List Content**: User `message.content` can be string OR array
 5. **Detect Compaction**: Compare first message UUID across imports
+6. **Link Tool Results**: Match `tool_use.id` to `tool_result.tool_use_id`
+7. **Get Rich Tool Data**: Prefer `toolUseResult` over `message.content[].content` for structured data (stdout, todos, file diffs, etc.)
 
 ---
 
@@ -310,6 +349,17 @@ Real examples from session files with UUIDs truncated for readability.
 ```json
 {"type":"user","uuid":"71b60e49...","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01WWRCHMDLo4nM...","content":"<tool_use_error>File does not exist.</tool_use_error>","is_error":true}]},"toolUseResult":"Error: File does not exist."}
 ```
+
+### Tool Result with Structured Data (Bash)
+
+```json
+{"type":"user","uuid":"06a39898...","message":{"role":"user","content":[{"tool_use_id":"toolu_012jy1k5...","type":"tool_result","content":"total 8\ndrwxr-xr-x 3 user staff 96 Jan 12 21:32 ."}]},"toolUseResult":{"stdout":"total 8\ndrwxr-xr-x 3 user staff 96 Jan 12 21:32 .","stderr":"","interrupted":false,"isImage":false}}
+```
+
+### Tool Result with Structured Data (TodoWrite)
+
+```json
+{"type":"user","uuid":"06a39898...","message":{"role":"user","content":[{"tool_use_id":"toolu_012jy1k5...","type":"tool_result","content":"Todos have been modified successfully."}]},"toolUseResult":{"oldTodos":[],"newTodos":[{"content":"Fix authentication bug","status":"in_progress","activeForm":"Fixing authentication bug"},{"content":"Run tests","status":"pending","activeForm":"Running tests"}]}}
 
 ### Assistant with Tool Use
 

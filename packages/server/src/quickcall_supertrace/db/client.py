@@ -302,6 +302,31 @@ class Database:
         )
         rows = await cursor.fetchall()
 
+        # First pass: Build lookup map of tool results keyed by tool_use_id
+        # Tool results are in user messages marked with is_tool_result=1
+        # Claude Code JSONL has two sources of result data:
+        #   1. message.content[].content - Generic text message
+        #   2. toolUseResult - Rich structured data (stdout, todos, filenames, etc.)
+        # We prefer toolUseResult when available as it has the actual data
+        tool_results_map: dict[str, Any] = {}
+        for row in rows:
+            if row["msg_type"] == "user" and row["is_tool_result"]:
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                msg_content = raw.get("message", {}).get("content", [])
+                if isinstance(msg_content, list):
+                    for block in msg_content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            tool_use_id = block.get("tool_use_id")
+                            if tool_use_id:
+                                # Prefer toolUseResult (rich data) over message content
+                                tool_use_result = raw.get("toolUseResult")
+                                if tool_use_result:
+                                    tool_results_map[tool_use_id] = tool_use_result
+                                else:
+                                    # Fallback to message content
+                                    content = block.get("content", "")
+                                    tool_results_map[tool_use_id] = content
+
         events = []
 
         for row in rows:
@@ -397,6 +422,9 @@ class Database:
                 # Add tool_use events for each tool used
                 for block in content_blocks:
                     if isinstance(block, dict) and block.get("type") == "tool_use":
+                        # Look up the tool result using the tool_use block's id
+                        tool_use_id = block.get("id")
+                        tool_result = tool_results_map.get(tool_use_id, {}) if tool_use_id else {}
                         events.append({
                             "id": row["id"],
                             "session_id": row["session_id"],
@@ -405,7 +433,7 @@ class Database:
                             "data": {
                                 "tool_name": block.get("name", "unknown"),
                                 "tool_input": block.get("input", {}),
-                                "tool_result": {},
+                                "tool_result": tool_result,
                             },
                         })
 
@@ -466,6 +494,30 @@ class Database:
         Shared logic between get_messages_as_events and get_messages_as_events_filtered.
         Uses stored prompt_index for absolute prompt numbering (preserves indices when filtered).
         """
+        # First pass: Build lookup map of tool results keyed by tool_use_id
+        # Claude Code JSONL has two sources of result data:
+        #   1. message.content[].content - Generic text message
+        #   2. toolUseResult - Rich structured data (stdout, todos, filenames, etc.)
+        # We prefer toolUseResult when available as it has the actual data
+        tool_results_map: dict[str, Any] = {}
+        for row in rows:
+            if row["msg_type"] == "user" and row["is_tool_result"]:
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                msg_content = raw.get("message", {}).get("content", [])
+                if isinstance(msg_content, list):
+                    for block in msg_content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            tool_use_id = block.get("tool_use_id")
+                            if tool_use_id:
+                                # Prefer toolUseResult (rich data) over message content
+                                tool_use_result = raw.get("toolUseResult")
+                                if tool_use_result:
+                                    tool_results_map[tool_use_id] = tool_use_result
+                                else:
+                                    # Fallback to message content
+                                    content = block.get("content", "")
+                                    tool_results_map[tool_use_id] = content
+
         events = []
 
         for row in rows:
@@ -536,6 +588,9 @@ class Database:
 
                 for block in content_blocks:
                     if isinstance(block, dict) and block.get("type") == "tool_use":
+                        # Look up the tool result using the tool_use block's id
+                        tool_use_id = block.get("id")
+                        tool_result = tool_results_map.get(tool_use_id, {}) if tool_use_id else {}
                         events.append({
                             "id": row["id"],
                             "session_id": row["session_id"],
@@ -544,7 +599,7 @@ class Database:
                             "data": {
                                 "tool_name": block.get("name", "unknown"),
                                 "tool_input": block.get("input", {}),
-                                "tool_result": {},
+                                "tool_result": tool_result,
                             },
                         })
 
