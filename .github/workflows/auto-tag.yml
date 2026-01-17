@@ -67,6 +67,8 @@ jobs:
       - name: Trigger PyPI publish
         if: steps.version.outputs.changed == 'true'
         run: |
-          gh workflow run publish-pypi.yml --ref v${{ steps.version.outputs.current }}
+          # Wait for tag to be available on remote
+          sleep 5
+          gh workflow run publish-pypi.yml --ref main -f tag=v${{ steps.version.outputs.current }}
         env:
           GH_TOKEN: ${{ github.token }}
