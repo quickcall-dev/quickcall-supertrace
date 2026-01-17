@@ -7,10 +7,11 @@
  * Related: App.tsx (parent), api/client.ts (types)
  */
 
-import type { MetricsResponse, Session } from '../../api/client';
+import type { MetricsResponse, Session, IntentResponse } from '../../api/client';
 import { ExpandedView } from './ExpandedView';
 import { CollapsedView } from './CollapsedView';
 import { SkeletonView } from './SkeletonView';
+import type { SuperTraceSettings } from '../../hooks/useSettings';
 
 interface AnalyticsPanelProps {
   metrics: MetricsResponse | null;
@@ -23,6 +24,8 @@ interface AnalyticsPanelProps {
   isJumpingToEvent?: boolean;
   session?: Session | null;
   width?: number;
+  settings?: SuperTraceSettings;
+  onIntentChanged?: (response: IntentResponse) => void;
 }
 
 export function AnalyticsPanel({
@@ -36,6 +39,8 @@ export function AnalyticsPanel({
   isJumpingToEvent = false,
   session,
   width = 400,
+  settings,
+  onIntentChanged,
 }: AnalyticsPanelProps) {
   const panelStyle = expanded ? { width } : { width: 64 };
 
@@ -89,6 +94,8 @@ export function AnalyticsPanel({
         isJumpingToEvent={isJumpingToEvent}
         session={session}
         width={width}
+        settings={settings}
+        onIntentChanged={onIntentChanged}
       />
     );
   }

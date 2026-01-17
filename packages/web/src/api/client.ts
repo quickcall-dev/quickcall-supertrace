@@ -107,7 +107,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function getSessions(
-  limit = 50,
+  limit = 200,
   offset = 0
 ): Promise<{ sessions: Session[]; count: number }> {
   return fetchJson(`${BASE_URL}/sessions?limit=${limit}&offset=${offset}`);
@@ -194,4 +194,33 @@ export async function triggerIngest(limit = 50): Promise<IngestResponse> {
 
 export async function getIngestStatus(): Promise<IngestStatusResponse> {
   return fetchJson(`${BASE_URL}/ingest/status`);
+}
+
+// Intent API types
+export interface IntentResponse {
+  session_id: string;
+  intents: string[];
+  prompt_count: number;
+  last_analyzed_prompt_index: number;
+  cached: boolean;
+  intent_changed: boolean;
+  change_reason?: string;
+  previous_intents?: string[];
+}
+
+export async function getSessionIntents(
+  sessionId: string,
+  refresh?: boolean,
+  refreshThreshold?: number
+): Promise<IntentResponse> {
+  const params = new URLSearchParams();
+  if (refresh !== undefined) {
+    params.set('refresh', String(refresh));
+  }
+  if (refreshThreshold !== undefined) {
+    params.set('refresh_threshold', String(refreshThreshold));
+  }
+  const queryString = params.toString();
+  const url = `${BASE_URL}/sessions/${sessionId}/intents${queryString ? `?${queryString}` : ''}`;
+  return fetchJson(url);
 }

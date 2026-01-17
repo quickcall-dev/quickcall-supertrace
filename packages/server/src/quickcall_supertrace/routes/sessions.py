@@ -132,12 +132,17 @@ def _slim_tool_input(tool_input: dict) -> dict:
 
 
 def _slim_text(text: Any, max_len: int = 200) -> Any:
-    """Truncate text if too long."""
-    if not isinstance(text, str):
+    """Truncate text if too long. Recursively handles nested dicts and lists."""
+    if isinstance(text, str):
+        if len(text) <= max_len:
+            return text
+        return text[:max_len] + f"... [{len(text) - max_len} more chars]"
+    elif isinstance(text, dict):
+        return {k: _slim_text(v, max_len) for k, v in text.items()}
+    elif isinstance(text, list):
+        return [_slim_text(item, max_len) for item in text]
+    else:
         return text
-    if len(text) <= max_len:
-        return text
-    return text[:max_len] + f"... [{len(text) - max_len} more chars]"
 
 
 @router.get("/{session_id}")

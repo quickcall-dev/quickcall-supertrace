@@ -183,6 +183,45 @@ class Database:
             for row in rows
         ]
 
+    async def get_user_messages_from_index(
+        self, session_id: str, from_index: int
+    ) -> list[dict[str, Any]]:
+        """
+        Get user messages starting from a specific prompt index.
+
+        Used for incremental intent analysis - fetches only new prompts
+        since the last analysis to save tokens.
+
+        Args:
+            session_id: Session to get messages for
+            from_index: Prompt index to start from (exclusive - gets prompts > this index)
+
+        Returns:
+            List of user messages with prompt_text, ordered by timestamp
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT id, uuid, session_id, timestamp, prompt_text, prompt_index
+            FROM messages
+            WHERE session_id = ? AND msg_type = 'user' AND is_tool_result = 0
+                  AND prompt_index > ?
+            ORDER BY timestamp ASC
+            """,
+            (session_id, from_index),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "uuid": row["uuid"],
+                "session_id": row["session_id"],
+                "timestamp": row["timestamp"],
+                "prompt_text": row["prompt_text"],
+                "prompt_index": row["prompt_index"],
+            }
+            for row in rows
+        ]
+
     # =====================
     # Intent operations
     # =====================
@@ -208,7 +247,9 @@ class Database:
         """
         cursor = await self.conn.execute(
             """
-            SELECT session_id, intents, prompt_count, created_at
+            SELECT session_id, intents, prompt_count, created_at,
+                   last_analyzed_prompt_index, intent_changed, change_reason,
+                   previous_intents, updated_at
             FROM session_intents
             WHERE session_id = ?
             """,
@@ -222,6 +263,11 @@ class Database:
             "intents": json.loads(row["intents"]),
             "prompt_count": row["prompt_count"],
             "created_at": row["created_at"],
+            "last_analyzed_prompt_index": row["last_analyzed_prompt_index"],
+            "intent_changed": bool(row["intent_changed"]),
+            "change_reason": row["change_reason"],
+            "previous_intents": json.loads(row["previous_intents"]) if row["previous_intents"] else None,
+            "updated_at": row["updated_at"],
         }
 
     async def save_session_intents(
@@ -229,6 +275,10 @@ class Database:
         session_id: str,
         intents: list[str],
         prompt_count: int,
+        last_analyzed_prompt_index: int | None = None,
+        intent_changed: bool = False,
+        change_reason: str | None = None,
+        previous_intents: list[str] | None = None,
     ) -> None:
         """
         Save extracted intents for a session.
@@ -237,17 +287,36 @@ class Database:
             session_id: Session the intents belong to
             intents: List of extracted intent strings
             prompt_count: Number of prompts analyzed
+            last_analyzed_prompt_index: Index of last prompt included in analysis
+            intent_changed: Whether intent changed from previous analysis
+            change_reason: Explanation of why intent changed (from AI)
+            previous_intents: Previous intents before change (for comparison)
         """
         await self.conn.execute(
             """
-            INSERT INTO session_intents (session_id, intents, prompt_count)
-            VALUES (?, ?, ?)
+            INSERT INTO session_intents (
+                session_id, intents, prompt_count, last_analyzed_prompt_index,
+                intent_changed, change_reason, previous_intents, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(session_id) DO UPDATE SET
                 intents = excluded.intents,
                 prompt_count = excluded.prompt_count,
-                created_at = CURRENT_TIMESTAMP
+                last_analyzed_prompt_index = excluded.last_analyzed_prompt_index,
+                intent_changed = excluded.intent_changed,
+                change_reason = excluded.change_reason,
+                previous_intents = excluded.previous_intents,
+                updated_at = CURRENT_TIMESTAMP
             """,
-            (session_id, json.dumps(intents), prompt_count),
+            (
+                session_id,
+                json.dumps(intents),
+                prompt_count,
+                last_analyzed_prompt_index,
+                1 if intent_changed else 0,
+                change_reason,
+                json.dumps(previous_intents) if previous_intents else None,
+            ),
         )
         await self.conn.commit()
 
@@ -301,6 +370,31 @@ class Database:
             (session_id, limit),
         )
         rows = await cursor.fetchall()
+
+        # First pass: Build lookup map of tool results keyed by tool_use_id
+        # Tool results are in user messages marked with is_tool_result=1
+        # Claude Code JSONL has two sources of result data:
+        #   1. message.content[].content - Generic text message
+        #   2. toolUseResult - Rich structured data (stdout, todos, filenames, etc.)
+        # We prefer toolUseResult when available as it has the actual data
+        tool_results_map: dict[str, Any] = {}
+        for row in rows:
+            if row["msg_type"] == "user" and row["is_tool_result"]:
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                msg_content = raw.get("message", {}).get("content", [])
+                if isinstance(msg_content, list):
+                    for block in msg_content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            tool_use_id = block.get("tool_use_id")
+                            if tool_use_id:
+                                # Prefer toolUseResult (rich data) over message content
+                                tool_use_result = raw.get("toolUseResult")
+                                if tool_use_result:
+                                    tool_results_map[tool_use_id] = tool_use_result
+                                else:
+                                    # Fallback to message content
+                                    content = block.get("content", "")
+                                    tool_results_map[tool_use_id] = content
 
         events = []
 
@@ -397,6 +491,9 @@ class Database:
                 # Add tool_use events for each tool used
                 for block in content_blocks:
                     if isinstance(block, dict) and block.get("type") == "tool_use":
+                        # Look up the tool result using the tool_use block's id
+                        tool_use_id = block.get("id")
+                        tool_result = tool_results_map.get(tool_use_id, {}) if tool_use_id else {}
                         events.append({
                             "id": row["id"],
                             "session_id": row["session_id"],
@@ -405,7 +502,7 @@ class Database:
                             "data": {
                                 "tool_name": block.get("name", "unknown"),
                                 "tool_input": block.get("input", {}),
-                                "tool_result": {},
+                                "tool_result": tool_result,
                             },
                         })
 
@@ -466,6 +563,30 @@ class Database:
         Shared logic between get_messages_as_events and get_messages_as_events_filtered.
         Uses stored prompt_index for absolute prompt numbering (preserves indices when filtered).
         """
+        # First pass: Build lookup map of tool results keyed by tool_use_id
+        # Claude Code JSONL has two sources of result data:
+        #   1. message.content[].content - Generic text message
+        #   2. toolUseResult - Rich structured data (stdout, todos, filenames, etc.)
+        # We prefer toolUseResult when available as it has the actual data
+        tool_results_map: dict[str, Any] = {}
+        for row in rows:
+            if row["msg_type"] == "user" and row["is_tool_result"]:
+                raw = json.loads(row["raw_data"]) if row["raw_data"] else {}
+                msg_content = raw.get("message", {}).get("content", [])
+                if isinstance(msg_content, list):
+                    for block in msg_content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            tool_use_id = block.get("tool_use_id")
+                            if tool_use_id:
+                                # Prefer toolUseResult (rich data) over message content
+                                tool_use_result = raw.get("toolUseResult")
+                                if tool_use_result:
+                                    tool_results_map[tool_use_id] = tool_use_result
+                                else:
+                                    # Fallback to message content
+                                    content = block.get("content", "")
+                                    tool_results_map[tool_use_id] = content
+
         events = []
 
         for row in rows:
@@ -536,6 +657,9 @@ class Database:
 
                 for block in content_blocks:
                     if isinstance(block, dict) and block.get("type") == "tool_use":
+                        # Look up the tool result using the tool_use block's id
+                        tool_use_id = block.get("id")
+                        tool_result = tool_results_map.get(tool_use_id, {}) if tool_use_id else {}
                         events.append({
                             "id": row["id"],
                             "session_id": row["session_id"],
@@ -544,7 +668,7 @@ class Database:
                             "data": {
                                 "tool_name": block.get("name", "unknown"),
                                 "tool_input": block.get("input", {}),
-                                "tool_result": {},
+                                "tool_result": tool_result,
                             },
                         })
 

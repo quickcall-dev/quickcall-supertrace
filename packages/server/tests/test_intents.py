@@ -390,11 +390,17 @@ class TestIntentsAPI:
 
             db = await setup_test_db(temp_db, test_session_id, messages)
 
-            # Mock Claude CLI response
+            # Mock Claude CLI response (with --json-schema)
             mock_intents = ["Implement user authentication", "Add login/logout functionality"]
+            # Claude CLI returns 'structured_output' field with --json-schema
+            mock_cli_response = {
+                "session_id": "mock-session",
+                "structured_output": {"intents": mock_intents},
+                "usage": {"input_tokens": 100, "output_tokens": 50},
+            }
             mock_result = MagicMock()
             mock_result.returncode = 0
-            mock_result.stdout = json.dumps(mock_intents)
+            mock_result.stdout = json.dumps(mock_cli_response)
             mock_result.stderr = ""
 
             try:
@@ -408,6 +414,7 @@ class TestIntentsAPI:
                         call_args = mock_subprocess.call_args[0][0]
                         assert "claude" in call_args[0]
                         assert "-p" in call_args
+                        assert "--output-format" in call_args
 
                         # Verify result
                         assert result["session_id"] == test_session_id
@@ -476,11 +483,16 @@ class TestIntentsAPI:
             # Pre-populate cache with old intents
             await db.save_session_intents(test_session_id, ["Old intent"], prompt_count=1)
 
-            # Mock new intents from Claude
+            # Mock new intents from Claude (Claude CLI JSON format with --json-schema)
             new_intents = ["New fresh intent"]
+            mock_cli_response = {
+                "session_id": "mock-session",
+                "structured_output": {"intents": new_intents},
+                "usage": {"input_tokens": 50, "output_tokens": 25},
+            }
             mock_result = MagicMock()
             mock_result.returncode = 0
-            mock_result.stdout = json.dumps(new_intents)
+            mock_result.stdout = json.dumps(mock_cli_response)
             mock_result.stderr = ""
 
             try:
@@ -499,8 +511,8 @@ class TestIntentsAPI:
 
         run_async(_test())
 
-    def test_handles_markdown_code_blocks(self, temp_db, test_session_id):
-        """Should handle Claude responses wrapped in markdown code blocks."""
+    def test_handles_result_field_fallback(self, temp_db, test_session_id):
+        """Should handle Claude responses with 'result' field (no structured_output)."""
         async def _test():
             from quickcall_supertrace.db.client import Database
             from quickcall_supertrace.routes.intents import get_session_intents
@@ -516,10 +528,16 @@ class TestIntentsAPI:
 
             db = await setup_test_db(temp_db, test_session_id, messages)
 
-            # Mock Claude response with markdown code block
+            # Mock Claude CLI response with 'result' field (fallback format)
+            # This tests the case where structured_output isn't available
+            mock_cli_response = {
+                "session_id": "mock-session",
+                "result": '{"intents": ["Intent from result field"]}',
+                "usage": {"input_tokens": 50, "output_tokens": 25},
+            }
             mock_result = MagicMock()
             mock_result.returncode = 0
-            mock_result.stdout = '```json\n["Intent from code block"]\n```'
+            mock_result.stdout = json.dumps(mock_cli_response)
             mock_result.stderr = ""
 
             try:
@@ -527,8 +545,8 @@ class TestIntentsAPI:
                     with patch("subprocess.run", return_value=mock_result):
                         result = await get_session_intents(test_session_id)
 
-                        # Should extract JSON from code block
-                        assert result["intents"] == ["Intent from code block"]
+                        # Should extract JSON from result field
+                        assert result["intents"] == ["Intent from result field"]
             finally:
                 await db.close()
 

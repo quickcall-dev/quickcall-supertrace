@@ -78,6 +78,7 @@ export function SessionView({
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom button state
@@ -126,24 +127,7 @@ export function SessionView({
     }
   }, [onClearNewMessages]);
 
-  // Keyboard shortcut for search (Cmd+F)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault();
-        setShowSearch(true);
-        setTimeout(() => searchInputRef.current?.focus(), 0);
-      }
-      if (e.key === 'Escape' && showSearch) {
-        setShowSearch(false);
-        setSearchQuery('');
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showSearch]);
-
-  // Search matching - check if event contains search query
+  // Search matching - exact substring match (case-insensitive)
   const matchesSearch = useCallback((event: Event, query: string): boolean => {
     if (!query.trim()) return true;
     const lowerQuery = query.toLowerCase();
@@ -176,19 +160,77 @@ export function SessionView({
     });
   }, [groupedEvents, searchQuery, matchesSearch]);
 
-  // Count matching events
-  const matchCount = useMemo(() => {
-    if (!searchQuery.trim()) return 0;
-    let count = 0;
+  // Get ordered list of matching event IDs (for navigation)
+  const matchingEventList = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const matches: number[] = [];
     for (const item of groupedEvents) {
       if (item.type === 'single') {
-        if (matchesSearch(item.event, searchQuery)) count++;
+        if (matchesSearch(item.event, searchQuery)) {
+          matches.push(item.event.id);
+        }
       } else {
-        count += item.events.filter(e => matchesSearch(e, searchQuery)).length;
+        for (const e of item.events) {
+          if (matchesSearch(e, searchQuery)) {
+            matches.push(e.id);
+          }
+        }
       }
     }
-    return count;
+    return matches;
   }, [groupedEvents, searchQuery, matchesSearch]);
+
+  const matchCount = matchingEventList.length;
+
+  // Reset match index when search changes
+  useEffect(() => {
+    setCurrentMatchIndex(0);
+  }, [searchQuery]);
+
+  // Navigate to next/prev match
+  const goToMatch = useCallback((index: number) => {
+    if (matchingEventList.length === 0) return;
+    const clampedIndex = ((index % matchingEventList.length) + matchingEventList.length) % matchingEventList.length;
+    setCurrentMatchIndex(clampedIndex);
+    const eventId = matchingEventList[clampedIndex];
+    const element = eventRefs.current.get(eventId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('ring-2', 'ring-yellow-400', 'ring-offset-2');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-yellow-400', 'ring-offset-2');
+      }, 1500);
+    }
+  }, [matchingEventList]);
+
+  const goToNextMatch = useCallback(() => goToMatch(currentMatchIndex + 1), [goToMatch, currentMatchIndex]);
+  const goToPrevMatch = useCallback(() => goToMatch(currentMatchIndex - 1), [goToMatch, currentMatchIndex]);
+
+  // Keyboard shortcut for search (Cmd+F) and navigation (Enter/Shift+Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
+      }
+      if (e.key === 'Escape' && showSearch) {
+        setShowSearch(false);
+        setSearchQuery('');
+      }
+      // Navigate matches with Enter/Shift+Enter when search is active
+      if (e.key === 'Enter' && showSearch && searchQuery && matchCount > 0) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          goToPrevMatch();
+        } else {
+          goToNextMatch();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch, searchQuery, matchCount, goToNextMatch, goToPrevMatch]);
 
   // Infinite scroll - load more when scrolling to top
   // Store scroll height before loading to restore position after
@@ -402,7 +444,7 @@ export function SessionView({
           )}
           {/* Search */}
           {showSearch ? (
-            <div className="flex items-center gap-2 bg-muted rounded-lg px-2 py-1">
+            <div className="flex items-center gap-1.5 bg-muted rounded-lg px-2 py-1">
               {isLoadingAllForSearch ? (
                 <i className="ri-loader-4-line animate-spin text-muted-foreground text-sm" />
               ) : (
@@ -421,12 +463,33 @@ export function SessionView({
                   }
                 }}
                 placeholder="Search ⌘F"
-                className="bg-transparent border-none outline-none text-xs w-32 text-foreground placeholder:text-muted-foreground"
+                className="bg-transparent border-none outline-none text-xs w-24 text-foreground placeholder:text-muted-foreground"
               />
-              {searchQuery && (
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                  {isLoadingAllForSearch ? 'Loading...' : `${matchCount} match${matchCount !== 1 ? 'es' : ''}`}
-                </span>
+              {searchQuery && matchCount > 0 && (
+                <>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    {isLoadingAllForSearch ? '...' : `${currentMatchIndex + 1}/${matchCount}`}
+                  </span>
+                  <div className="flex items-center">
+                    <button
+                      onClick={goToPrevMatch}
+                      className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded"
+                      title="Previous (Shift+Enter)"
+                    >
+                      <i className="ri-arrow-up-s-line text-sm" />
+                    </button>
+                    <button
+                      onClick={goToNextMatch}
+                      className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded"
+                      title="Next (Enter)"
+                    >
+                      <i className="ri-arrow-down-s-line text-sm" />
+                    </button>
+                  </div>
+                </>
+              )}
+              {searchQuery && matchCount === 0 && !isLoadingAllForSearch && (
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">No matches</span>
               )}
               <button
                 onClick={() => { setShowSearch(false); setSearchQuery(''); }}
@@ -473,6 +536,26 @@ export function SessionView({
               <i className="ri-loader-4-line animate-spin text-xl"></i>
               <span className="text-sm">Refreshing...</span>
             </div>
+          </div>
+        )}
+        {/* Scrollbar match indicators */}
+        {searchQuery && matchingEventList.length > 0 && (
+          <div className="absolute right-1 top-0 bottom-0 w-1.5 pointer-events-none z-20">
+            {matchingEventList.map((eventId, idx) => {
+              // Calculate position as percentage of total events
+              const eventIndex = events.findIndex(e => e.id === eventId);
+              if (eventIndex === -1) return null;
+              const position = (eventIndex / Math.max(events.length - 1, 1)) * 100;
+              const isCurrentMatch = idx === currentMatchIndex;
+              return (
+                <div
+                  key={eventId}
+                  className={`absolute w-full h-1 rounded-sm ${isCurrentMatch ? 'bg-yellow-500' : 'bg-yellow-400/60'}`}
+                  style={{ top: `${position}%` }}
+                  title={`Match ${idx + 1}/${matchingEventList.length}`}
+                />
+              );
+            })}
           </div>
         )}
         <div ref={scrollRef} className="h-full overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
@@ -533,7 +616,7 @@ export function SessionView({
                     }}
                     className="transition-all duration-300"
                   >
-                    <MessageBubble event={item.event} />
+                    <MessageBubble event={item.event} searchQuery={searchQuery} />
                   </div>
                 );
               })

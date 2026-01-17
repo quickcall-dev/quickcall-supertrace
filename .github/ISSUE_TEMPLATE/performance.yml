@@ -1,0 +1,34 @@
+name: Performance Improvement
+description: Report a performance issue or suggest optimization
+title: "perf: "
+labels: ["performance"]
+assignees:
+  - sagarsrc
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      placeholder: What is slow or inefficient?
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Behavior
+      placeholder: Describe the current performance characteristics
+    validations:
+      required: true
+
+  - type: textarea
+    id: optimization
+    attributes:
+      label: Proposed Optimization
+      placeholder: How can this be improved?
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected Impact
+      placeholder: What improvement do you expect?

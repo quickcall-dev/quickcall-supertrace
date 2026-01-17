@@ -25,7 +25,7 @@ const TOOL_STYLES: Record<string, { icon: string; color: string }> = {
   Write: { icon: 'ri-file-edit-line', color: 'text-[color:var(--success)]' },
   Edit: { icon: 'ri-edit-line', color: 'text-[color:var(--warning)]' },
   Bash: { icon: 'ri-terminal-box-line', color: 'text-[color:var(--cost)]' },
-  Glob: { icon: 'ri-folder-search-line', color: 'text-[color:var(--info)]' },
+  Glob: { icon: 'ri-file-search-line', color: 'text-[color:var(--info)]' },
   Grep: { icon: 'ri-search-eye-line', color: 'text-[color:var(--info)]' },
   Task: { icon: 'ri-task-line', color: 'text-[color:var(--warning)]' },
   WebFetch: { icon: 'ri-global-line', color: 'text-[color:var(--info)]' },

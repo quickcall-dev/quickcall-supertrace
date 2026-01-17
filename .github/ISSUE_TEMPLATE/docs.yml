@@ -1,0 +1,30 @@
+name: Documentation
+description: Suggest documentation improvements
+title: "docs: "
+labels: ["documentation"]
+assignees:
+  - sagarsrc
+body:
+  - type: textarea
+    id: update
+    attributes:
+      label: Documentation Update
+      placeholder: What documentation needs to be added or updated?
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to be documented?
+      placeholder: Describe what information is missing or unclear
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to Update
+      placeholder: |
+        - README.md
+        - docs/...
