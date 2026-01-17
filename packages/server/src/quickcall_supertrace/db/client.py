@@ -467,9 +467,9 @@ class Database:
                         elif block.get("type") == "tool_use":
                             has_tool_use = True
 
-                # Only emit assistant_stop if there's actual text content to display
+                # Emit assistant_stop if there's text content OR thinking content
                 # Skip empty assistant bubbles that only contain tool calls
-                if text_content.strip():
+                if text_content.strip() or row["thinking_content"]:
                     events.append({
                         "id": row["id"],
                         "session_id": row["session_id"],
@@ -637,7 +637,8 @@ class Database:
                         if block.get("type") == "text":
                             text_content = block.get("text", "")
 
-                if text_content.strip():
+                # Emit assistant_stop if there's text content OR thinking content
+                if text_content.strip() or row["thinking_content"]:
                     events.append({
                         "id": row["id"],
                         "session_id": row["session_id"],
