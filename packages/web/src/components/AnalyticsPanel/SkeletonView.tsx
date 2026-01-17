@@ -70,7 +70,7 @@ export function SkeletonView({
         <div className="px-4 py-2 border-b border-border bg-muted/20">
           <div className="flex items-center gap-1.5 mb-1.5">
             <SkeletonBox className="h-3 w-14" />
-            <SkeletonBox className="h-3 w-3 rounded-full" />
+            <i className="ri-sparkling-2-fill text-amber-400/30" />
             <SkeletonBox className="h-2 w-32" />
           </div>
           <SkeletonBox className="h-3 w-48" />

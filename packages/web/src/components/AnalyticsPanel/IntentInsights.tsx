@@ -165,43 +165,34 @@ export function IntentInsights({
   return (
     <div className="px-4 py-2 border-b border-border bg-muted/20">
       {/* Header row */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
-          Intents
-        </span>
-        <span className="text-amber-500"><span className="text-[8px]">✦</span><span className="text-xs">✦</span></span>
-        <span className="text-[9px] text-muted-foreground/50">
-          auto-refreshes every {refreshThreshold} prompts
-        </span>
-        {hasIntents && (
-          <button
-            onClick={() => fetchIntents(true)}
-            disabled={isLoading}
-            className="p-1 hover:bg-accent rounded transition-colors disabled:opacity-50"
-            title="Refresh now"
-          >
-            <i className={`ri-refresh-line text-muted-foreground text-xs ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-        )}
-        {isLoading && !hasIntents && (
-          <i className="ri-loader-4-line animate-spin text-muted-foreground text-xs" />
-        )}
-        {/* Separator and metadata - only show if we have intents */}
-        {hasIntents && (
-          <>
-            <span className="text-muted-foreground/30">|</span>
-            <span className="text-[10px] text-muted-foreground/60">
-              {analyzedCount} prompts analyzed
-            </span>
-          </>
-        )}
-        {hasIntents && isChanged && (
-          <span
-            className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400 cursor-pointer relative"
-            onMouseEnter={() => setShowChangeTooltip(true)}
-            onMouseLeave={() => setShowChangeTooltip(false)}
-          >
-            · <span className="underline decoration-dotted underline-offset-2">shifted</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
+            Intents
+          </span>
+          <i className="ri-sparkling-2-fill text-amber-400" />
+          <span className="text-[10px] text-muted-foreground/50">
+            auto-refreshes every {refreshThreshold} prompts
+          </span>
+          {isLoading && !hasIntents && (
+            <i className="ri-loader-4-line animate-spin text-muted-foreground text-xs" />
+          )}
+          {/* Separator and metadata - only show if we have intents */}
+          {hasIntents && (
+            <>
+              <span className="text-muted-foreground/30">|</span>
+              <span className="text-[10px] text-muted-foreground/60">
+                {analyzedCount} prompts analyzed
+              </span>
+            </>
+          )}
+          {hasIntents && isChanged && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400 cursor-pointer relative"
+              onMouseEnter={() => setShowChangeTooltip(true)}
+              onMouseLeave={() => setShowChangeTooltip(false)}
+            >
+              · <span className="underline decoration-dotted underline-offset-2">shifted</span>
             <i className="ri-information-line text-[9px] opacity-60" />
             {showChangeTooltip && intents?.change_reason && (
               <div className="absolute left-0 top-full mt-1.5 px-3 py-2 bg-popover text-popover-foreground border border-border rounded-lg shadow-lg text-[11px] min-w-[200px] max-w-[280px] z-[100] whitespace-normal">
@@ -222,6 +213,18 @@ export function IntentInsights({
               </div>
             )}
           </span>
+        )}
+        </div>
+        {/* Refresh button - right side */}
+        {hasIntents && (
+          <button
+            onClick={() => fetchIntents(true)}
+            disabled={isLoading}
+            className="p-1 hover:bg-accent rounded transition-colors disabled:opacity-50 shrink-0"
+            title="Refresh now"
+          >
+            <i className={`ri-refresh-line text-muted-foreground text-sm ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
         )}
       </div>
 
