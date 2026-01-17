@@ -107,7 +107,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function getSessions(
-  limit = 50,
+  limit = 200,
   offset = 0
 ): Promise<{ sessions: Session[]; count: number }> {
   return fetchJson(`${BASE_URL}/sessions?limit=${limit}&offset=${offset}`);

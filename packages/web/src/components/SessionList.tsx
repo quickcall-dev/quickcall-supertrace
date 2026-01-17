@@ -141,20 +141,10 @@ export function SessionList({
       'Older': [],
     };
 
-    // Filter out internal sessions (claude -p calls for intent extraction)
-    // These have very specific prompts that start exactly with these strings
-    const isInternalSession = (firstPrompt: string | null) => {
-      if (!firstPrompt) return false;
-      return firstPrompt.startsWith('Extract 2-3 high-level user intents from these coding session prompts.')
-        || firstPrompt.startsWith('Previous intents: [');
-    };
-
-    sessions
-      .filter(session => !isInternalSession(session.first_prompt))
-      .forEach(session => {
-        const group = getDateGroup(session.started_at);
-        groups[group].push(session);
-      });
+    sessions.forEach(session => {
+      const group = getDateGroup(session.started_at);
+      groups[group].push(session);
+    });
 
     const result: GroupedSessions[] = [];
     const order: DateGroup[] = ['Today', 'Yesterday', 'This Week', 'Older'];

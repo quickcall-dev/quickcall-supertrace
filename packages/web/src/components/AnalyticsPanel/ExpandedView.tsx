@@ -296,8 +296,8 @@ export function ExpandedView({
         </div>
       </div>
 
-      {/* AI Insights section - skip for internal sessions (claude -p calls) */}
-      {session?.id && settings && !session.first_prompt?.startsWith('Extract 2-3 high-level user intents from these coding session prompts.') && !session.first_prompt?.startsWith('Previous intents: [') && (
+      {/* AI Insights section - only show when session is fully loaded */}
+      {session?.id && settings && !loading && promptCount > 0 && (
         <IntentInsights
           sessionId={session.id}
           promptCount={promptCount}

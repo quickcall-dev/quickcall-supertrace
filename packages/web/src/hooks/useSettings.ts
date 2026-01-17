@@ -5,6 +5,7 @@
  * Related: useLocalStorage.ts, App.tsx, IntentInsights.tsx
  */
 
+import { useMemo } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 
 export interface SuperTraceSettings {
@@ -28,15 +29,15 @@ const STORAGE_KEY = 'supertrace-settings';
 export function useSettings(): [SuperTraceSettings, (settings: SuperTraceSettings | ((prev: SuperTraceSettings) => SuperTraceSettings)) => void] {
   const [settings, setSettings] = useLocalStorage<SuperTraceSettings>(STORAGE_KEY, DEFAULT_SETTINGS);
 
-  // Merge with defaults to handle new settings added in future versions
-  const mergedSettings: SuperTraceSettings = {
+  // Memoize merged settings to prevent cascading re-renders
+  const mergedSettings = useMemo<SuperTraceSettings>(() => ({
     ...DEFAULT_SETTINGS,
     ...settings,
     notifications: {
       ...DEFAULT_SETTINGS.notifications,
       ...settings?.notifications,
     },
-  };
+  }), [settings]);
 
   return [mergedSettings, setSettings];
 }
