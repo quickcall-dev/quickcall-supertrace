@@ -67,6 +67,16 @@ TOOL_COLORS = {
 }
 
 DEFAULT_TOOL_COLOR = "#94a3b8"  # Slate gray for unknown tools
+MCP_PLUGIN_COLOR = "#0d9488"   # Teal 600 - for mcp__plugin_* tools
+
+
+def get_tool_color(name: str) -> str:
+    """Get color for a tool, with special handling for MCP plugin tools."""
+    if name in TOOL_COLORS:
+        return TOOL_COLORS[name]
+    if name.startswith("mcp__plugin"):
+        return MCP_PLUGIN_COLOR
+    return DEFAULT_TOOL_COLOR
 
 
 @metric(
@@ -243,7 +253,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
                     {
                         "name": name,
                         "count": count,
-                        "color": TOOL_COLORS.get(name, DEFAULT_TOOL_COLOR),
+                        "color": get_tool_color(name),
                     }
                     for name, count in tool_counts.items()
                 ],
@@ -272,7 +282,7 @@ def calc_prompt_turns(events: list[dict]) -> dict:
             {
                 "name": name,
                 "count": count,
-                "color": TOOL_COLORS.get(name, DEFAULT_TOOL_COLOR),
+                "color": get_tool_color(name),
             }
             for name, count in global_tool_counts.items()
         ],
