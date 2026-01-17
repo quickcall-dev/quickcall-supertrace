@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions", tags=["intents"])
 
 # Prompt for full analysis (first time or forced refresh)
-FULL_ANALYSIS_PROMPT = """Extract 2-3 high-level user intents/goals from these coding session prompts. Be concise.
+FULL_ANALYSIS_PROMPT = """Extract 2-3 high-level user intents from these coding session prompts.
 
 Prompts:
 {prompts}"""
@@ -69,41 +69,27 @@ INCREMENTAL_PROMPT = """Previous intents: {existing_intents}
 New prompts since last analysis:
 {new_prompts}
 
-Determine if the user's intents have changed based on the new prompts."""
+Did the user's intents change based on these new prompts?"""
 
-# JSON schemas for structured output (used with --json-schema flag)
+# JSON schemas for --json-schema flag (forces reliable JSON output)
 FULL_ANALYSIS_SCHEMA = json.dumps({
     "type": "object",
     "properties": {
         "intents": {
             "type": "array",
             "items": {"type": "string"},
-            "minItems": 1,
-            "maxItems": 3,
-            "description": "2-3 high-level user intents/goals"
+            "description": "2-3 high-level user intents"
         }
     },
     "required": ["intents"]
 })
 
-INCREMENTAL_ANALYSIS_SCHEMA = json.dumps({
+INCREMENTAL_SCHEMA = json.dumps({
     "type": "object",
     "properties": {
-        "intents": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 1,
-            "maxItems": 3,
-            "description": "Updated intents (may be same as before)"
-        },
-        "changed": {
-            "type": "boolean",
-            "description": "Whether intents have changed"
-        },
-        "change_reason": {
-            "type": ["string", "null"],
-            "description": "Brief explanation if changed, null otherwise"
-        }
+        "intents": {"type": "array", "items": {"type": "string"}},
+        "changed": {"type": "boolean"},
+        "change_reason": {"type": ["string", "null"]}
     },
     "required": ["intents", "changed", "change_reason"]
 })
@@ -182,7 +168,7 @@ def _extract_json_from_response(output: str) -> Any:
         )
 
 
-def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 60) -> dict[str, Any]:
+def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 120) -> dict[str, Any]:
     """
     Run Claude CLI with the given prompt and optional JSON schema.
 
@@ -192,7 +178,7 @@ def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 
     Args:
         prompt: The prompt to send to Claude
         json_schema: Optional JSON schema string for structured output
-        timeout: Command timeout in seconds
+        timeout: Command timeout in seconds (default 120s)
 
     Returns:
         Parsed JSON response. When json_schema is used, returns the structured_output field.
@@ -202,9 +188,11 @@ def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 
     """
     try:
         logger.info("Running Claude CLI for intent extraction...")
-        logger.debug(f"Prompt (first 300 chars): {prompt[:300]}")
+        logger.info(f"Prompt length: {len(prompt)} chars")
+        logger.debug(f"Full prompt:\n{prompt}")
 
         # Build command with JSON output format
+        # Note: --json-schema can be slow, so we make it optional
         cmd = ["claude", "-p", prompt, "--output-format", "json"]
 
         # Add JSON schema if provided for structured output
@@ -255,11 +243,17 @@ def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 
         if "result" in response:
             # Parse the result field if it's a string containing JSON
             result_content = response["result"]
+            logger.info(f"Result field type: {type(result_content).__name__}, length: {len(str(result_content))}")
+            logger.debug(f"Result content (first 300 chars): {str(result_content)[:300]}")
+
             if isinstance(result_content, str):
                 try:
-                    return json.loads(result_content)
-                except json.JSONDecodeError:
+                    parsed = json.loads(result_content)
+                    logger.info(f"Successfully parsed result as JSON: {list(parsed.keys()) if isinstance(parsed, dict) else type(parsed)}")
+                    return parsed
+                except json.JSONDecodeError as e:
                     # Not JSON, might need extraction
+                    logger.warning(f"Result is not valid JSON ({e}), attempting extraction...")
                     return _extract_json_from_response(result_content)
             return result_content
 
@@ -374,9 +368,9 @@ async def get_session_intents(
                 "previous_intents": None,
             }
 
-        # Format new prompts for incremental analysis
+        # Format new prompts for incremental analysis (truncate each to save tokens)
         new_prompts_text = "\n---\n".join([
-            m["prompt_text"] for m in new_messages
+            m["prompt_text"][:300] for m in new_messages
             if m.get("prompt_text")
         ])
 
@@ -390,13 +384,13 @@ async def get_session_intents(
                 "intent_changed": False,
             }
 
-        # Run incremental analysis with JSON schema
+        # Run incremental analysis with --json-schema for reliable JSON
         prompt = INCREMENTAL_PROMPT.format(
             existing_intents=json.dumps(cached["intents"]),
             new_prompts=new_prompts_text,
         )
 
-        result = _run_claude_cli(prompt, json_schema=INCREMENTAL_ANALYSIS_SCHEMA)
+        result = _run_claude_cli(prompt, json_schema=INCREMENTAL_SCHEMA)
 
         intents = result.get("intents", cached["intents"])
         intent_changed = result.get("changed", False)
@@ -443,8 +437,9 @@ async def get_session_intents(
 
     else:
         # Full analysis - first time or forced refresh with no prior data
+        # Truncate each prompt to 300 chars to keep context reasonable
         prompts_text = "\n---\n".join([
-            m["prompt_text"] for m in all_messages
+            m["prompt_text"][:300] for m in all_messages
             if m.get("prompt_text")
         ])
 

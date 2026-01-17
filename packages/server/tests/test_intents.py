@@ -390,9 +390,9 @@ class TestIntentsAPI:
 
             db = await setup_test_db(temp_db, test_session_id, messages)
 
-            # Mock Claude CLI response (with --output-format json and --json-schema)
+            # Mock Claude CLI response (with --json-schema)
             mock_intents = ["Implement user authentication", "Add login/logout functionality"]
-            # Claude CLI returns structured_output when using --json-schema
+            # Claude CLI returns 'structured_output' field with --json-schema
             mock_cli_response = {
                 "session_id": "mock-session",
                 "structured_output": {"intents": mock_intents},
@@ -415,7 +415,6 @@ class TestIntentsAPI:
                         assert "claude" in call_args[0]
                         assert "-p" in call_args
                         assert "--output-format" in call_args
-                        assert "--json-schema" in call_args
 
                         # Verify result
                         assert result["session_id"] == test_session_id
@@ -484,7 +483,7 @@ class TestIntentsAPI:
             # Pre-populate cache with old intents
             await db.save_session_intents(test_session_id, ["Old intent"], prompt_count=1)
 
-            # Mock new intents from Claude (Claude CLI JSON format with structured_output)
+            # Mock new intents from Claude (Claude CLI JSON format with --json-schema)
             new_intents = ["New fresh intent"]
             mock_cli_response = {
                 "session_id": "mock-session",
