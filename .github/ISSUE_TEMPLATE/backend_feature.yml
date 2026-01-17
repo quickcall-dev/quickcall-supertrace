@@ -1,7 +1,7 @@
-name: Feature Request
-description: Suggest a new frontend feature
-title: "feat: "
-labels: ["enhancement"]
+name: Backend Feature
+description: Suggest a new backend feature
+title: "feat(backend): "
+labels: ["enhancement", "backend"]
 assignees:
   - sagarsrc
 body:
@@ -9,7 +9,7 @@ body:
     id: task
     attributes:
       label: Task
-      placeholder: What feature do you want to add?
+      placeholder: What backend feature do you want to add?
     validations:
       required: true
 
@@ -24,15 +24,15 @@ body:
       required: true
 
   - type: textarea
+    id: api-changes
+    attributes:
+      label: API Changes
+      placeholder: Describe any API changes if applicable
+
+  - type: textarea
     id: deliverables
     attributes:
       label: Deliverables
       placeholder: |
         - [ ] Deliverable 1
         - [ ] Deliverable 2
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional context
-      placeholder: Any other context, mockups, or examples

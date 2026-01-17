@@ -1,32 +1,44 @@
 name: Bug Report
 description: Report a bug to help us improve
-title: "[Bug] "
-labels: ["bug"]
+title: "fix: "
+labels: ["bug", "triage"]
+assignees:
+  - sagarsrc
 body:
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: Describe the bug
+      label: Problem
       placeholder: A clear description of what the bug is
     validations:
       required: true
 
   - type: textarea
-    id: reproduce
+    id: issues
     attributes:
-      label: Steps to reproduce
+      label: Issues to Fix
       placeholder: |
-        1. Run '...'
-        2. Click on '...'
-        3. See error
+        ### 1. Issue Name
+        - Description
+
+        ### 2. Another Issue
+        - Description
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
+      label: Expected Behavior
       placeholder: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      placeholder: Add screenshots if applicable
 
   - type: dropdown
     id: install-method
@@ -44,16 +56,10 @@ body:
     id: version
     attributes:
       label: SuperTrace version
-      placeholder: "0.1.1"
+      placeholder: "0.1.8"
 
   - type: input
-    id: os
+    id: reporter
     attributes:
-      label: Operating system
-      placeholder: "macOS 14, Ubuntu 22.04, Windows 11"
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional context
-      placeholder: Any other context, logs, or screenshots
+      label: Reported by
+      placeholder: Your name or GitHub username

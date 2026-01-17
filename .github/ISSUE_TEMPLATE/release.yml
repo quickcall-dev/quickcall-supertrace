@@ -1,0 +1,32 @@
+name: Release
+description: Track a new release
+title: "release: v"
+labels: ["release"]
+assignees:
+  - sagarsrc
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.1.9"
+    validations:
+      required: true
+
+  - type: textarea
+    id: changes
+    attributes:
+      label: Changes
+      placeholder: |
+        - Change 1
+        - Change 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files Changed
+      placeholder: |
+        - file1.ts
+        - file2.py
