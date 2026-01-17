@@ -361,7 +361,7 @@ class Database:
                    prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                    model, input_tokens, output_tokens, cache_read_tokens,
                    cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                   is_tool_result
+                   is_tool_result, thinking_content
             FROM messages
             WHERE session_id = ?
             ORDER BY timestamp ASC
@@ -479,6 +479,7 @@ class Database:
                             "model": row["model"],
                             "stop_reason": row["stop_reason"],
                             "message": text_content,
+                            "thinkingContent": row["thinking_content"],
                             "token_usage": {
                                 "input_tokens": row["input_tokens"] or 0,
                                 "output_tokens": row["output_tokens"] or 0,
@@ -529,7 +530,7 @@ class Database:
                        prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                       is_tool_result
+                       is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ? AND timestamp >= ?
                 ORDER BY timestamp ASC
@@ -544,7 +545,7 @@ class Database:
                        prompt_text, prompt_index, image_count, thinking_level, thinking_enabled,
                        model, input_tokens, output_tokens, cache_read_tokens,
                        cache_create_tokens, stop_reason, tool_use_count, tool_names,
-                       is_tool_result
+                       is_tool_result, thinking_content
                 FROM messages
                 WHERE session_id = ?
                 ORDER BY timestamp ASC
@@ -646,6 +647,7 @@ class Database:
                             "model": row["model"],
                             "stop_reason": row["stop_reason"],
                             "message": text_content,
+                            "thinkingContent": row["thinking_content"],
                             "token_usage": {
                                 "input_tokens": row["input_tokens"] or 0,
                                 "output_tokens": row["output_tokens"] or 0,
