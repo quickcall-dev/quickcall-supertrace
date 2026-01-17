@@ -192,8 +192,8 @@ def _run_claude_cli(prompt: str, json_schema: str | None = None, timeout: int = 
         logger.debug(f"Full prompt:\n{prompt}")
 
         # Build command with JSON output format
-        # Note: --json-schema can be slow, so we make it optional
-        cmd = ["claude", "-p", prompt, "--output-format", "json"]
+        # --no-session-persistence prevents creating session files that pollute the session list
+        cmd = ["claude", "-p", prompt, "--output-format", "json", "--no-session-persistence"]
 
         # Add JSON schema if provided for structured output
         if json_schema:
