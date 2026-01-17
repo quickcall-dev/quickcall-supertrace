@@ -67,7 +67,7 @@ TOOL_COLORS = {
 }
 
 DEFAULT_TOOL_COLOR = "#94a3b8"  # Slate gray for unknown tools
-MCP_PLUGIN_COLOR = "#0d9488"   # Teal 600 - for mcp__plugin_* tools
+MCP_PLUGIN_COLOR = "#14b8a6"   # Teal 500 (brand color) - for mcp__plugin_* tools
 
 
 def get_tool_color(name: str) -> str:
