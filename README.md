@@ -87,7 +87,7 @@ rm -rf ~/.quickcall-supertrace
 
 ```bash
 # Foreground: Ctrl+C
-# Background: pkill -f quickcall_supertrace
+# Background: pkill -f quickcall-supertrace
 ```
 
 ---
