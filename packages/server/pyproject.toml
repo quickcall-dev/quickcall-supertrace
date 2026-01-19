@@ -7,7 +7,7 @@
 
 [project]
 name = "quickcall-supertrace"
-version = "0.2.4"
+version = "0.2.5"
 description = "QuickCall SuperTrace - Tracing server for AI coding assistant sessions"
 readme = "README.md"
 license = "Apache-2.0"
