@@ -1,39 +1,27 @@
-name: Chore / Infrastructure
-description: Infrastructure, DevOps, or maintenance task
+name: Chore / Maintenance
+description: Infrastructure, DevOps, or cleanup task
 title: "chore: "
-labels: ["infra", "devops"]
+labels: ["chore"]
 assignees:
   - sagarsrc
+projects:
+  - quickcall-dev/1
 body:
-  - type: textarea
-    id: task
+  - type: dropdown
+    id: scope
     attributes:
-      label: Task
-      placeholder: What needs to be done?
+      label: Scope
+      options:
+        - infra
+        - backend
+        - frontend
     validations:
       required: true
 
   - type: textarea
-    id: features
+    id: task
     attributes:
-      label: Features
-      placeholder: |
-        1. Feature one
-        2. Feature two
-
-  - type: textarea
-    id: scripts
-    attributes:
-      label: Scripts/Config
-      placeholder: |
-        ```bash
-        # Add any scripts or config here
-        ```
-
-  - type: textarea
-    id: deliverables
-    attributes:
-      label: Deliverables
-      placeholder: |
-        - [ ] Deliverable 1
-        - [ ] Deliverable 2
+      label: What needs to be done?
+      placeholder: Describe the task
+    validations:
+      required: true

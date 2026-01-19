@@ -1,38 +1,33 @@
 name: Feature Request
-description: Suggest a new frontend feature
+description: Suggest a new feature
 title: "feat: "
 labels: ["enhancement"]
 assignees:
   - sagarsrc
+projects:
+  - quickcall-dev/1
 body:
-  - type: textarea
-    id: task
+  - type: dropdown
+    id: scope
     attributes:
-      label: Task
-      placeholder: What feature do you want to add?
+      label: Scope
+      options:
+        - frontend
+        - backend
+        - infra
     validations:
       required: true
 
   - type: textarea
-    id: features
+    id: description
     attributes:
-      label: Features
-      placeholder: |
-        1. Feature one
-        2. Feature two
+      label: What do you want?
+      placeholder: Describe the feature clearly
     validations:
       required: true
 
   - type: textarea
-    id: deliverables
+    id: why
     attributes:
-      label: Deliverables
-      placeholder: |
-        - [ ] Deliverable 1
-        - [ ] Deliverable 2
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional context
-      placeholder: Any other context, mockups, or examples
+      label: Why?
+      placeholder: What problem does this solve?

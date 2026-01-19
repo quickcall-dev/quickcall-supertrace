@@ -1,15 +1,17 @@
 name: Release
 description: Track a new release
-title: "release: v"
+title: "chore: Release v"
 labels: ["release"]
 assignees:
   - sagarsrc
+projects:
+  - quickcall-dev/1
 body:
   - type: input
     id: version
     attributes:
       label: Version
-      placeholder: "0.1.9"
+      placeholder: "0.2.1"
     validations:
       required: true
 
@@ -22,11 +24,3 @@ body:
         - Change 2
     validations:
       required: true
-
-  - type: textarea
-    id: files
-    attributes:
-      label: Files Changed
-      placeholder: |
-        - file1.ts
-        - file2.py

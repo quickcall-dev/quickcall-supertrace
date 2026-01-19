@@ -1,65 +1,39 @@
 name: Bug Report
-description: Report a bug to help us improve
+description: Report a bug
 title: "fix: "
-labels: ["bug", "triage"]
+labels: ["bug"]
 assignees:
   - sagarsrc
+projects:
+  - quickcall-dev/1
 body:
-  - type: textarea
-    id: problem
+  - type: dropdown
+    id: scope
     attributes:
-      label: Problem
-      placeholder: A clear description of what the bug is
+      label: Scope
+      options:
+        - frontend
+        - backend
+        - infra
     validations:
       required: true
 
   - type: textarea
-    id: issues
+    id: bug
     attributes:
-      label: Issues to Fix
-      placeholder: |
-        ### 1. Issue Name
-        - Description
-
-        ### 2. Another Issue
-        - Description
+      label: What's broken?
+      placeholder: Describe what's not working
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Expected Behavior
-      placeholder: What you expected to happen
-    validations:
-      required: true
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots
-      placeholder: Add screenshots if applicable
-
-  - type: dropdown
-    id: install-method
-    attributes:
-      label: Installation method
-      options:
-        - uvx
-        - pip
-        - Docker
-        - From source
-    validations:
-      required: true
+      label: Expected behavior
+      placeholder: What should happen instead?
 
   - type: input
     id: version
     attributes:
-      label: SuperTrace version
-      placeholder: "0.1.8"
-
-  - type: input
-    id: reporter
-    attributes:
-      label: Reported by
-      placeholder: Your name or GitHub username
+      label: Version
+      placeholder: "0.2.0"

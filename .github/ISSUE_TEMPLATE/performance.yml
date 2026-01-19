@@ -1,34 +1,32 @@
-name: Performance Improvement
-description: Report a performance issue or suggest optimization
+name: Performance
+description: Report a performance issue or optimization
 title: "perf: "
 labels: ["performance"]
 assignees:
   - sagarsrc
+projects:
+  - quickcall-dev/1
 body:
-  - type: textarea
-    id: problem
+  - type: dropdown
+    id: scope
     attributes:
-      label: Problem
-      placeholder: What is slow or inefficient?
+      label: Scope
+      options:
+        - backend
+        - frontend
     validations:
       required: true
 
   - type: textarea
-    id: current
+    id: problem
     attributes:
-      label: Current Behavior
-      placeholder: Describe the current performance characteristics
+      label: What's slow?
+      placeholder: Describe the performance issue
     validations:
       required: true
 
   - type: textarea
     id: optimization
     attributes:
-      label: Proposed Optimization
+      label: Proposed fix
       placeholder: How can this be improved?
-
-  - type: textarea
-    id: impact
-    attributes:
-      label: Expected Impact
-      placeholder: What improvement do you expect?
