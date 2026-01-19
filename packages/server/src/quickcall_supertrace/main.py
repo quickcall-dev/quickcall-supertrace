@@ -30,6 +30,7 @@ from .routes import (
     media_router,
     metrics_router,
     sessions_router,
+    version_router,
 )
 from .ws import manager
 
@@ -99,6 +100,7 @@ app.include_router(intents_router)
 app.include_router(sessions_router)
 app.include_router(media_router)
 app.include_router(metrics_router)
+app.include_router(version_router)
 
 # Mount static files for bundled frontend (if available)
 if STATIC_DIR.exists():
