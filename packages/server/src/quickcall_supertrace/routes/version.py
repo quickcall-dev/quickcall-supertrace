@@ -46,10 +46,9 @@ async def get_version() -> dict[str, Any]:
     return {
         "current_version": info.current_version,
         "latest_version": info.latest_version,
-        # TODO: Remove these overrides after testing
-        "update_available": True,  # info.update_available,
-        "install_method": "uvx",  # info.install_method,
-        "changelog_url": "https://github.com/quickcall-dev/quickcall-supertrace/releases",
+        "update_available": info.update_available,
+        "install_method": info.install_method,
+        "changelog_url": info.changelog_url,
     }
 
 
@@ -71,15 +70,13 @@ async def trigger_update() -> dict[str, Any]:
     service = await get_version_service()
     info = await service.get_version_info(force_refresh=True)
 
-    # TODO: Re-enable this check after testing
-    # if not info.update_available:
-    #     return {
-    #         "status": "current",
-    #         "message": f"Already on latest version ({info.current_version})",
-    #     }
+    if not info.update_available:
+        return {
+            "status": "current",
+            "message": f"Already on latest version ({info.current_version})",
+        }
 
-    # TODO: Remove this override after testing
-    install_method = "uvx"  # info.install_method
+    install_method = info.install_method
 
     # Determine upgrade strategy based on install method
     if install_method == "source":
