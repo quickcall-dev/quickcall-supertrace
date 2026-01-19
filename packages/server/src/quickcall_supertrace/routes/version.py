@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/version", tags=["version"])
 
 # Restart delay to ensure old server fully releases the port
-RESTART_DELAY_SECONDS = 3
+# Must be longer than graceful shutdown time (WebSocket cleanup, etc.)
+RESTART_DELAY_SECONDS = 5
 
 
 @router.get("")

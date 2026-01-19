@@ -113,10 +113,25 @@ export function useVersionCheck(): UseVersionCheckResult {
             reconnectIntervalRef.current = null;
             timeoutRef.current = null;
 
-            setUpdateState({ status: 'idle', message: `Updated to v${data.new_version}!` });
+            // Fetch fresh version info directly (without triggering checkVersion which resets updateState)
+            try {
+              const versionResponse = await fetch('/api/version');
+              if (versionResponse.ok) {
+                const versionData = await versionResponse.json();
+                setVersionInfo({
+                  currentVersion: versionData.current_version,
+                  latestVersion: versionData.latest_version,
+                  updateAvailable: versionData.update_available,
+                  installMethod: versionData.install_method,
+                  changelogUrl: versionData.changelog_url,
+                });
+              }
+            } catch {
+              // Version fetch failed, but update succeeded
+            }
 
-            // Re-check version to update UI
-            await checkVersion();
+            // Show success message
+            setUpdateState({ status: 'idle', message: `Updated to v${data.new_version}!` });
 
             // Clear success message after 5s
             setTimeout(() => {

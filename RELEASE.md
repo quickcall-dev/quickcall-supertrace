@@ -2,118 +2,135 @@
 
 ## Overview
 
-QuickCall SuperTrace uses automated tagging. When you merge a PR with a version bump to `main`, a GitHub Action automatically creates and pushes the git tag, which triggers the PyPI publish workflow.
+QuickCall SuperTrace releases are published to PyPI. When you push a tag (`v*`), the publish workflow builds and uploads the package.
 
 ## Files to Update
 
-When releasing, bump version in **both** files:
-
-| File | Location |
-|------|----------|
-| `packages/server/pyproject.toml` | `version = "x.y.z"` |
-| `packages/web/package.json` | `"version": "x.y.z"` |
-
-**Keep versions in sync!**
-
-## Release Steps
-
-### 1. Create Issue(s) for the Release
-
-Create issue(s) describing what's in this release:
+When releasing, bump version in **both** files using the bump script:
 
 ```bash
-gh issue create \
-  --title "feat: Add version display in sidebar" \
-  --body "Add configurable version number next to SuperTrace logo" \
-  --assignee @me
-
-gh issue create \
-  --title "chore: Add release automation" \
-  --body "Auto-tag workflow + release documentation" \
-  --assignee @me
-```
-
-**Note:** Always assign issues to `@me`.
-
-### 2. Create Release Branch
-
-```bash
-git checkout main
-git pull
-git checkout -b release/v0.1.9  # Use your version
-```
-
-### 3. Bump Versions
-
-Use the bump script to update both files at once:
-
-```bash
-./scripts/bump-version.sh 0.1.9
+./scripts/bump-version.sh X.Y.Z
 ```
 
 This updates:
 - `packages/server/pyproject.toml`
 - `packages/web/package.json`
 
-### 4. Commit Changes
+**Keep versions in sync!**
 
-```bash
-git add -A
-git commit -m "chore: bump version to 0.1.9"
-git push origin release/v0.1.9
+---
+
+## Release Steps
+
+### 1. Create Issues
+
+Create a parent issue for the feature/release, then add sub-issues for individual tasks.
+
+> **Refer to `.github/ISSUE_TEMPLATE/` for issue formats** (feature_request, bug_report, chore, etc.)
+
+Example structure:
+```
+#65 feat: Auto-update notifications (parent)
+  ├── #66 B1: Version Service
+  ├── #67 B2: Version API Endpoint
+  ├── #68 B3: Update Trigger Endpoint
+  ├── #69 F1: Version Check Hook
+  └── #70 F2: Update Notification Component
 ```
 
-### 5. Create PR
+### 2. Create Feature Branch
 
-**PR Title Convention:** Use a descriptive title that summarizes the overall goal, NOT just "Release vX.Y.Z".
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/my-feature
+```
 
-Examples:
-- ✅ `feat: Add version display, release automation, and branding improvements`
-- ✅ `fix: Responsive UI for multiple screen sizes`
-- ❌ `Release v0.1.9`
+### 3. Develop & Commit
 
-**Link multiple issues** using "Closes #X, Closes #Y" in the body.
+Work on your feature, commit changes with proper prefixes:
+- `add:` - New feature
+- `fix:` - Bug fix
+- `update:` - Update existing functionality
+- `refactor:` - Code refactoring
+- `test:` - Adding tests
+- `docs:` - Documentation
+- `chore:` - Maintenance
+
+### 4. Bump Version
+
+When ready to release:
+
+```bash
+./scripts/bump-version.sh 0.2.1
+git add -A
+git commit -m "chore: bump version to 0.2.1"
+git push origin feature/my-feature
+```
+
+### 5. Create Draft PR
 
 ```bash
 gh pr create \
-  --title "feat: Add version display and release automation" \
+  --draft \
+  --title "feat: My feature description" \
   --assignee @me \
   --body "## Summary
 
-Closes #19, Closes #20
+Closes #65
 
-Brief description of the release goal.
+Description of changes.
 
 ## Changes
 - Feature 1
 - Feature 2
-- Fix 1
 
 ## Version
-- pyproject.toml: 0.1.9
-- package.json: 0.1.9
+Bumped to 0.2.1
 "
 ```
 
-**Note:** Always assign PRs to `@me`.
+Mark ready for review when done. Always assign to `@me`.
 
-### 6. Merge PR
+### 6. Squash Merge to Main
 
-**Always use squash merge, do NOT delete the branch.**
+**Always use squash merge. Do NOT delete the branch** (user deletes manually when ready).
 
 ```bash
 gh pr merge <PR_NUMBER> --squash
 ```
 
-Once merged, the automation will:
+Or merge manually:
+```bash
+git checkout main
+git pull origin main
+git merge --squash feature/my-feature
+git commit -m "add: my feature description (v0.2.1)"
+git push origin main
+```
 
-1. **Auto-tag workflow** detects version change in `pyproject.toml`
-2. Creates git tag `v0.1.9` and pushes it
-3. **Publish workflow** triggers on tag push
-4. Builds frontend, bundles into Python package
-5. Publishes to PyPI
+### 7. Create GitHub Release
 
-### 7. Verify Release
+Create the release and tag:
+
+```bash
+gh release create v0.2.1 \
+  --title "v0.2.1 - Brief description" \
+  --notes "## What's New
+
+- Feature 1
+- Feature 2
+- Bug fix
+"
+```
+
+This will:
+1. Create and push git tag `v0.2.1`
+2. Trigger `publish-pypi.yml` workflow
+3. Build frontend, bundle into Python package
+4. Publish to PyPI
+
+### 8. Verify
 
 ```bash
 # Check tag was created
@@ -127,98 +144,36 @@ gh run list --limit 5
 pip index versions quickcall-supertrace
 ```
 
+---
+
 ## Conventions
 
 | Item | Convention |
 |------|------------|
-| Branch name | `release/vX.Y.Z` or `fix/issue-name` or `feat/feature-name` |
-| Commit message | `chore: bump version to X.Y.Z` |
-| PR title | Descriptive goal (e.g., `feat: Add feature X and fix Y`) |
-| PR merge | Squash merge, do NOT delete branch |
-| Issue assignment | Always `@me` |
-| PR assignment | Always `@me` |
-| Issue linking | Use `Closes #X, Closes #Y` in PR body |
-| Branch linking | Link PR to branch in GitHub UI or use `gh pr edit --head <branch>` |
+| Branch name | `feature/feature-name` or `fix/issue-name` |
+| Commit message | Prefix + description (e.g., `add: user auth`) |
+| PR | Draft first, squash merge, do NOT delete branch |
+| Issues | Use templates, create sub-issues for tasks |
+| Assignment | Always `@me` for issues and PRs |
 
-## Quick Release (One-liner)
+---
 
-For experienced users:
+## Example: v0.2.1 Release (Auto-update Notifications)
 
 ```bash
-VERSION=0.1.9 && \
-  git checkout main && git pull && \
-  git checkout -b release/v$VERSION && \
-  ./scripts/bump-version.sh $VERSION && \
-  git add -A && git commit -m "chore: bump version to $VERSION" && \
-  git push origin release/v$VERSION && \
-  gh pr create --title "feat: Release $VERSION with improvements" --assignee @me --body "Closes #XX
+# Work on feature branch
+git checkout -b feature/auto-update-notifications
+# ... develop, commit changes ...
 
-Bump version to $VERSION"
-```
-
-## Manual Release (Direct to Main)
-
-When you need to release quickly without going through the full PR process:
-
-### 1. Prepare Feature Branch
-
-```bash
-# Work on your feature branch
-git checkout feature/my-feature
-# ... make changes, commit ...
-
-# Bump version on feature branch
+# Bump version
 ./scripts/bump-version.sh 0.2.1
 git add -A && git commit -m "chore: bump version to 0.2.1"
-git push origin feature/my-feature
-```
+git push origin feature/auto-update-notifications
 
-### 2. Squash Merge to Main
+# Create draft PR
+gh pr create --draft --title "feat: Auto-update notifications" --assignee @me
 
-```bash
-git checkout main
-git pull origin main
-git merge --squash feature/my-feature
-git commit -m "add: my feature description (v0.2.1)"
-git push origin main
-```
-
-### 3. Create GitHub Release
-
-```bash
-gh release create v0.2.1 \
-  --title "v0.2.1 - Feature description" \
-  --notes "## What's New
-
-- Feature 1
-- Feature 2
-- Bug fix
-"
-```
-
-This creates the tag and release in one command.
-
-### 4. Verify
-
-```bash
-# Check tag exists
-git fetch --tags
-git tag -l | tail -3
-
-# Check PyPI (auto-publish triggers on tag)
-pip index versions quickcall-supertrace
-```
-
-### Example: v0.2.1 Release (Auto-update Notifications)
-
-```bash
-# On feature branch
-git checkout feature/auto-update-notifications
-./scripts/bump-version.sh 0.2.1
-git add -A && git commit -m "chore: bump version to 0.2.1"
-git push
-
-# Squash merge to main
+# After review, squash merge
 git checkout main && git pull
 git merge --squash feature/auto-update-notifications
 git commit -m "add: auto-update notifications (v0.2.1)"
@@ -229,12 +184,13 @@ gh release create v0.2.1 \
   --title "v0.2.1 - Auto-update notifications" \
   --notes "## What's New
 
-### Auto-update notifications
-- Checks PyPI for latest version
-- Shows notification when update available
+- Check PyPI for latest version
+- Show notification when update available
 - One-click update and restart
 "
 ```
+
+---
 
 ## Rollback
 
@@ -249,9 +205,12 @@ git push origin :refs/tags/v0.1.9
 # Contact PyPI support if needed
 ```
 
+---
+
 ## Workflows
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `auto-tag.yml` | Push to main with version change | Creates git tag |
-| `publish-pypi.yml` | Tag push (`v*`) | Publishes to PyPI |
+| `publish-pypi.yml` | Tag push (`v*`) | Builds frontend, bundles package, publishes to PyPI |
+
+**Note:** Tags are created manually via `gh release create`. There is no auto-tag workflow.
