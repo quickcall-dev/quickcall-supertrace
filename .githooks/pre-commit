@@ -88,5 +88,18 @@ if git diff --cached | grep -E '(console\.log|print\(|debugger|import pdb)' | gr
     # Not blocking, just warning
 fi
 
+# ============================================
+# 5. Version bump reminder
+# ============================================
+# Check if significant files changed but version wasn't bumped
+SIGNIFICANT_CHANGES=$(git diff --cached --name-only | grep -E '\.(py|ts|tsx)$' | grep -v 'test' | grep -v '__pycache__' || true)
+VERSION_BUMPED=$(git diff --cached --name-only | grep -E '(pyproject\.toml|package\.json)' || true)
+
+if [ -n "$SIGNIFICANT_CHANGES" ] && [ -z "$VERSION_BUMPED" ]; then
+    echo -e "${YELLOW}Reminder: Did you bump the version?${NC}"
+    echo -e "If releasing new features/fixes, run: ${GREEN}./scripts/bump-version.sh X.Y.Z${NC}"
+    # Not blocking, just reminder
+fi
+
 echo -e "${GREEN}Pre-commit checks passed!${NC}"
 exit 0
