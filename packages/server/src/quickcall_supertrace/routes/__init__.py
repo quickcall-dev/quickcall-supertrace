@@ -11,6 +11,7 @@ from .intents import router as intents_router
 from .media import router as media_router
 from .metrics import router as metrics_router
 from .sessions import router as sessions_router
+from .version import router as version_router
 
 __all__ = [
     "ingest_router",
@@ -18,4 +19,5 @@ __all__ = [
     "media_router",
     "metrics_router",
     "sessions_router",
+    "version_router",
 ]

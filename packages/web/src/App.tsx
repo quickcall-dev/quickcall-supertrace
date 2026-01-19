@@ -17,6 +17,7 @@ import { useTheme } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSettings } from './hooks/useSettings';
 import { useNotifications } from './hooks/useNotifications';
+import { UpdateNotification } from './components/UpdateNotification';
 import {
   getSessions,
   getSession,
@@ -539,6 +540,9 @@ function App() {
             )}
           </div>
         </div>
+
+        {/* Update notification */}
+        <UpdateNotification />
       </div>
     );
   }
@@ -599,6 +603,9 @@ function App() {
           isLoadingAllForSearch={isLoadingAllForSearch}
         />
       </div>
+
+      {/* Update notification */}
+      <UpdateNotification />
     </div>
   );
 }

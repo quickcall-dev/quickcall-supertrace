@@ -43,7 +43,13 @@ interface IntentChangedMessage {
   previous_intents?: string[];
 }
 
-type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage | IntentChangedMessage;
+interface ServerRestartingMessage {
+  type: 'server_restarting';
+  message: string;
+  new_version: string;
+}
+
+type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage | IntentChangedMessage | ServerRestartingMessage;
 
 interface UseWebSocketOptions {
   onSessionImported?: (sessionId: string) => void;
@@ -106,6 +112,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           } else if (data.type === 'intent_changed' && onIntentChangedRef.current) {
             // Intent analysis changed - notify for UI update and notification
             onIntentChangedRef.current(data);
+          } else if (data.type === 'server_restarting') {
+            // Server is about to restart for update - useVersionCheck handles reconnection
+            console.log('[WebSocket] Server restarting:', data.message);
           }
         } catch (e) {
           console.error('[WebSocket] Parse error:', e);
