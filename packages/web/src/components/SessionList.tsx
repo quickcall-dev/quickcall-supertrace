@@ -10,6 +10,7 @@ import { useState, useMemo } from 'react';
 import type { Session } from '../api/client';
 import { triggerIngest } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
+import { useVersionCheck } from '../hooks/useVersionCheck';
 
 interface SessionListProps {
   sessions: Session[];
@@ -87,6 +88,10 @@ export function SessionList({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // Use API version (updates after restart) with build-time fallback
+  const { versionInfo } = useVersionCheck();
+  const displayVersion = versionInfo?.currentVersion || __APP_VERSION__;
 
   const handleImportSessions = async () => {
     if (isImporting) return;
@@ -181,7 +186,7 @@ export function SessionList({
               SuperTrace
             </span>
             <span className="text-[10px] text-amber-500/70 font-medium">
-              v{__APP_VERSION__}
+              v{displayVersion}
             </span>
           </span>
         </a>
