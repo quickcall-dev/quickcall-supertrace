@@ -17,6 +17,18 @@ export function UpdateNotification() {
     debug,
   } = useVersionCheck();
 
+  // Success toast - check FIRST before early return (updateAvailable may be false after update)
+  if (updateState.status === 'idle' && updateState.message) {
+    return (
+      <div className="fixed bottom-4 left-4 z-50">
+        <div className="bg-primary text-primary-foreground rounded-lg shadow-lg px-3 py-2 text-sm flex items-center gap-2">
+          <i className="ri-check-line" />
+          {updateState.message}
+        </div>
+      </div>
+    );
+  }
+
   // Don't show if no update or dismissed (unless in loading state)
   if (!versionInfo?.updateAvailable || isDismissed) {
     if (updateState.status !== 'updating' && updateState.status !== 'restarting') {
@@ -35,18 +47,6 @@ export function UpdateNotification() {
       }
       return null;
     }
-  }
-
-  // Success toast
-  if (updateState.status === 'idle' && updateState.message) {
-    return (
-      <div className="fixed bottom-4 left-4 z-50">
-        <div className="bg-primary text-primary-foreground rounded-lg shadow-lg px-3 py-2 text-sm flex items-center gap-2">
-          <i className="ri-check-line" />
-          {updateState.message}
-        </div>
-      </div>
-    );
   }
 
   // Error state
