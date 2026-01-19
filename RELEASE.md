@@ -156,6 +156,86 @@ VERSION=0.1.9 && \
 Bump version to $VERSION"
 ```
 
+## Manual Release (Direct to Main)
+
+When you need to release quickly without going through the full PR process:
+
+### 1. Prepare Feature Branch
+
+```bash
+# Work on your feature branch
+git checkout feature/my-feature
+# ... make changes, commit ...
+
+# Bump version on feature branch
+./scripts/bump-version.sh 0.2.1
+git add -A && git commit -m "chore: bump version to 0.2.1"
+git push origin feature/my-feature
+```
+
+### 2. Squash Merge to Main
+
+```bash
+git checkout main
+git pull origin main
+git merge --squash feature/my-feature
+git commit -m "add: my feature description (v0.2.1)"
+git push origin main
+```
+
+### 3. Create GitHub Release
+
+```bash
+gh release create v0.2.1 \
+  --title "v0.2.1 - Feature description" \
+  --notes "## What's New
+
+- Feature 1
+- Feature 2
+- Bug fix
+"
+```
+
+This creates the tag and release in one command.
+
+### 4. Verify
+
+```bash
+# Check tag exists
+git fetch --tags
+git tag -l | tail -3
+
+# Check PyPI (auto-publish triggers on tag)
+pip index versions quickcall-supertrace
+```
+
+### Example: v0.2.1 Release (Auto-update Notifications)
+
+```bash
+# On feature branch
+git checkout feature/auto-update-notifications
+./scripts/bump-version.sh 0.2.1
+git add -A && git commit -m "chore: bump version to 0.2.1"
+git push
+
+# Squash merge to main
+git checkout main && git pull
+git merge --squash feature/auto-update-notifications
+git commit -m "add: auto-update notifications (v0.2.1)"
+git push origin main
+
+# Create release
+gh release create v0.2.1 \
+  --title "v0.2.1 - Auto-update notifications" \
+  --notes "## What's New
+
+### Auto-update notifications
+- Checks PyPI for latest version
+- Shows notification when update available
+- One-click update and restart
+"
+```
+
 ## Rollback
 
 If something goes wrong:
