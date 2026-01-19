@@ -5,7 +5,7 @@
  * Related: hooks/useVersionCheck.ts, App.tsx
  */
 
-import { useVersionCheck } from '../hooks/useVersionCheck';
+import { useVersion } from '../contexts/VersionContext';
 
 export function UpdateNotification() {
   const {
@@ -15,7 +15,7 @@ export function UpdateNotification() {
     triggerUpdate,
     dismiss,
     debug,
-  } = useVersionCheck();
+  } = useVersion();
 
   // Success toast - check FIRST before early return (updateAvailable may be false after update)
   if (updateState.status === 'idle' && updateState.message) {

@@ -10,7 +10,7 @@ import { useState, useMemo } from 'react';
 import type { Session } from '../api/client';
 import { triggerIngest } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
-import { useVersionCheck } from '../hooks/useVersionCheck';
+import { useVersion } from '../contexts/VersionContext';
 
 interface SessionListProps {
   sessions: Session[];
@@ -90,7 +90,7 @@ export function SessionList({
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
   // Use API version (updates after restart) with build-time fallback
-  const { versionInfo } = useVersionCheck();
+  const { versionInfo } = useVersion();
   const displayVersion = versionInfo?.currentVersion || __APP_VERSION__;
 
   const handleImportSessions = async () => {
