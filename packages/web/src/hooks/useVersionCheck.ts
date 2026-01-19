@@ -36,7 +36,7 @@ interface UseVersionCheckResult {
 }
 
 const STORAGE_KEY = 'supertrace-version-dismissed';
-const CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export function useVersionCheck(): UseVersionCheckResult {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
@@ -103,11 +103,17 @@ export function useVersionCheck(): UseVersionCheckResult {
       setUpdateState({ status: 'restarting', message: 'Server restarting...' });
 
       // Poll for server to come back
+      const newVersion = data.new_version;
+      console.log('[useVersionCheck] Starting health poll, waiting for server restart...', { newVersion });
+
       const pollHealth = async () => {
+        console.log('[useVersionCheck] Polling /api/health...');
         try {
           const healthResponse = await fetch('/api/health');
+          console.log('[useVersionCheck] Health response:', healthResponse.status, healthResponse.ok);
           if (healthResponse.ok) {
             // Server is back - clear all timers
+            console.log('[useVersionCheck] Server is back! Clearing timers...');
             if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current);
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             reconnectIntervalRef.current = null;
@@ -118,6 +124,7 @@ export function useVersionCheck(): UseVersionCheckResult {
               const versionResponse = await fetch('/api/version');
               if (versionResponse.ok) {
                 const versionData = await versionResponse.json();
+                console.log('[useVersionCheck] Fresh version data:', versionData);
                 setVersionInfo({
                   currentVersion: versionData.current_version,
                   latestVersion: versionData.latest_version,
@@ -126,20 +133,23 @@ export function useVersionCheck(): UseVersionCheckResult {
                   changelogUrl: versionData.changelog_url,
                 });
               }
-            } catch {
-              // Version fetch failed, but update succeeded
+            } catch (e) {
+              console.error('[useVersionCheck] Version fetch failed:', e);
             }
 
             // Show success message
-            setUpdateState({ status: 'idle', message: `Updated to v${data.new_version}!` });
+            console.log('[useVersionCheck] Setting success message:', `Updated to v${newVersion}!`);
+            setUpdateState({ status: 'idle', message: `Updated to v${newVersion}!` });
 
             // Clear success message after 5s
             setTimeout(() => {
+              console.log('[useVersionCheck] Clearing success message');
               setUpdateState({ status: 'idle', message: null });
             }, 5000);
           }
-        } catch {
+        } catch (e) {
           // Server still down, keep polling
+          console.log('[useVersionCheck] Health check failed (server still down):', e);
         }
       };
 
