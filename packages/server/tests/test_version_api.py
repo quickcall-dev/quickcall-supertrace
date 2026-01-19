@@ -210,17 +210,18 @@ class TestTriggerUpdate:
         mock_service = MagicMock(spec=VersionService)
         mock_service.get_version_info = AsyncMock(return_value=mock_version_info_update_available)
 
-        mock_subprocess_result = MagicMock()
-        mock_subprocess_result.returncode = 0
-        mock_subprocess_result.stdout = "Successfully installed quickcall-supertrace-0.2.0"
-        mock_subprocess_result.stderr = ""
+        # Mock async subprocess
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"Success", b""))
 
         with patch(
             "quickcall_supertrace.routes.version.get_version_service",
             return_value=mock_service,
         ), patch(
-            "quickcall_supertrace.routes.version.subprocess.run",
-            return_value=mock_subprocess_result,
+            "quickcall_supertrace.routes.version.asyncio.create_subprocess_exec",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
         ), patch(
             "quickcall_supertrace.routes.version.manager.broadcast_to_all",
             new_callable=AsyncMock,
@@ -250,17 +251,20 @@ class TestTriggerUpdate:
         mock_service = MagicMock(spec=VersionService)
         mock_service.get_version_info = AsyncMock(return_value=mock_version_info_update_available)
 
-        mock_subprocess_result = MagicMock()
-        mock_subprocess_result.returncode = 1
-        mock_subprocess_result.stdout = ""
-        mock_subprocess_result.stderr = "ERROR: Could not find a version that satisfies the requirement"
+        # Mock async subprocess with failure
+        mock_proc = MagicMock()
+        mock_proc.returncode = 1
+        mock_proc.communicate = AsyncMock(
+            return_value=(b"", b"ERROR: Could not find a version")
+        )
 
         with patch(
             "quickcall_supertrace.routes.version.get_version_service",
             return_value=mock_service,
         ), patch(
-            "quickcall_supertrace.routes.version.subprocess.run",
-            return_value=mock_subprocess_result,
+            "quickcall_supertrace.routes.version.asyncio.create_subprocess_exec",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
         ):
             response = client.post("/api/version/update")
 
@@ -275,18 +279,19 @@ class TestTriggerUpdate:
         mock_service = MagicMock(spec=VersionService)
         mock_service.get_version_info = AsyncMock(return_value=mock_version_info_uvx)
 
-        mock_subprocess_result = MagicMock()
-        mock_subprocess_result.returncode = 0
-        mock_subprocess_result.stdout = "Upgraded quickcall-supertrace"
-        mock_subprocess_result.stderr = ""
+        # Mock async subprocess
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"Upgraded", b""))
 
         with patch(
             "quickcall_supertrace.routes.version.get_version_service",
             return_value=mock_service,
         ), patch(
-            "quickcall_supertrace.routes.version.subprocess.run",
-            return_value=mock_subprocess_result,
-        ) as mock_run, patch(
+            "quickcall_supertrace.routes.version.asyncio.create_subprocess_exec",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
+        ) as mock_create_proc, patch(
             "quickcall_supertrace.routes.version.manager.broadcast_to_all",
             new_callable=AsyncMock,
         ), patch(
@@ -299,24 +304,33 @@ class TestTriggerUpdate:
 
         assert data["status"] == "updating"
 
-        # Verify uvx command was used
-        cmd_args = mock_run.call_args[0][0]
-        assert cmd_args[0] == "uvx"
+        # Verify uv tool upgrade command was used
+        cmd_args = mock_create_proc.call_args[0]
+        assert cmd_args[0] == "uv"
+        assert "tool" in cmd_args
         assert "upgrade" in cmd_args
 
     def test_update_timeout(self, client, mock_version_info_update_available):
         """Test update timeout handling."""
-        import subprocess
-
         mock_service = MagicMock(spec=VersionService)
         mock_service.get_version_info = AsyncMock(return_value=mock_version_info_update_available)
+
+        # Mock async subprocess that times out
+        mock_proc = MagicMock()
+        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_proc.kill = MagicMock()
+        mock_proc.wait = AsyncMock()
 
         with patch(
             "quickcall_supertrace.routes.version.get_version_service",
             return_value=mock_service,
         ), patch(
-            "quickcall_supertrace.routes.version.subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="pip", timeout=120),
+            "quickcall_supertrace.routes.version.asyncio.create_subprocess_exec",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
+        ), patch(
+            "quickcall_supertrace.routes.version.asyncio.wait_for",
+            side_effect=asyncio.TimeoutError(),
         ):
             response = client.post("/api/version/update")
 

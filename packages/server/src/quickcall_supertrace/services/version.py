@@ -83,15 +83,22 @@ class VersionService:
             from packaging.version import Version
 
             return Version(latest) > Version(current)
+        except ImportError:
+            # packaging not installed - do manual semver comparison
+            try:
+                current_parts = [int(x) for x in current.split(".")[:3]]
+                latest_parts = [int(x) for x in latest.split(".")[:3]]
+                return latest_parts > current_parts
+            except (ValueError, AttributeError):
+                return False
         except Exception:
-            # Fallback to string comparison
-            return latest != current and latest > current
+            return False
 
     async def _fetch_pypi_version(self) -> str | None:
         """Fetch latest version from PyPI."""
         try:
             # Run in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def fetch():
                 with urlopen(PYPI_URL, timeout=5) as response:
@@ -99,7 +106,7 @@ class VersionService:
                     return data["info"]["version"]
 
             return await loop.run_in_executor(None, fetch)
-        except (URLError, json.JSONDecodeError, KeyError) as e:
+        except (URLError, json.JSONDecodeError, KeyError, OSError) as e:
             logger.warning(f"Failed to fetch PyPI version: {e}")
             return None
 

@@ -11,7 +11,6 @@ import asyncio
 import logging
 import os
 import signal
-import subprocess
 import sys
 from typing import Any
 
@@ -82,7 +81,7 @@ async def trigger_update() -> dict[str, Any]:
             "message": "Running from source. Please update manually with git pull.",
         }
     elif install_method == "uvx":
-        upgrade_cmd = ["uvx", "upgrade", "quickcall-supertrace"]
+        upgrade_cmd = ["uv", "tool", "upgrade", "quickcall-supertrace"]
     elif install_method == "pip":
         upgrade_cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "quickcall-supertrace"]
     else:
@@ -91,30 +90,35 @@ async def trigger_update() -> dict[str, Any]:
             "message": f"Unknown installation method: {install_method}. Please update manually.",
         }
 
-    # Run upgrade in background
+    # Run upgrade asynchronously to avoid blocking event loop
     try:
         logger.info(f"Running upgrade: {' '.join(upgrade_cmd)}")
-        result = subprocess.run(
-            upgrade_cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,  # 2 minute timeout
+        proc = await asyncio.create_subprocess_exec(
+            *upgrade_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
 
-        if result.returncode != 0:
-            logger.error(f"Upgrade failed: {result.stderr}")
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
             return {
                 "status": "error",
-                "message": f"Upgrade failed: {result.stderr[:200]}",
+                "message": "Upgrade timed out after 2 minutes",
+            }
+
+        if proc.returncode != 0:
+            error_msg = stderr.decode() if stderr else "Unknown error"
+            logger.error(f"Upgrade failed: {error_msg}")
+            return {
+                "status": "error",
+                "message": f"Upgrade failed: {error_msg[:200]}",
             }
 
         logger.info("Upgrade successful, preparing to restart...")
 
-    except subprocess.TimeoutExpired:
-        return {
-            "status": "error",
-            "message": "Upgrade timed out after 2 minutes",
-        }
     except Exception as e:
         logger.error(f"Upgrade error: {e}")
         return {
