@@ -1,8 +1,7 @@
 /**
  * Update notification component.
  *
- * Displays a notification when a new version is available.
- * Fixed position in bottom-right corner with update/dismiss actions.
+ * Compact notification in bottom-left when new version available.
  * Related: hooks/useVersionCheck.ts, App.tsx
  */
 
@@ -14,123 +13,113 @@ export function UpdateNotification() {
     updateState,
     isDismissed,
     triggerUpdate,
-    dismiss
+    dismiss,
+    debug,
   } = useVersionCheck();
 
-  // Don't show if no update or dismissed
+  // Don't show if no update or dismissed (unless in loading state)
   if (!versionInfo?.updateAvailable || isDismissed) {
-    // Still show during update/restart states
     if (updateState.status !== 'updating' && updateState.status !== 'restarting') {
+      // Debug button in dev mode
+      if (debug.enabled) {
+        return (
+          <div className="fixed bottom-4 left-4 z-50 flex gap-2">
+            <button
+              onClick={debug.simulateUpdate}
+              className="text-xs bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 px-2 py-1 rounded"
+            >
+              Simulate Update
+            </button>
+          </div>
+        );
+      }
       return null;
     }
   }
 
-  // Show success message briefly
+  // Success toast
   if (updateState.status === 'idle' && updateState.message) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-        <div className="bg-green-500/90 text-white px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <i className="ri-check-line text-lg" />
-            <span>{updateState.message}</span>
-          </div>
+      <div className="fixed bottom-4 left-4 z-50">
+        <div className="bg-primary text-primary-foreground rounded-lg shadow-lg px-3 py-2 text-sm flex items-center gap-2">
+          <i className="ri-check-line" />
+          {updateState.message}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div className="bg-card border border-border rounded-lg shadow-lg p-4 max-w-sm backdrop-blur-sm">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <i className="ri-download-line text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-foreground">Update Available</h4>
-              <p className="text-sm text-muted-foreground">
-                v{versionInfo?.currentVersion} → v{versionInfo?.latestVersion}
-              </p>
-            </div>
-          </div>
-
-          {updateState.status === 'idle' && (
-            <button
-              onClick={dismiss}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Dismiss"
-            >
-              <i className="ri-close-line text-lg" />
-            </button>
-          )}
+  // Error state
+  if (updateState.status === 'error') {
+    return (
+      <div className="fixed bottom-4 left-4 z-50">
+        <div className="bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm flex items-center gap-3 min-w-[280px]">
+          <span className="text-destructive truncate flex-1">{updateState.message}</span>
+          <button
+            onClick={triggerUpdate}
+            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90"
+          >
+            Retry
+          </button>
+          <button onClick={dismiss} className="text-muted-foreground hover:text-foreground">
+            <i className="ri-close-line" />
+          </button>
         </div>
+      </div>
+    );
+  }
 
-        {/* Status Message */}
-        {updateState.message && updateState.status === 'error' && (
-          <div className="mt-3 text-sm text-red-500 bg-red-500/10 px-3 py-2 rounded">
-            {updateState.message}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="mt-4 flex items-center gap-2">
-          {updateState.status === 'idle' && (
-            <>
-              <button
-                onClick={triggerUpdate}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md
-                         hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+  // Main notification - compact inline
+  return (
+    <div className="fixed bottom-4 left-4 z-50">
+      <div className="bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm flex items-center gap-3 min-w-[280px]">
+        {updateState.status === 'idle' ? (
+          <>
+            <i className="ri-download-cloud-line text-primary" />
+            <span className="text-muted-foreground">v{versionInfo?.currentVersion}</span>
+            <span className="text-muted-foreground">→</span>
+            {versionInfo?.changelogUrl ? (
+              <a
+                href={versionInfo.changelogUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
               >
-                <i className="ri-restart-line" />
-                Update & Restart
-              </button>
-
-              {versionInfo?.changelogUrl && (
-                <a
-                  href={versionInfo.changelogUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
-                  title="View changelog"
-                >
-                  <i className="ri-file-list-line text-lg" />
-                </a>
-              )}
-            </>
-          )}
-
-          {updateState.status === 'updating' && (
-            <div className="flex-1 flex items-center justify-center gap-2 py-2 text-muted-foreground">
-              <i className="ri-loader-4-line animate-spin" />
-              <span>Installing update...</span>
-            </div>
-          )}
-
-          {updateState.status === 'restarting' && (
-            <div className="flex-1 flex items-center justify-center gap-2 py-2 text-muted-foreground">
-              <i className="ri-loader-4-line animate-spin" />
-              <span>Restarting server...</span>
-            </div>
-          )}
-
-          {updateState.status === 'error' && (
+                v{versionInfo?.latestVersion}
+              </a>
+            ) : (
+              <span className="text-primary font-medium">v{versionInfo?.latestVersion}</span>
+            )}
+            <div className="flex-1" />
             <button
               onClick={triggerUpdate}
-              className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md
-                       hover:bg-primary/90 transition-colors"
+              className="bg-primary text-primary-foreground text-xs px-2.5 py-1 rounded hover:bg-primary/90"
             >
-              Retry
+              Update
             </button>
-          )}
-        </div>
-
-        {/* Install method hint for source installs */}
-        {versionInfo?.installMethod === 'source' && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Running from source. Update with: <code className="bg-muted px-1 rounded">git pull</code>
-          </p>
+            <button
+              onClick={dismiss}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <i className="ri-close-line" />
+            </button>
+            {debug.enabled && (
+              <button
+                onClick={debug.reset}
+                className="text-xs text-amber-600 hover:text-amber-500"
+                title="Debug: Reset"
+              >
+                <i className="ri-refresh-line" />
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <i className="ri-loader-4-line animate-spin text-primary" />
+            <span className="text-muted-foreground">
+              {updateState.status === 'updating' ? 'Installing...' : 'Restarting...'}
+            </span>
+          </>
         )}
       </div>
     </div>

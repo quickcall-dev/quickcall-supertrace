@@ -28,6 +28,11 @@ interface UseVersionCheckResult {
   checkNow: () => Promise<void>;
   triggerUpdate: () => Promise<void>;
   dismiss: () => void;
+  debug: {
+    enabled: boolean;
+    simulateUpdate: () => void;
+    reset: () => void;
+  };
 }
 
 const STORAGE_KEY = 'supertrace-version-dismissed';
@@ -42,6 +47,7 @@ export function useVersionCheck(): UseVersionCheckResult {
 
   const intervalRef = useRef<number | null>(null);
   const reconnectIntervalRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   const checkVersion = useCallback(async () => {
     setUpdateState({ status: 'checking', message: null });
@@ -88,7 +94,8 @@ export function useVersionCheck(): UseVersionCheckResult {
       }
 
       if (data.status === 'current') {
-        setUpdateState({ status: 'idle', message: data.message });
+        // Already on latest - don't show message
+        setUpdateState({ status: 'idle', message: null });
         return;
       }
 
@@ -100,8 +107,12 @@ export function useVersionCheck(): UseVersionCheckResult {
         try {
           const healthResponse = await fetch('/api/health');
           if (healthResponse.ok) {
-            // Server is back!
-            clearInterval(reconnectIntervalRef.current!);
+            // Server is back - clear all timers
+            if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            reconnectIntervalRef.current = null;
+            timeoutRef.current = null;
+
             setUpdateState({ status: 'idle', message: `Updated to v${data.new_version}!` });
 
             // Re-check version to update UI
@@ -123,9 +134,10 @@ export function useVersionCheck(): UseVersionCheckResult {
       }, 3000);
 
       // Timeout after 60s
-      setTimeout(() => {
+      timeoutRef.current = window.setTimeout(() => {
         if (reconnectIntervalRef.current) {
           clearInterval(reconnectIntervalRef.current);
+          reconnectIntervalRef.current = null;
           setUpdateState({
             status: 'error',
             message: 'Server restart timed out. Please restart manually.'
@@ -146,6 +158,30 @@ export function useVersionCheck(): UseVersionCheckResult {
     }
   }, [versionInfo]);
 
+  // Debug helpers - only in dev mode
+  const debugEnabled = import.meta.env.DEV;
+
+  const debugSimulateUpdate = useCallback(() => {
+    setVersionInfo({
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+      updateAvailable: true,
+      installMethod: 'pip',
+      changelogUrl: 'https://github.com/quickcall-dev/quickcall-supertrace/releases/tag/v0.2.0',
+    });
+    setDismissedVersion(null);
+    localStorage.removeItem(STORAGE_KEY);
+    setUpdateState({ status: 'idle', message: null });
+  }, []);
+
+  const debugReset = useCallback(() => {
+    setVersionInfo(null);
+    setDismissedVersion(null);
+    localStorage.removeItem(STORAGE_KEY);
+    setUpdateState({ status: 'idle', message: null });
+    checkVersion();
+  }, [checkVersion]);
+
   // Check on mount and periodically
   useEffect(() => {
     checkVersion();
@@ -155,6 +191,7 @@ export function useVersionCheck(): UseVersionCheckResult {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (reconnectIntervalRef.current) clearInterval(reconnectIntervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [checkVersion]);
 
@@ -168,5 +205,10 @@ export function useVersionCheck(): UseVersionCheckResult {
     checkNow: checkVersion,
     triggerUpdate,
     dismiss,
+    debug: {
+      enabled: debugEnabled,
+      simulateUpdate: debugSimulateUpdate,
+      reset: debugReset,
+    },
   };
 }

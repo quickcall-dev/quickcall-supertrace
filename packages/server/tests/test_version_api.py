@@ -275,40 +275,30 @@ class TestTriggerUpdate:
         assert "failed" in data["message"].lower()
 
     def test_update_uvx_success(self, client, mock_version_info_uvx):
-        """Test successful uvx update."""
+        """Test uvx update just restarts (no upgrade command needed)."""
         mock_service = MagicMock(spec=VersionService)
         mock_service.get_version_info = AsyncMock(return_value=mock_version_info_uvx)
-
-        # Mock async subprocess
-        mock_proc = MagicMock()
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"Upgraded", b""))
 
         with patch(
             "quickcall_supertrace.routes.version.get_version_service",
             return_value=mock_service,
         ), patch(
-            "quickcall_supertrace.routes.version.asyncio.create_subprocess_exec",
-            new_callable=AsyncMock,
-            return_value=mock_proc,
-        ) as mock_create_proc, patch(
             "quickcall_supertrace.routes.version.manager.broadcast_to_all",
             new_callable=AsyncMock,
-        ), patch(
+        ) as mock_broadcast, patch(
             "quickcall_supertrace.routes.version.asyncio.create_task",
-        ):
+        ) as mock_create_task:
             response = client.post("/api/version/update")
 
         assert response.status_code == 200
         data = response.json()
 
         assert data["status"] == "updating"
+        assert data["new_version"] == "0.2.0"
 
-        # Verify uv tool upgrade command was used
-        cmd_args = mock_create_proc.call_args[0]
-        assert cmd_args[0] == "uv"
-        assert "tool" in cmd_args
-        assert "upgrade" in cmd_args
+        # Verify broadcast was called (uvx just restarts, no upgrade command)
+        mock_broadcast.assert_called_once()
+        mock_create_task.assert_called_once()
 
     def test_update_timeout(self, client, mock_version_info_update_available):
         """Test update timeout handling."""
