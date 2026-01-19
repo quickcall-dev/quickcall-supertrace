@@ -14,6 +14,7 @@ const VersionContext = createContext<VersionContextType | null>(null);
 
 export function VersionProvider({ children }: { children: ReactNode }) {
   const versionState = useVersionCheck();
+  console.log('[VersionProvider] currentVersion:', versionState.versionInfo?.currentVersion);
 
   return (
     <VersionContext.Provider value={versionState}>

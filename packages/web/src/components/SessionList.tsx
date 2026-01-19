@@ -92,6 +92,7 @@ export function SessionList({
   // Use API version (updates after restart) with build-time fallback
   const { versionInfo } = useVersion();
   const displayVersion = versionInfo?.currentVersion || __APP_VERSION__;
+  console.log('[SessionList] versionInfo:', versionInfo?.currentVersion, 'displayVersion:', displayVersion);
 
   const handleImportSessions = async () => {
     if (isImporting) return;
