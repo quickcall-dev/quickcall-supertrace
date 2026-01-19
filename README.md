@@ -56,6 +56,61 @@ Open http://localhost:7845 in your browser.
 - **Export** - Download sessions as JSON or Markdown
 - **WebSocket updates** - Live updates without page refresh
 
+## Dashboard Metrics
+
+### Hero Metrics (6-Panel Grid)
+
+| Metric | Description |
+|--------|-------------|
+| **Commits** | Git commits made during the session |
+| **Turns / Commit** | Average prompts per commit (lower = faster delivery) |
+| **Tool Success Rate** | Percentage of tool calls that completed successfully |
+| **Lines / Hour** | Net lines changed per hour (productivity metric) |
+| **Images** | Total images/screenshots shared in the session |
+| **Thinking** | Prompts with extended thinking enabled (e.g., "3/10") |
+
+### Cost Analysis
+
+| Metric | Description |
+|--------|-------------|
+| **Estimated Cost** | Total USD cost based on Claude API pricing |
+| **Input Cost** | Cost for context/input tokens |
+| **Output Cost** | Cost for generated tokens |
+| **Cache Savings** | Money saved from prompt caching |
+
+### Token Metrics (Per-Turn Chart)
+
+- **Input Tokens** - Context sent per prompt
+- **Output Tokens** - Tokens generated in response
+- **Cache Read Tokens** - Tokens read from cache
+- **Cache Creation Tokens** - Tokens written to cache
+- **Turn Duration** - Time per prompt/response cycle
+
+### Tool Usage
+
+- **Tool Distribution** - Breakdown by tool type (Read, Edit, Bash, etc.)
+- **Total Tools** - Number of tool calls
+- **Tools Per Turn** - Stacked visualization of tools used
+
+### Work Output
+
+| Metric | Description |
+|--------|-------------|
+| **Files Changed** | Unique files modified |
+| **Lines Added** | Lines of code added |
+| **Lines Removed** | Lines of code removed |
+| **Net Lines** | Net change (added - removed) |
+| **Files Read** | Files read for context |
+
+### AI Insights
+
+- **Session Intents** - AI-detected goals for the session
+- **Intent Changes** - Whether focus shifted during work
+
+### Time Filtering
+
+All metrics support time range filtering: **1h**, **2h**, **6h**, **24h**, **All**
+
 ## Configuration
 
 | Env Variable | Default | Description |
