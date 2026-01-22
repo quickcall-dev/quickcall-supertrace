@@ -46,12 +46,18 @@ interface IntentChangedMessage {
 interface ContextUpdatedMessage {
   type: 'context_updated';
   session_id: string;
-  used_percentage: number;
-  remaining_percentage: number;
-  context_window_size: number;
-  total_input_tokens: number;
-  total_output_tokens: number;
-  timestamp: string;
+  data: {
+    used_percentage: number;
+    remaining_percentage: number;
+    context_window_size: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    cache_read_tokens?: number;
+    cache_create_tokens?: number;
+    model?: string | null;
+    cost_usd?: number | null;
+    timestamp?: string;
+  };
 }
 
 interface ServerRestartingMessage {

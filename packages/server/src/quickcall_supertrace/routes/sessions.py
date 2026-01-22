@@ -457,7 +457,7 @@ async def store_context_snapshot(
     await manager.broadcast_to_session(
         session_id,
         {
-            "event": "context_updated",
+            "type": "context_updated",
             "session_id": session_id,
             "data": context_data,
         }

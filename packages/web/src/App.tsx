@@ -29,6 +29,7 @@ import {
   type Event,
   type MetricsResponse,
   type IntentResponse,
+  type SessionContextData,
 } from './api/client';
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useLocalStorage('supertrace-analytics-expanded', true);
+  const [realtimeContextData, setRealtimeContextData] = useState<SessionContextData | null>(null);
 
   // Panel widths (persisted) - responsive to viewport
   // Default: analytics and chat split remaining space roughly equally
@@ -239,10 +241,19 @@ function App() {
     }
   }, [selectedSessionId, metricsHoursBack]);
 
+  // Handle WebSocket context updates for real-time tracking
+  const handleContextUpdated = useCallback((message: { session_id: string; data?: SessionContextData }) => {
+    if (message.session_id === selectedSessionId && message.data) {
+      console.log('[App] Context updated via WebSocket:', message.data);
+      setRealtimeContextData(message.data);
+    }
+  }, [selectedSessionId]);
+
   const { subscribe } = useWebSocket({
     onSessionImported: handleSessionImported,
     onSessionUpdated: handleSessionUpdated,
     onIntentChanged: handleWsIntentChanged,
+    onContextUpdated: handleContextUpdated,
   });
 
   // Load sessions on mount (don't auto-select - let user choose from homepage)
@@ -283,6 +294,7 @@ function App() {
     // Reset state when selecting a new session
     setHasMoreEvents(true);
     setHasNewMessages(false);
+    setRealtimeContextData(null); // Clear context for fresh session
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
@@ -604,6 +616,7 @@ function App() {
           onClearNewMessages={() => setHasNewMessages(false)}
           onLoadAllForSearch={handleLoadAllForSearch}
           isLoadingAllForSearch={isLoadingAllForSearch}
+          contextData={realtimeContextData}
         />
       </div>
 
