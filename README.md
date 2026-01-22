@@ -17,6 +17,7 @@
 <p align="center">
   <a href="#install">Install</a> |
   <a href="#features">Features</a> |
+  <a href="#context-window-tracking-optional">Context Tracking</a> |
   <a href="#configuration">Configuration</a> |
   <a href="#docker">Docker</a> |
   <a href="#troubleshooting">Troubleshooting</a>
@@ -55,6 +56,65 @@ Open http://localhost:7845 in your browser.
 - **Full-text search** - Find anything across all sessions
 - **Export** - Download sessions as JSON or Markdown
 - **WebSocket updates** - Live updates without page refresh
+- **Context window tracking** - Real-time context usage with color-coded progress bar
+
+## Context Window Tracking (Optional)
+
+Enable real-time context window tracking by installing the SuperTrace Claude Code plugin:
+
+### Quick Install
+
+```bash
+# Copy the plugin to Claude Code's plugins directory
+cp -r install/supertrace-plugin ~/.claude/plugins/supertrace
+chmod +x ~/.claude/plugins/supertrace/context-tracker.sh
+
+# Restart Claude Code to load the plugin
+```
+
+### What It Does
+
+The plugin tracks context window usage in real-time:
+- **Green bar** - Under 50% usage (plenty of context remaining)
+- **Yellow bar** - 50-75% usage (context filling up)
+- **Red bar** - Over 75% usage (nearing context limit)
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SUPERTRACE_URL` | http://localhost:7845 | SuperTrace backend URL |
+| `SUPERTRACE_DEBUG` | false | Enable debug logging |
+| `SUPERTRACE_TIMEOUT` | 2 | Request timeout in seconds |
+
+### Manual Installation
+
+If you prefer not to use the plugin system, add this to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /path/to/supertrace/context-tracker.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Requirements
+
+- `jq` - JSON processor (install with `brew install jq` or `apt install jq`)
+- `curl` - HTTP client (pre-installed on most systems)
+- `bc` - Calculator for percentage math (pre-installed on most systems)
 
 ## Dashboard Metrics
 
