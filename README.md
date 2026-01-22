@@ -60,47 +60,22 @@ Open http://localhost:7845 in your browser.
 
 ## Context Window Tracking (Optional)
 
-Enable real-time context window tracking by installing the SuperTrace Claude Code plugin:
+Enable real-time context window tracking by configuring Claude Code hooks.
 
-### Quick Install
+### Setup
 
-```bash
-# Copy the plugin to Claude Code's plugins directory
-cp -r install/supertrace-plugin ~/.claude/plugins/supertrace
-chmod +x ~/.claude/plugins/supertrace/context-tracker.sh
-
-# Restart Claude Code to load the plugin
-```
-
-### What It Does
-
-The plugin tracks context window usage in real-time:
-- **Green bar** - Under 50% usage (plenty of context remaining)
-- **Yellow bar** - 50-75% usage (context filling up)
-- **Red bar** - Over 75% usage (nearing context limit)
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SUPERTRACE_URL` | http://localhost:7845 | SuperTrace backend URL |
-| `SUPERTRACE_DEBUG` | false | Enable debug logging |
-| `SUPERTRACE_TIMEOUT` | 2 | Request timeout in seconds |
-
-### Manual Installation
-
-If you prefer not to use the plugin system, add this to `~/.claude/settings.json`:
+Add this to your Claude Code settings (`~/.claude/settings.json`):
 
 ```json
 {
   "hooks": {
-    "PostToolUse": [
+    "Stop": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "bash /path/to/supertrace/context-tracker.sh",
+            "command": "quickcall-supertrace-hook stop",
             "timeout": 5
           }
         ]
@@ -110,11 +85,38 @@ If you prefer not to use the plugin system, add this to `~/.claude/settings.json
 }
 ```
 
-### Requirements
+Then restart Claude Code to load the hooks.
 
-- `jq` - JSON processor (install with `brew install jq` or `apt install jq`)
-- `curl` - HTTP client (pre-installed on most systems)
-- `bc` - Calculator for percentage math (pre-installed on most systems)
+### What It Does
+
+The hook captures context window usage after each Claude response:
+- **Green bar** - Under 50% usage (plenty of context remaining)
+- **Yellow bar** - 50-75% usage (context filling up)
+- **Red bar** - Over 75% usage (nearing context limit)
+
+### Available Hook Commands
+
+| Command | Event | Description |
+|---------|-------|-------------|
+| `quickcall-supertrace-hook stop` | Stop | Captures context after Claude responds |
+| `quickcall-supertrace-hook tool` | PostToolUse | Captures context after each tool call |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QUICKCALL_SUPERTRACE_URL` | http://localhost:7845 | Server URL |
+| `QUICKCALL_SUPERTRACE_DEBUG` | false | Enable debug logging |
+
+### How It Works
+
+1. Claude Code calls `quickcall-supertrace-hook` after each response
+2. The hook reads token usage from the session transcript
+3. Calculates context window percentage
+4. POSTs data to SuperTrace server
+5. Frontend displays real-time progress bar
+
+No external dependencies required - the hook CLI is bundled with `quickcall-supertrace`.
 
 ## Dashboard Metrics
 

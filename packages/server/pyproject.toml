@@ -43,6 +43,7 @@ Issues = "https://github.com/quickcall-dev/quickcall-supertrace/issues"
 
 [project.scripts]
 quickcall-supertrace = "quickcall_supertrace.main:run"
+quickcall-supertrace-hook = "quickcall_supertrace.hooks.cli:main"
 
 [build-system]
 requires = ["hatchling"]
