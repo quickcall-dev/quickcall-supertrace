@@ -33,6 +33,88 @@ MODEL_CONTEXT_SIZES = {
 }
 DEFAULT_CONTEXT_SIZE = 200000
 
+# Pricing per million tokens (USD)
+MODEL_PRICING = {
+    "opus": {"input": 15.0, "output": 75.0},
+    "sonnet": {"input": 3.0, "output": 15.0},
+    "haiku": {"input": 0.25, "output": 1.25},
+}
+
+
+def get_pricing_for_model(model: str | None) -> dict[str, float]:
+    """Get pricing tier based on model name."""
+    if model:
+        model_lower = model.lower()
+        if "haiku" in model_lower:
+            return MODEL_PRICING["haiku"]
+        elif "sonnet" in model_lower:
+            return MODEL_PRICING["sonnet"]
+    return MODEL_PRICING["opus"]  # Default to opus
+
+
+def calculate_message_cost(usage: dict, pricing: dict[str, float]) -> float:
+    """Calculate cost for a single message's usage."""
+    input_tokens = usage.get("input_tokens", 0)
+    output_tokens = usage.get("output_tokens", 0)
+    cache_read = usage.get("cache_read_input_tokens", 0)
+    cache_create = usage.get("cache_creation_input_tokens", 0)
+
+    # Fresh input at full price
+    input_cost = (input_tokens / 1_000_000) * pricing["input"]
+    # Cache read at 10% of input price
+    cache_read_cost = (cache_read / 1_000_000) * pricing["input"] * 0.1
+    # Cache write at 125% of input price
+    cache_write_cost = (cache_create / 1_000_000) * pricing["input"] * 1.25
+    # Output at output price
+    output_cost = (output_tokens / 1_000_000) * pricing["output"]
+
+    return input_cost + cache_read_cost + cache_write_cost + output_cost
+
+
+def calculate_cumulative_cost(transcript: list[dict] | None, model: str | None) -> float:
+    """
+    Calculate cumulative session cost from assistant messages since last compaction.
+
+    Only counts messages after the last summary (context compaction) to match
+    how Claude Code calculates cost.
+    Deduplicates by message ID to avoid counting streaming updates multiple times.
+    """
+    if not transcript:
+        return 0.0
+
+    # Find the index of the last summary (context compaction)
+    last_summary_idx = -1
+    for i, entry in enumerate(transcript):
+        if entry.get("type") == "summary":
+            last_summary_idx = i
+
+    pricing = get_pricing_for_model(model)
+    seen_message_ids = set()
+    total_cost = 0.0
+
+    # Only process entries after the last summary
+    start_idx = last_summary_idx + 1 if last_summary_idx >= 0 else 0
+
+    for entry in transcript[start_idx:]:
+        if entry.get("type") != "assistant":
+            continue
+
+        message = entry.get("message", {})
+        message_id = message.get("id")
+        usage = message.get("usage")
+
+        if not message_id or not usage:
+            continue
+
+        # Skip duplicate message IDs (streaming updates)
+        if message_id in seen_message_ids:
+            continue
+        seen_message_ids.add(message_id)
+
+        total_cost += calculate_message_cost(usage, pricing)
+
+    return round(total_cost, 4)
+
 
 def get_server_url() -> str:
     """Get server URL from env or use default."""
@@ -182,7 +264,10 @@ def handle_stop(hook_input: HookInput) -> None:
     used_pct = min(100.0, (total_tokens / context_size) * 100)
     remaining_pct = max(0.0, 100.0 - used_pct)
 
-    debug(f"Usage: {total_tokens}/{context_size} tokens ({used_pct:.1f}%)")
+    # Calculate cumulative session cost
+    cost_usd = calculate_cumulative_cost(transcript, model)
+
+    debug(f"Usage: {total_tokens}/{context_size} tokens ({used_pct:.1f}%), cost: ${cost_usd:.2f}")
 
     # Build context data
     context_data = ContextData(
@@ -194,6 +279,7 @@ def handle_stop(hook_input: HookInput) -> None:
         cache_read_tokens=cache_read,
         cache_create_tokens=cache_create,
         model=model,
+        cost_usd=cost_usd,
     )
 
     # Send to server

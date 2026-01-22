@@ -357,6 +357,7 @@ class Database:
         cache_read_tokens: int = 0,
         cache_create_tokens: int = 0,
         model: str | None = None,
+        cost_usd: float | None = None,
     ) -> int:
         """
         Save a context window snapshot for a session.
@@ -372,6 +373,7 @@ class Database:
             cache_read_tokens: Tokens read from cache (optional, for detailed stats)
             cache_create_tokens: Tokens written to cache (optional, for detailed stats)
             model: Model being used (optional, for reference)
+            cost_usd: Cumulative session cost in USD (optional)
 
         Returns:
             ID of the inserted context record
@@ -385,9 +387,9 @@ class Database:
             INSERT INTO session_context (
                 session_id, timestamp, used_percentage, remaining_percentage,
                 context_window_size, total_input_tokens, total_output_tokens,
-                cache_read_tokens, cache_create_tokens, model
+                cache_read_tokens, cache_create_tokens, model, cost_usd
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session_id,
@@ -400,6 +402,7 @@ class Database:
                 cache_read_tokens,
                 cache_create_tokens,
                 model,
+                cost_usd,
             ),
         )
         await self.conn.commit()
@@ -424,7 +427,7 @@ class Database:
             """
             SELECT id, session_id, timestamp, used_percentage, remaining_percentage,
                    context_window_size, total_input_tokens, total_output_tokens,
-                   cache_read_tokens, cache_create_tokens, model, created_at
+                   cache_read_tokens, cache_create_tokens, model, cost_usd, created_at
             FROM session_context
             WHERE session_id = ?
             ORDER BY timestamp DESC
@@ -446,6 +449,7 @@ class Database:
                 "cache_read_tokens": row["cache_read_tokens"],
                 "cache_create_tokens": row["cache_create_tokens"],
                 "model": row["model"],
+                "cost_usd": row["cost_usd"],
                 "created_at": row["created_at"],
             }
             for row in rows
@@ -469,7 +473,7 @@ class Database:
             """
             SELECT id, session_id, timestamp, used_percentage, remaining_percentage,
                    context_window_size, total_input_tokens, total_output_tokens,
-                   cache_read_tokens, cache_create_tokens, model, created_at
+                   cache_read_tokens, cache_create_tokens, model, cost_usd, created_at
             FROM session_context
             WHERE session_id = ?
             ORDER BY timestamp DESC
@@ -492,6 +496,7 @@ class Database:
             "cache_read_tokens": row["cache_read_tokens"],
             "cache_create_tokens": row["cache_create_tokens"],
             "model": row["model"],
+            "cost_usd": row["cost_usd"],
             "created_at": row["created_at"],
         }
 

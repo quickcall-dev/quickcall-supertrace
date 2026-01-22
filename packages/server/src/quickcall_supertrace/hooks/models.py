@@ -72,3 +72,4 @@ class ContextData(BaseModel):
     cache_read_tokens: int = Field(default=0, ge=0)
     cache_create_tokens: int = Field(default=0, ge=0)
     model: str | None = Field(default=None)
+    cost_usd: float | None = Field(default=None, ge=0, description="Cumulative session cost in USD")

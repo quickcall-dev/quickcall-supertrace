@@ -118,8 +118,8 @@ export function SessionStatusBar({
   // Use model from contextData if not provided as prop
   const displayModel = model || contextData?.model;
 
-  // Calculate cost from tokens if not provided
-  const displayCost = cost ?? (contextData ? calculateCost(
+  // Prefer cost_usd from API (accurate), fall back to prop, then calculate
+  const displayCost = contextData?.cost_usd ?? cost ?? (contextData ? calculateCost(
     contextData.total_input_tokens,
     contextData.total_output_tokens,
     contextData.cache_read_tokens ?? 0,

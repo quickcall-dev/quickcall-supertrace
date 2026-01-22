@@ -46,6 +46,7 @@ class ContextUpdateRequest(BaseModel):
     cache_read_tokens: int = Field(default=0, ge=0, description="Cache read tokens (optional)")
     cache_create_tokens: int = Field(default=0, ge=0, description="Cache creation tokens (optional)")
     model: str | None = Field(default=None, description="Model identifier (optional)")
+    cost_usd: float | None = Field(default=None, ge=0, description="Cumulative session cost in USD")
 
 
 class ContextResponse(BaseModel):
@@ -61,6 +62,7 @@ class ContextResponse(BaseModel):
     cache_read_tokens: int
     cache_create_tokens: int
     model: str | None
+    cost_usd: float | None
     created_at: str
 
 
@@ -432,6 +434,7 @@ async def store_context_snapshot(
         cache_read_tokens=context.cache_read_tokens,
         cache_create_tokens=context.cache_create_tokens,
         model=context.model,
+        cost_usd=context.cost_usd,
     )
 
     # Prepare response data
@@ -447,6 +450,7 @@ async def store_context_snapshot(
         "cache_read_tokens": context.cache_read_tokens,
         "cache_create_tokens": context.cache_create_tokens,
         "model": context.model,
+        "cost_usd": context.cost_usd,
     }
 
     # Broadcast update via WebSocket to subscribed clients

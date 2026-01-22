@@ -19,6 +19,7 @@ export interface ContextData {
   cache_read_tokens?: number;
   cache_create_tokens?: number;
   model?: string | null;
+  cost_usd?: number | null;
   timestamp?: string;
 }
 
