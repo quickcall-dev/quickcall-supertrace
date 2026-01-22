@@ -69,6 +69,42 @@ function formatCost(cost: number | null | undefined): string {
   return `$${cost.toFixed(3)}`;
 }
 
+// Calculate cost based on token usage
+// Prices per million tokens (as of 2024)
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'opus': { input: 15, output: 75 },
+  'sonnet': { input: 3, output: 15 },
+  'haiku': { input: 0.25, output: 1.25 },
+};
+
+function calculateCost(
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number,
+  cacheCreateTokens: number,
+  model: string | null | undefined
+): number {
+  // Determine pricing tier based on model
+  let pricing = MODEL_PRICING['opus']; // Default to opus pricing
+  if (model) {
+    const modelLower = model.toLowerCase();
+    if (modelLower.includes('haiku')) {
+      pricing = MODEL_PRICING['haiku'];
+    } else if (modelLower.includes('sonnet')) {
+      pricing = MODEL_PRICING['sonnet'];
+    }
+  }
+
+  // Cache reads are 90% cheaper, cache writes are 25% more expensive
+  const regularInputTokens = inputTokens - cacheReadTokens - cacheCreateTokens;
+  const inputCost = (regularInputTokens / 1_000_000) * pricing.input;
+  const cacheReadCost = (cacheReadTokens / 1_000_000) * pricing.input * 0.1;
+  const cacheWriteCost = (cacheCreateTokens / 1_000_000) * pricing.input * 1.25;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+
+  return inputCost + cacheReadCost + cacheWriteCost + outputCost;
+}
+
 export function SessionStatusBar({
   model,
   contextData,
@@ -78,6 +114,18 @@ export function SessionStatusBar({
   const percentage = contextData?.used_percentage ?? 0;
   const progressColor = getProgressBarColor(percentage);
   const progressBar = renderProgressBar(percentage);
+
+  // Use model from contextData if not provided as prop
+  const displayModel = model || contextData?.model;
+
+  // Calculate cost from tokens if not provided
+  const displayCost = cost ?? (contextData ? calculateCost(
+    contextData.total_input_tokens,
+    contextData.total_output_tokens,
+    contextData.cache_read_tokens ?? 0,
+    contextData.cache_create_tokens ?? 0,
+    displayModel
+  ) : 0);
 
   return (
     <div className="px-2 sm:px-4 py-1 border-b border-border bg-muted/30 flex items-center justify-center gap-2 text-xs text-muted-foreground font-mono">
@@ -89,9 +137,9 @@ export function SessionStatusBar({
       ) : (
         <>
           {/* Model */}
-          {model && (
+          {displayModel && (
             <>
-              <span className="text-foreground font-medium">{formatModelName(model)}</span>
+              <span className="text-foreground font-medium">{formatModelName(displayModel)}</span>
               <span className="text-muted-foreground/50">•</span>
             </>
           )}
@@ -108,8 +156,8 @@ export function SessionStatusBar({
           )}
 
           {/* Cost */}
-          <span className="text-[color:var(--cost)] font-medium" title={`Estimated cost: ${formatCost(cost)}`}>
-            {formatCost(cost)}
+          <span className="text-[color:var(--cost)] font-medium" title={`Estimated cost: ${formatCost(displayCost)}`}>
+            {formatCost(displayCost)}
           </span>
         </>
       )}

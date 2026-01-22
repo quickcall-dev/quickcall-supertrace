@@ -16,6 +16,9 @@ export interface ContextData {
   context_window_size: number;
   total_input_tokens: number;
   total_output_tokens: number;
+  cache_read_tokens?: number;
+  cache_create_tokens?: number;
+  model?: string | null;
   timestamp?: string;
 }
 
