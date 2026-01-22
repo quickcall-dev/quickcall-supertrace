@@ -209,12 +209,15 @@ function App() {
   const handleSessionUpdated = useCallback(async (sessionId: string, newMessages: number) => {
     console.log('[App] Session updated:', sessionId, 'new messages:', newMessages);
 
-    // Always refresh session list to update timestamps/previews
-    try {
-      const data = await getSessions();
-      setSessions(data.sessions);
-    } catch (error) {
-      console.error('Failed to refresh sessions:', error);
+    // Only refresh session list if it's the current session or no session selected
+    // This prevents UI disruption when viewing an inactive session while another is active
+    if (sessionId === selectedSessionId || !selectedSessionId) {
+      try {
+        const data = await getSessions();
+        setSessions(data.sessions);
+      } catch (error) {
+        console.error('Failed to refresh sessions:', error);
+      }
     }
 
     // If this is the currently selected session, reload events and metrics
