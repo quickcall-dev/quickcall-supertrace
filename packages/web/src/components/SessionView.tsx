@@ -108,8 +108,9 @@ export function SessionView({
   }, [events]);
 
   // Fetch context data when session changes or events update
+  // Only skip if we have actual external data (not null/undefined)
   useEffect(() => {
-    if (externalContextData !== undefined || !session?.id) {
+    if (externalContextData || !session?.id) {
       return;
     }
 
