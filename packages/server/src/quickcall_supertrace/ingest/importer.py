@@ -156,6 +156,11 @@ async def import_session_file(
         if incremental:
             starting_prompt_index = await _get_max_prompt_index(db, session_id)
 
+        # Sort messages by timestamp before assigning indices
+        # JSONL line order may not match chronological order (Claude CLI can write out-of-order)
+        # Since DB queries use ORDER BY timestamp, indices must be assigned in timestamp order
+        messages.sort(key=lambda m: m.timestamp or "")
+
         _assign_prompt_indices(messages, starting_prompt_index)
 
         # Insert messages in batches
@@ -276,11 +281,14 @@ def _assign_prompt_indices(messages: list[ParsedMessage], starting_index: int = 
     """
     Assign prompt_index to non-tool-result user messages.
 
+    IMPORTANT: Messages should be sorted by timestamp before calling this
+    function to ensure indices are assigned in chronological order.
+
     Modifies messages in place. Only user messages that are not tool results
     get a prompt_index. All other messages get None.
 
     Args:
-        messages: List of parsed messages to update
+        messages: List of parsed messages to update (should be sorted by timestamp)
         starting_index: Starting prompt index (for incremental imports)
     """
     prompt_index = starting_index
