@@ -23,6 +23,7 @@ import {
   getSession,
   getSessionEvents,
   getSessionMetrics,
+  getSessionContext,
   searchEvents,
   triggerIngest,
   type Session,
@@ -30,6 +31,8 @@ import {
   type MetricsResponse,
   type IntentResponse,
 } from './api/client';
+import type { ContextUpdatedMessage } from './hooks/useWebSocket';
+import type { ContextData } from './components/ContextWindowBar';
 
 function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -125,6 +128,16 @@ function App() {
     handleIntentChanged(response);
   }, [selectedSessionId, handleIntentChanged]);
 
+  // Handle WebSocket context updated - update context data for current session
+  const handleContextUpdated = useCallback((message: ContextUpdatedMessage) => {
+    console.log('[App] Context updated via WebSocket:', message.session_id, message.data);
+    // Only update if it's for the currently selected session
+    if (message.session_id !== selectedSessionId) return;
+
+    // Update context data from WebSocket message
+    setContextData(message.data as ContextData);
+  }, [selectedSessionId]);
+
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
     const maxWidth = window.innerWidth < 1024 ? 200 : 400;
@@ -194,6 +207,10 @@ function App() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [metricsHoursBack, setMetricsHoursBack] = useState<number>(0); // Default: all time
 
+  // Context window data - managed here to receive WebSocket updates
+  const [contextData, setContextData] = useState<ContextData | null>(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+
   // Handle new session imported via WebSocket - refresh session list
   const handleSessionImported = useCallback(async (sessionId: string) => {
     console.log('[App] Session imported:', sessionId);
@@ -220,19 +237,25 @@ function App() {
       }
     }
 
-    // If this is the currently selected session, reload events and metrics
+    // If this is the currently selected session, reload events, metrics, and context
     if (sessionId === selectedSessionId) {
       console.log('[App] Reloading current session data...');
       setHasNewMessages(true); // Signal to SessionView that new messages arrived
       try {
-        const [sessionData, metricsData] = await Promise.all([
+        const [sessionData, metricsData, contextResponse] = await Promise.all([
           getSession(sessionId, 30),
           getSessionMetrics(sessionId, metricsHoursBack),
+          getSessionContext(sessionId),
         ]);
         setSelectedSession(sessionData.session);
         setEvents(sessionData.events);
         setTotalEvents(sessionData.total_events || sessionData.events.length);
         setMetrics(metricsData.metrics);
+
+        // Update context from session update
+        if (contextResponse.snapshots && contextResponse.snapshots.length > 0) {
+          setContextData(contextResponse.snapshots[0]);
+        }
       } catch (error) {
         console.error('Failed to reload session:', error);
       }
@@ -243,6 +266,7 @@ function App() {
     onSessionImported: handleSessionImported,
     onSessionUpdated: handleSessionUpdated,
     onIntentChanged: handleWsIntentChanged,
+    onContextUpdated: handleContextUpdated,
   });
 
   // Load sessions on mount (don't auto-select - let user choose from homepage)
@@ -270,12 +294,13 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load session details and metrics in parallel when selected
+  // Load session details, metrics, and context in parallel when selected
   useEffect(() => {
     if (!selectedSessionId) {
       setSelectedSession(null);
       setEvents([]);
       setMetrics(null);
+      setContextData(null);
       setHasMoreEvents(true);
       return;
     }
@@ -283,19 +308,23 @@ function App() {
     // Reset state when selecting a new session
     setHasMoreEvents(true);
     setHasNewMessages(false);
+    setContextData(null); // Clear context immediately for new session
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
 
     let cancelled = false;
 
-    // Load session and metrics in parallel
+    // Load session, metrics, and context in parallel
     const loadData = async () => {
       setIsLoading(true);
       setMetricsLoading(true);
+      setIsLoadingContext(true);
 
-      // First, get session to check if it's old
+      // Load all data in parallel
       const sessionPromise = getSession(selectedSessionId, 30);
+      const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
+      const contextPromise = getSessionContext(selectedSessionId);
 
       // Handle session data
       try {
@@ -318,9 +347,6 @@ function App() {
         }
       }
 
-      // Now load metrics
-      const metricsPromise = getSessionMetrics(selectedSessionId, metricsHoursBack);
-
       // Handle metrics data
       try {
         const metricsData = await metricsPromise;
@@ -335,6 +361,28 @@ function App() {
       } finally {
         if (!cancelled) {
           setMetricsLoading(false);
+        }
+      }
+
+      // Handle context data
+      try {
+        const contextResponse = await contextPromise;
+        if (!cancelled) {
+          // API returns { snapshots: [...], count: N } - use latest snapshot
+          if (contextResponse.snapshots && contextResponse.snapshots.length > 0) {
+            setContextData(contextResponse.snapshots[0]);
+          } else {
+            setContextData(null);
+          }
+        }
+      } catch (error) {
+        console.debug('Failed to load context:', error);
+        if (!cancelled) {
+          setContextData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingContext(false);
         }
       }
     };
@@ -398,16 +446,22 @@ function App() {
       // Trigger ingest to import latest data
       await triggerIngest(50);
 
-      // Reload current session data and metrics
-      const [sessionData, metricsData] = await Promise.all([
+      // Reload current session data, metrics, and context
+      const [sessionData, metricsData, contextResponse] = await Promise.all([
         getSession(selectedSessionId, 30),
         getSessionMetrics(selectedSessionId, metricsHoursBack),
+        getSessionContext(selectedSessionId),
       ]);
 
       setSelectedSession(sessionData.session);
       setEvents(sessionData.events);
       setTotalEvents(sessionData.total_events || sessionData.events.length);
       setMetrics(metricsData.metrics);
+
+      // Update context from refresh
+      if (contextResponse.snapshots && contextResponse.snapshots.length > 0) {
+        setContextData(contextResponse.snapshots[0]);
+      }
     } catch (error) {
       console.error('Failed to refresh session:', error);
     } finally {
@@ -604,6 +658,8 @@ function App() {
           onClearNewMessages={() => setHasNewMessages(false)}
           onLoadAllForSearch={handleLoadAllForSearch}
           isLoadingAllForSearch={isLoadingAllForSearch}
+          contextData={contextData}
+          isLoadingContext={isLoadingContext}
         />
       </div>
 

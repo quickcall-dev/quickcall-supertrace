@@ -7,7 +7,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
 import type { Session, Event, AssistantResponseData } from '../api/client';
-import { getExportUrl, getSessionContext } from '../api/client';
+import { getExportUrl } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
 import { MessageBubble } from './MessageBubble';
 import { ToolGroup } from './ToolGroup';
@@ -29,6 +29,9 @@ interface SessionViewProps {
   onClearNewMessages?: () => void;
   onLoadAllForSearch?: () => Promise<void>;
   isLoadingAllForSearch?: boolean;
+  // Context data managed by App.tsx for real-time WebSocket updates
+  contextData?: ContextData | null;
+  isLoadingContext?: boolean;
 }
 
 type GroupedItem =
@@ -73,6 +76,8 @@ export function SessionView({
   onClearNewMessages,
   onLoadAllForSearch,
   isLoadingAllForSearch = false,
+  contextData = null,
+  isLoadingContext = false,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -84,12 +89,14 @@ export function SessionView({
   const [showAllThinking, setShowAllThinking] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Context window state
-  const [contextData, setContextData] = useState<ContextData | null>(null);
-  const [isLoadingContext, setIsLoadingContext] = useState(false);
-
-  // Extract model from the latest assistant_response event
+  // Extract model: prefer context data (most recent from hooks), fallback to events
   const model = useMemo(() => {
+    // First check context data - this has the most up-to-date model from hooks
+    if (contextData?.model) {
+      return contextData.model;
+    }
+
+    // Fallback: extract from events
     for (let i = events.length - 1; i >= 0; i--) {
       const event = events[i];
       if (event.event_type === 'assistant_response' && event.data) {
@@ -98,47 +105,17 @@ export function SessionView({
       }
     }
     return null;
-  }, [events]);
-
-  // Fetch context data when session changes or events update
-  useEffect(() => {
-    if (!session?.id) {
-      return;
-    }
-
-    const fetchContext = async () => {
-      setIsLoadingContext(true);
-      try {
-        const response = await getSessionContext(session.id);
-        // API returns { snapshots: [...], count: N } - use latest snapshot
-        if (response.snapshots && response.snapshots.length > 0) {
-          setContextData(response.snapshots[0]);
-        } else {
-          setContextData(null);
-        }
-      } catch (error) {
-        // Context endpoint may not be available yet
-        console.debug('[SessionView] Context fetch failed:', error);
-        setContextData(null);
-      } finally {
-        setIsLoadingContext(false);
-      }
-    };
-
-    fetchContext();
-    // Re-fetch when events change (e.g., after refresh) to get updated context
-  }, [session?.id, events.length]);
+  }, [events, contextData]);
 
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
 
-  // Clear event refs, search, and context when session changes
+  // Clear event refs and search when session changes (context is managed by App.tsx)
   useEffect(() => {
     eventRefs.current.clear();
     setSearchQuery('');
     setShowSearch(false);
     setIsAtBottom(true);
-    setContextData(null);
   }, [session?.id]);
 
   // Check if at bottom helper

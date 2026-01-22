@@ -49,8 +49,27 @@ def get_hook_command_path() -> str:
     return "quickcall-supertrace-hook"
 
 
+def get_statusline_command_path() -> str:
+    """
+    Find the full path to quickcall-supertrace-statusline command.
+    """
+    python_bin_dir = Path(sys.executable).parent
+    statusline_path = python_bin_dir / "quickcall-supertrace-statusline"
+
+    if statusline_path.exists():
+        return str(statusline_path)
+
+    # Fallback: try to find via shutil.which
+    found = shutil.which("quickcall-supertrace-statusline")
+    if found:
+        return found
+
+    logger.warning("Could not find quickcall-supertrace-statusline path")
+    return "quickcall-supertrace-statusline"
+
+
 def get_supertrace_hooks() -> dict:
-    """Get hook configuration with the correct command path."""
+    """Get hook configuration (kept for backwards compatibility)."""
     hook_cmd = get_hook_command_path()
     return {
         "Stop": [
@@ -65,6 +84,13 @@ def get_supertrace_hooks() -> dict:
                 ]
             }
         ]
+    }
+
+
+def get_statusline_config() -> dict:
+    """Get statusline configuration with the correct command path."""
+    return {
+        "command": get_statusline_command_path()
     }
 
 
@@ -112,65 +138,77 @@ def is_supertrace_hook(hook_config: dict) -> bool:
     return False
 
 
+def is_supertrace_statusline(command: str) -> bool:
+    """Check if a statusline command is from SuperTrace."""
+    return "quickcall-supertrace-statusline" in command
+
+
 def register_hooks() -> bool:
     """
     Register SuperTrace hooks in Claude Code settings.
 
-    Returns True if hooks were registered or already present.
+    Registers Stop hook to capture context/cost data after each response.
+    Note: Cost calculation is approximate since hooks don't receive
+    pre-calculated values from Claude Code.
+
+    Returns True if registered or already present.
     """
     settings = get_claude_settings()
 
-    # Get or create hooks section
     if "hooks" not in settings:
         settings["hooks"] = {}
 
     hooks = settings["hooks"]
+    supertrace_hooks = get_supertrace_hooks()
     modified = False
 
-    # Get hook configs with correct command path
-    supertrace_hooks = get_supertrace_hooks()
-
-    # Register each hook type
     for event_type, hook_configs in supertrace_hooks.items():
         if event_type not in hooks:
             hooks[event_type] = []
 
-        # Check if our hooks are already registered
-        existing_hooks = hooks[event_type]
-        has_supertrace = any(is_supertrace_hook(h) for h in existing_hooks)
+        # Check if our hook is already registered
+        already_registered = any(is_supertrace_hook(h) for h in hooks[event_type])
 
-        if not has_supertrace:
-            # Add our hooks
+        if not already_registered:
             hooks[event_type].extend(hook_configs)
             modified = True
             logger.info(f"Registered {event_type} hook for QuickCall SuperTrace")
 
     if modified:
         if save_claude_settings(settings):
-            logger.info("Claude Code hooks configured successfully")
+            logger.info("Claude Code hooks registered successfully")
             logger.info("Restart Claude Code to activate hooks")
             return True
         else:
             logger.error("Failed to save Claude Code settings")
             return False
-    else:
-        logger.debug("QuickCall SuperTrace hooks already registered")
-        return True
+
+    return True
 
 
 def unregister_hooks() -> bool:
     """
-    Remove SuperTrace hooks from Claude Code settings.
+    Remove SuperTrace statusline and hooks from Claude Code settings.
 
-    Returns True if hooks were removed.
+    Returns True if removed.
     """
     settings = get_claude_settings()
+    modified = False
 
+    # Remove statusline if it's ours
+    statusline = settings.get("statusline", {})
+    if is_supertrace_statusline(statusline.get("command", "")):
+        del settings["statusline"]
+        modified = True
+        logger.info("Removed SuperTrace statusline command")
+
+    # Also remove any legacy hooks
     if "hooks" not in settings:
+        if modified:
+            return save_claude_settings(settings)
         return True
 
     hooks = settings["hooks"]
-    modified = False
 
     for event_type in list(hooks.keys()):
         original_count = len(hooks[event_type])
@@ -192,23 +230,31 @@ def unregister_hooks() -> bool:
 
 def check_hooks_status() -> dict:
     """
-    Check current status of SuperTrace hooks.
+    Check current status of SuperTrace statusline and hooks.
 
     Returns dict with status info.
     """
     settings = get_claude_settings()
+
+    # Check statusline (primary method)
+    statusline = settings.get("statusline", {})
+    statusline_registered = is_supertrace_statusline(statusline.get("command", ""))
+
+    # Check legacy hooks
     hooks = settings.get("hooks", {})
     supertrace_hooks = get_supertrace_hooks()
 
-    registered = {}
+    hooks_registered = {}
     for event_type in supertrace_hooks.keys():
         event_hooks = hooks.get(event_type, [])
-        registered[event_type] = any(is_supertrace_hook(h) for h in event_hooks)
+        hooks_registered[event_type] = any(is_supertrace_hook(h) for h in event_hooks)
 
     return {
         "settings_path": str(CLAUDE_SETTINGS_PATH),
         "settings_exists": CLAUDE_SETTINGS_PATH.exists(),
-        "hooks_registered": registered,
-        "all_registered": all(registered.values()),
+        "statusline_registered": statusline_registered,
+        "statusline_command": get_statusline_command_path(),
+        "hooks_registered": hooks_registered,
+        "all_registered": all(hooks_registered.values()),
         "hook_command": get_hook_command_path(),
     }
