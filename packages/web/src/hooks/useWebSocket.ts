@@ -43,22 +43,36 @@ interface IntentChangedMessage {
   previous_intents?: string[];
 }
 
+interface ContextUpdatedMessage {
+  type: 'context_updated';
+  session_id: string;
+  used_percentage: number;
+  remaining_percentage: number;
+  context_window_size: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  timestamp: string;
+}
+
 interface ServerRestartingMessage {
   type: 'server_restarting';
   message: string;
   new_version: string;
 }
 
-type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage | IntentChangedMessage | ServerRestartingMessage;
+type WebSocketMessage = SessionImportedMessage | SessionUpdatedMessage | SessionRefreshedMessage | IntentChangedMessage | ContextUpdatedMessage | ServerRestartingMessage;
+
+export type { ContextUpdatedMessage };
 
 interface UseWebSocketOptions {
   onSessionImported?: (sessionId: string) => void;
   onSessionUpdated?: (sessionId: string, newMessages: number) => void;
   onIntentChanged?: (message: IntentChangedMessage) => void;
+  onContextUpdated?: (message: ContextUpdatedMessage) => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onSessionImported, onSessionUpdated, onIntentChanged } = options;
+  const { onSessionImported, onSessionUpdated, onIntentChanged, onContextUpdated } = options;
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +85,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   onSessionUpdatedRef.current = onSessionUpdated;
   const onIntentChangedRef = useRef(onIntentChanged);
   onIntentChangedRef.current = onIntentChanged;
+  const onContextUpdatedRef = useRef(onContextUpdated);
+  onContextUpdatedRef.current = onContextUpdated;
 
   // Connect on mount
   useEffect(() => {
@@ -112,6 +128,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           } else if (data.type === 'intent_changed' && onIntentChangedRef.current) {
             // Intent analysis changed - notify for UI update and notification
             onIntentChangedRef.current(data);
+          } else if (data.type === 'context_updated' && onContextUpdatedRef.current) {
+            // Context window usage updated - notify for UI update
+            onContextUpdatedRef.current(data);
           } else if (data.type === 'server_restarting') {
             // Server is about to restart for update - useVersionCheck handles reconnection
             console.log('[WebSocket] Server restarting:', data.message);

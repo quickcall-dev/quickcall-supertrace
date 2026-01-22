@@ -242,6 +242,30 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
     # v5: Backfill thinking_content from raw_data (handled by Python, not SQL)
     # This is a marker migration - actual work done in _backfill_thinking_content()
     (5, "backfill_thinking_content", []),
+    # v6: Add session_context table for real-time context window tracking
+    # Stores snapshots of context window usage (tokens) from Claude Code hooks
+    # Columns match the expected API payload from hooks:
+    # {"used_percentage": 42.5, "remaining_percentage": 57.5, "context_window_size": 200000,
+    #  "total_input_tokens": 85000, "total_output_tokens": 15000}
+    (6, "add_session_context_table", [
+        """CREATE TABLE IF NOT EXISTS session_context (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            used_percentage REAL DEFAULT 0.0,
+            remaining_percentage REAL DEFAULT 100.0,
+            context_window_size INTEGER DEFAULT 200000,
+            total_input_tokens INTEGER DEFAULT 0,
+            total_output_tokens INTEGER DEFAULT 0,
+            cache_read_tokens INTEGER DEFAULT 0,
+            cache_create_tokens INTEGER DEFAULT 0,
+            model TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES sessions(id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_context_session ON session_context(session_id)",
+        "CREATE INDEX IF NOT EXISTS idx_context_session_time ON session_context(session_id, timestamp DESC)",
+    ]),
     # Add future migrations here with incrementing version numbers
 ]
 

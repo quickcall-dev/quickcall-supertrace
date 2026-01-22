@@ -263,3 +263,24 @@ export async function getSessionIntents(
   const url = `${BASE_URL}/sessions/${sessionId}/intents${queryString ? `?${queryString}` : ''}`;
   return fetchJson(url);
 }
+
+// Context Window API types
+export interface SessionContextData {
+  used_percentage: number;
+  remaining_percentage: number;
+  context_window_size: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  timestamp?: string;
+}
+
+export interface SessionContextResponse {
+  session_id: string;
+  context: SessionContextData | null;
+}
+
+export async function getSessionContext(
+  sessionId: string
+): Promise<SessionContextResponse> {
+  return fetchJson(`${BASE_URL}/sessions/${sessionId}/context`);
+}

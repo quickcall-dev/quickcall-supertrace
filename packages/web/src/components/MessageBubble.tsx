@@ -39,6 +39,18 @@ function highlightText(text: string, query: string | undefined): React.ReactNode
 export function MessageBubble({ event, searchQuery, showAllThinking = false }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
   const [thinkingExpanded, setThinkingExpanded] = useState(showAllThinking);
+  const [copied, setCopied] = useState(false);
+
+  // Copy text to clipboard with visual feedback
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   // Sync with global toggle
   useEffect(() => {
@@ -68,7 +80,15 @@ export function MessageBubble({ event, searchQuery, showAllThinking = false }: M
             {promptIndex}
           </div>
         )}
-        <div className="max-w-[85%] sm:max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
+        <div className="relative group max-w-[85%] sm:max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
+          {/* Copy button - appears on hover */}
+          <button
+            onClick={() => handleCopy(event.data?.prompt as string || '')}
+            className="absolute -left-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+            title={copied ? 'Copied!' : 'Copy message'}
+          >
+            <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-sm`} />
+          </button>
           {/* Render images if present */}
           {images && images.length > 0 && (
             <div className="mb-2 sm:mb-3 flex flex-wrap gap-1.5 sm:gap-2">
@@ -189,7 +209,17 @@ export function MessageBubble({ event, searchQuery, showAllThinking = false }: M
 
     return (
       <div className="flex justify-start">
-        <div className="max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
+        <div className="relative group max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
+          {/* Copy button - appears on hover */}
+          {hasContent && (
+            <button
+              onClick={() => handleCopy(content)}
+              className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+              title={copied ? 'Copied!' : 'Copy message'}
+            >
+              <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-sm`} />
+            </button>
+          )}
           {/* Thinking section - collapsible dropdown */}
           {hasThinking && (
             <div className={hasContent ? "mb-3" : ""}>

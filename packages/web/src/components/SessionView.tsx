@@ -6,11 +6,12 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
-import type { Session, Event } from '../api/client';
-import { getExportUrl } from '../api/client';
+import type { Session, Event, SessionContextData } from '../api/client';
+import { getExportUrl, getSessionContext } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
 import { MessageBubble } from './MessageBubble';
 import { ToolGroup } from './ToolGroup';
+import { ContextWindowBar, type ContextData } from './ContextWindowBar';
 
 interface SessionViewProps {
   session: Session | null;
@@ -27,6 +28,7 @@ interface SessionViewProps {
   onClearNewMessages?: () => void;
   onLoadAllForSearch?: () => Promise<void>;
   isLoadingAllForSearch?: boolean;
+  contextData?: ContextData | null;
 }
 
 type GroupedItem =
@@ -71,6 +73,7 @@ export function SessionView({
   onClearNewMessages,
   onLoadAllForSearch,
   isLoadingAllForSearch = false,
+  contextData: externalContextData,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -82,15 +85,47 @@ export function SessionView({
   const [showAllThinking, setShowAllThinking] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Context window state - use external data if provided, otherwise fetch
+  const [internalContextData, setInternalContextData] = useState<ContextData | null>(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+
+  // Use external context data if provided, otherwise use internal
+  const contextData = externalContextData ?? internalContextData;
+
+  // Fetch context data when session changes (if not provided externally)
+  useEffect(() => {
+    if (externalContextData !== undefined || !session?.id) {
+      return;
+    }
+
+    const fetchContext = async () => {
+      setIsLoadingContext(true);
+      try {
+        const response = await getSessionContext(session.id);
+        if (response.context) {
+          setInternalContextData(response.context);
+        }
+      } catch (error) {
+        // Context endpoint may not be available yet (Agent 1 dependency)
+        console.debug('[SessionView] Context fetch failed:', error);
+      } finally {
+        setIsLoadingContext(false);
+      }
+    };
+
+    fetchContext();
+  }, [session?.id, externalContextData]);
+
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
 
-  // Clear event refs and search when session changes
+  // Clear event refs, search, and context when session changes
   useEffect(() => {
     eventRefs.current.clear();
     setSearchQuery('');
     setShowSearch(false);
     setIsAtBottom(true);
+    setInternalContextData(null);
   }, [session?.id]);
 
   // Check if at bottom helper
@@ -425,6 +460,17 @@ export function SessionView({
               <span className="w-1.5 h-1.5 bg-[color:var(--success)] rounded-full animate-pulse" />
               Live
             </span>
+          )}
+          {/* Context Window Bar */}
+          {contextData && (
+            <>
+              <span className="text-muted-foreground/30 hidden sm:inline">|</span>
+              <ContextWindowBar
+                sessionId={session.id}
+                contextData={contextData}
+                isLoading={isLoadingContext}
+              />
+            </>
           )}
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
