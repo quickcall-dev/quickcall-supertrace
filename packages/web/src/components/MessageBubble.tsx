@@ -81,13 +81,13 @@ export function MessageBubble({ event, searchQuery, showAllThinking = false }: M
           </div>
         )}
         <div className="relative group max-w-[85%] sm:max-w-[75%] bg-[color:var(--user-bubble)] text-[color:var(--user-bubble-foreground)] rounded-2xl rounded-br-md px-3 py-2 sm:px-4 sm:py-3 shadow-sm">
-          {/* Copy button - appears on hover */}
+          {/* Copy button - appears on hover, positioned top-right inside bubble */}
           <button
             onClick={() => handleCopy(event.data?.prompt as string || '')}
-            className="absolute -left-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+            className="absolute right-2 top-2 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity p-1 rounded hover:bg-black/10"
             title={copied ? 'Copied!' : 'Copy message'}
           >
-            <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-sm`} />
+            <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-xs`} />
           </button>
           {/* Render images if present */}
           {images && images.length > 0 && (
@@ -210,14 +210,14 @@ export function MessageBubble({ event, searchQuery, showAllThinking = false }: M
     return (
       <div className="flex justify-start">
         <div className="relative group max-w-[85%] sm:max-w-[70%] bg-[color:var(--assistant-bubble)] text-[color:var(--assistant-bubble-foreground)] border border-border rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3">
-          {/* Copy button - appears on hover */}
-          {hasContent && (
+          {/* Copy button - appears on hover, copies content or thinking */}
+          {(hasContent || hasThinking) && (
             <button
-              onClick={() => handleCopy(content)}
-              className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-              title={copied ? 'Copied!' : 'Copy message'}
+              onClick={() => handleCopy(hasContent ? content : (thinkingContent || ''))}
+              className="absolute right-2 top-2 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity p-1 rounded hover:bg-black/10 dark:hover:bg-white/10"
+              title={copied ? 'Copied!' : (hasContent ? 'Copy message' : 'Copy thinking')}
             >
-              <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-sm`} />
+              <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'} text-xs`} />
             </button>
           )}
           {/* Thinking section - collapsible dropdown */}
