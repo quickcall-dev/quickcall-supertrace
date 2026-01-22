@@ -266,17 +266,23 @@ export async function getSessionIntents(
 
 // Context Window API types
 export interface SessionContextData {
+  id?: number;
+  session_id?: string;
   used_percentage: number;
   remaining_percentage: number;
   context_window_size: number;
   total_input_tokens: number;
   total_output_tokens: number;
+  cache_read_tokens?: number;
+  cache_create_tokens?: number;
+  model?: string | null;
   timestamp?: string;
+  created_at?: string;
 }
 
 export interface SessionContextResponse {
-  session_id: string;
-  context: SessionContextData | null;
+  snapshots: SessionContextData[];
+  count: number;
 }
 
 export async function getSessionContext(

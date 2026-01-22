@@ -117,8 +117,9 @@ export function SessionView({
       setIsLoadingContext(true);
       try {
         const response = await getSessionContext(session.id);
-        if (response.context) {
-          setInternalContextData(response.context);
+        // API returns { snapshots: [...], count: N } - use latest snapshot
+        if (response.snapshots && response.snapshots.length > 0) {
+          setInternalContextData(response.snapshots[0]);
         }
       } catch (error) {
         // Context endpoint may not be available yet (Agent 1 dependency)

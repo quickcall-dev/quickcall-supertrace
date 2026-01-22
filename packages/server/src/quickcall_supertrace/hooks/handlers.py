@@ -19,7 +19,7 @@ from .models import HookInput, ContextData
 
 # Server configuration
 DEFAULT_SERVER_URL = "http://localhost:7845"
-TIMEOUT_SECONDS = 2
+TIMEOUT_SECONDS = 5
 
 # Context window sizes by model
 MODEL_CONTEXT_SIZES = {
