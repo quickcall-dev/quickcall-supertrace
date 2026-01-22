@@ -9,33 +9,6 @@ import { useState } from 'react';
 import type { Event } from '../api/client';
 import { formatTimeWithSeconds } from '../utils/time';
 
-// Copy button component for tool sections
-function CopyButton({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-      title={copied ? 'Copied!' : 'Copy to clipboard'}
-    >
-      <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'}`} />
-      <span>{copied ? 'Copied' : (label || 'Copy')}</span>
-    </button>
-  );
-}
-
 interface ToolGroupProps {
   events: Event[];
 }
@@ -67,6 +40,7 @@ function getToolStyle(toolName: string) {
 }
 
 function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
+  const [copied, setCopied] = useState(false);
   const toolName = event.data?.tool_name as string || 'unknown';
   const toolInput = event.data?.tool_input as Record<string, unknown>;
   const toolResult = event.data?.tool_result;
@@ -75,6 +49,29 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   const formatData = (data: unknown): string => {
     if (data === null || data === undefined) return '';
     return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  };
+
+  // Format tool as copyable text (input + result)
+  const formatToolText = (): string => {
+    let output = `## ${toolName}\n`;
+    if (toolInput && Object.keys(toolInput).length > 0) {
+      output += `\n### Input\n\`\`\`json\n${formatData(toolInput)}\n\`\`\`\n`;
+    }
+    if (toolResult !== null && toolResult !== undefined) {
+      output += `\n### Result\n\`\`\`json\n${formatData(toolResult)}\n\`\`\`\n`;
+    }
+    return output;
+  };
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(formatToolText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   // Get a preview of the tool input for collapsed view
@@ -107,32 +104,40 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
   const preview = getInputPreview();
 
   return (
-    <div className="border-b border-border last:border-b-0">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left group"
-      >
-        <i className={`${style.icon} ${style.color} text-base`}></i>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          <span className={`font-mono text-sm ${style.color}`}>{toolName}</span>
-          {preview && !isExpanded && (
-            <span className="text-xs text-muted-foreground truncate">{preview}</span>
-          )}
-        </div>
-        <span className="text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTimeWithSeconds(event.timestamp)}
-        </span>
-        <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
-      </button>
+    <div className="border-b border-border last:border-b-0 group/tool">
+      <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 transition-colors">
+        <button
+          onClick={onToggle}
+          className="flex-1 flex items-center gap-3 text-left"
+        >
+          <i className={`${style.icon} ${style.color} text-base`}></i>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className={`font-mono text-sm ${style.color}`}>{toolName}</span>
+            {preview && !isExpanded && (
+              <span className="text-xs text-muted-foreground truncate">{preview}</span>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground opacity-0 group-hover/tool:opacity-100 transition-opacity">
+            {formatTimeWithSeconds(event.timestamp)}
+          </span>
+          <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+        </button>
+        {/* Copy button for this tool */}
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/tool:opacity-100"
+          title={copied ? 'Copied!' : 'Copy tool'}
+        >
+          <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'}`} />
+          <span>{copied ? 'Copied' : 'Copy'}</span>
+        </button>
+      </div>
 
       {isExpanded && (
         <div className="px-3 pb-3 space-y-3">
           {toolInput && Object.keys(toolInput).length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Input</div>
-                <CopyButton text={formatData(toolInput)} />
-              </div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Input</div>
               <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[300px] text-foreground border border-border">
                 {formatData(toolInput)}
               </pre>
@@ -140,10 +145,7 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
           )}
           {toolResult !== null && toolResult !== undefined && (
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Result</div>
-                <CopyButton text={formatData(toolResult)} />
-              </div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Result</div>
               <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[400px] text-foreground border border-border">
                 {formatData(toolResult)}
               </pre>
