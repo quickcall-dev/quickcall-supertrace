@@ -107,6 +107,50 @@ export function SessionView({
     return null;
   }, [events, contextData]);
 
+  // Derive context data from events when no real-time context available
+  // Context = input_tokens + cache_read_tokens + cache_create_tokens
+  const derivedContextData = useMemo((): ContextData | null => {
+    // If we have real-time context data, use that
+    if (contextData) return contextData;
+
+    // Find the last assistant_stop event with token_usage
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.event_type === 'assistant_stop' && event.data) {
+        const data = event.data as AssistantResponseData;
+        const tokenUsage = data.token_usage as {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_read_input_tokens?: number;
+          cache_creation_input_tokens?: number;
+        } | undefined;
+
+        if (tokenUsage) {
+          const inputTokens = tokenUsage.input_tokens || 0;
+          const cacheRead = tokenUsage.cache_read_input_tokens || 0;
+          const cacheCreate = tokenUsage.cache_creation_input_tokens || 0;
+          const totalContext = inputTokens + cacheRead + cacheCreate;
+
+          // Context window size based on model (default to 200k)
+          const contextWindowSize = 200000;
+          const usedPercentage = (totalContext / contextWindowSize) * 100;
+
+          return {
+            used_percentage: usedPercentage,
+            remaining_percentage: 100 - usedPercentage,
+            context_window_size: contextWindowSize,
+            total_input_tokens: inputTokens,
+            total_output_tokens: tokenUsage.output_tokens || 0,
+            cache_read_tokens: cacheRead,
+            cache_create_tokens: cacheCreate,
+            model: data.model,
+          };
+        }
+      }
+    }
+    return null;
+  }, [events, contextData]);
+
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -564,12 +608,12 @@ export function SessionView({
         </div>
       </div>
 
-      {/* Status Bar - Model, Context, Cost */}
-      {(model || contextData) && (
+      {/* Status Bar - Model, Context (real-time or derived from events) */}
+      {(model || derivedContextData) && (
         <SessionStatusBar
           model={model}
-          contextData={contextData}
-          isLoading={isLoadingContext}
+          contextData={derivedContextData}
+          isLoading={isLoadingContext && !derivedContextData}
         />
       )}
 
