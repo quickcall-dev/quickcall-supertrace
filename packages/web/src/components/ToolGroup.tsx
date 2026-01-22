@@ -9,6 +9,33 @@ import { useState } from 'react';
 import type { Event } from '../api/client';
 import { formatTimeWithSeconds } from '../utils/time';
 
+// Copy button component for tool sections
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+      title={copied ? 'Copied!' : 'Copy to clipboard'}
+    >
+      <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'}`} />
+      <span>{copied ? 'Copied' : (label || 'Copy')}</span>
+    </button>
+  );
+}
+
 interface ToolGroupProps {
   events: Event[];
 }
@@ -102,7 +129,10 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
         <div className="px-3 pb-3 space-y-3">
           {toolInput && Object.keys(toolInput).length > 0 && (
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Input</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Input</div>
+                <CopyButton text={formatData(toolInput)} />
+              </div>
               <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[300px] text-foreground border border-border">
                 {formatData(toolInput)}
               </pre>
@@ -110,7 +140,10 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
           )}
           {toolResult !== null && toolResult !== undefined && (
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wide">Result</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Result</div>
+                <CopyButton text={formatData(toolResult)} />
+              </div>
               <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto overflow-y-auto max-h-[400px] text-foreground border border-border">
                 {formatData(toolResult)}
               </pre>
