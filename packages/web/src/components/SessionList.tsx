@@ -109,6 +109,7 @@ export function SessionList({
   console.log('[SessionList] versionInfo:', versionInfo?.currentVersion, 'displayVersion:', displayVersion);
 
   const handleImportSessions = async () => {
+    console.log('[SessionList] Import button clicked, isImporting:', isImporting);
     if (isImporting) return;
 
     setShowImportMenu(false);
@@ -240,7 +241,7 @@ export function SessionList({
       {/* Search & Import - below header */}
       <div className="p-3 border-b border-border shrink-0">
         {/* Search */}
-        <form onSubmit={handleSearch} className="w-full max-w-full">
+        <form onSubmit={handleSearch} className="w-full">
           <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-all">
             <i className="ri-search-line text-muted-foreground text-sm shrink-0"></i>
             <input
@@ -255,38 +256,30 @@ export function SessionList({
 
         {/* Import Sessions Button with Dropdown */}
         <div className="relative mt-2" ref={menuRef}>
-          <div className="flex w-full">
-            {/* Main button */}
-            <button
-              onClick={handleImportSessions}
-              disabled={isImporting}
-              className={`
-                flex-1 py-1.5 px-3 rounded-l-lg text-sm font-medium transition-all
-                flex items-center justify-center gap-2
-                ${isImporting
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
-              <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
-            </button>
-            {/* Dropdown toggle */}
-            <button
-              onClick={() => setShowImportMenu(!showImportMenu)}
-              disabled={isImporting}
-              className={`
-                px-2 rounded-r-lg border-l border-primary-foreground/20 transition-all
-                ${isImporting
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              <i className="ri-arrow-down-s-line"></i>
-            </button>
-          </div>
+          {/* Single button with integrated dropdown */}
+          <button
+            onClick={handleImportSessions}
+            disabled={isImporting}
+            className={`
+              w-full py-1.5 px-3 rounded-lg text-sm font-medium transition-all
+              flex items-center justify-center gap-2
+              ${isImporting
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-primary text-primary-foreground hover:bg-primary/80 active:bg-primary/70 cursor-pointer'
+              }
+            `}
+          >
+            <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
+            <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
+            {/* Dropdown arrow */}
+            <i
+              className="ri-arrow-down-s-line ml-auto shrink-0 hover:bg-primary-foreground/10 rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowImportMenu(!showImportMenu);
+              }}
+            ></i>
+          </button>
 
           {/* Dropdown menu */}
           {showImportMenu && (
