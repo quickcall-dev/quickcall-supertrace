@@ -121,6 +121,7 @@ def _slim_event(event: dict) -> dict:
         transcript = data.get("transcript", [])
         slimmed_transcript = _slim_transcript(transcript)
         slim["data"] = {
+            "model": data.get("model"),  # Model name for status bar
             "token_usage": data.get("token_usage"),
             "stop_reason": data.get("stop_reason"),
             "transcript": slimmed_transcript,

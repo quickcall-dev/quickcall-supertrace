@@ -96,10 +96,10 @@ export function SessionView({
       return contextData.model;
     }
 
-    // Fallback: extract from events
+    // Fallback: extract from events (assistant_stop has the model info)
     for (let i = events.length - 1; i >= 0; i--) {
       const event = events[i];
-      if (event.event_type === 'assistant_response' && event.data) {
+      if (event.event_type === 'assistant_stop' && event.data) {
         const data = event.data as AssistantResponseData;
         if (data.model) return data.model;
       }
