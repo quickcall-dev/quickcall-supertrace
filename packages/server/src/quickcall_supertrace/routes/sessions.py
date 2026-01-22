@@ -2,20 +2,66 @@
 Session API routes.
 
 Provides endpoints for listing sessions, getting session details,
-fetching session events, and exporting sessions.
+fetching session events, exporting sessions, and context window tracking.
 
-Related: db/client.py (queries), export.py (export logic)
+Related: db/client.py (queries), export.py (export logic), ws/broadcast.py (WebSocket)
 """
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel, Field
 
 from ..db import get_db
+from ..ws import manager
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+
+# =============================================================================
+# Context Window Tracking Models
+# =============================================================================
+
+class ContextUpdateRequest(BaseModel):
+    """
+    Request body for POST /api/sessions/{session_id}/context.
+
+    Expected payload from Claude Code hooks:
+    {
+        "used_percentage": 42.5,
+        "remaining_percentage": 57.5,
+        "context_window_size": 200000,
+        "total_input_tokens": 85000,
+        "total_output_tokens": 15000
+    }
+    """
+    used_percentage: float = Field(..., ge=0, le=100, description="Percentage of context window used (0-100)")
+    remaining_percentage: float = Field(default=None, ge=0, le=100, description="Percentage remaining")
+    context_window_size: int = Field(default=200000, gt=0, description="Max context window size")
+    total_input_tokens: int = Field(default=0, ge=0, description="Total input tokens consumed")
+    total_output_tokens: int = Field(default=0, ge=0, description="Total output tokens generated")
+    cache_read_tokens: int = Field(default=0, ge=0, description="Cache read tokens (optional)")
+    cache_create_tokens: int = Field(default=0, ge=0, description="Cache creation tokens (optional)")
+    model: str | None = Field(default=None, description="Model identifier (optional)")
+
+
+class ContextResponse(BaseModel):
+    """Response model for context window data."""
+    id: int
+    session_id: str
+    timestamp: str
+    used_percentage: float
+    remaining_percentage: float
+    context_window_size: int
+    total_input_tokens: int
+    total_output_tokens: int
+    cache_read_tokens: int
+    cache_create_tokens: int
+    model: str | None
+    created_at: str
 
 
 @router.get("")
@@ -339,3 +385,107 @@ def _export_markdown(session: dict, events: list[dict]) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+# =============================================================================
+# Context Window Tracking Endpoints
+# =============================================================================
+
+
+@router.post("/{session_id}/context")
+async def store_context_snapshot(
+    session_id: str,
+    context: ContextUpdateRequest,
+) -> dict[str, Any]:
+    """
+    Store a context window snapshot for a session.
+
+    Called by Claude Code hooks to report current context window usage.
+    Broadcasts the update via WebSocket to subscribed clients.
+
+    Args:
+        session_id: Session to store context for
+        context: Context window data including token counts and percentages
+
+    Returns:
+        Stored context record with ID and timestamp
+    """
+    db = await get_db()
+
+    # Generate timestamp for this snapshot
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    # Compute remaining percentage if not provided
+    remaining = context.remaining_percentage
+    if remaining is None:
+        remaining = 100.0 - context.used_percentage
+
+    # Store in database
+    context_id = await db.save_session_context(
+        session_id=session_id,
+        timestamp=timestamp,
+        used_percentage=context.used_percentage,
+        remaining_percentage=remaining,
+        context_window_size=context.context_window_size,
+        total_input_tokens=context.total_input_tokens,
+        total_output_tokens=context.total_output_tokens,
+        cache_read_tokens=context.cache_read_tokens,
+        cache_create_tokens=context.cache_create_tokens,
+        model=context.model,
+    )
+
+    # Prepare response data
+    context_data = {
+        "id": context_id,
+        "session_id": session_id,
+        "timestamp": timestamp,
+        "used_percentage": context.used_percentage,
+        "remaining_percentage": remaining,
+        "context_window_size": context.context_window_size,
+        "total_input_tokens": context.total_input_tokens,
+        "total_output_tokens": context.total_output_tokens,
+        "cache_read_tokens": context.cache_read_tokens,
+        "cache_create_tokens": context.cache_create_tokens,
+        "model": context.model,
+    }
+
+    # Broadcast update via WebSocket to subscribed clients
+    await manager.broadcast_to_session(
+        session_id,
+        {
+            "event": "context_updated",
+            "session_id": session_id,
+            "data": context_data,
+        }
+    )
+
+    return {"status": "ok", "context": context_data}
+
+
+@router.get("/{session_id}/context")
+async def get_context_snapshots(
+    session_id: str,
+    limit: int = 100,
+    latest_only: bool = False,
+) -> dict[str, Any]:
+    """
+    Get context window snapshots for a session.
+
+    Args:
+        session_id: Session to get context for
+        limit: Maximum number of snapshots to return (default 100)
+        latest_only: If True, return only the most recent snapshot
+
+    Returns:
+        List of context snapshots or single latest snapshot
+    """
+    db = await get_db()
+
+    if latest_only:
+        context = await db.get_latest_session_context(session_id)
+        if not context:
+            return {"context": None, "count": 0}
+        return {"context": context, "count": 1}
+
+    snapshots = await db.get_session_context(session_id, limit=limit)
+    return {"snapshots": snapshots, "count": len(snapshots)}
