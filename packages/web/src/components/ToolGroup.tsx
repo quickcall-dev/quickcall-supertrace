@@ -158,6 +158,7 @@ function ToolItem({ event, isExpanded, onToggle }: ToolItemProps) {
 export function ToolGroup({ events }: ToolGroupProps) {
   const [isGroupExpanded, setIsGroupExpanded] = useState(false);
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
+  const [copiedAll, setCopiedAll] = useState(false);
 
   const toggleGroup = () => setIsGroupExpanded(!isGroupExpanded);
 
@@ -169,6 +170,40 @@ export function ToolGroup({ events }: ToolGroupProps) {
       newExpanded.add(eventId);
     }
     setExpandedTools(newExpanded);
+  };
+
+  // Format all tools into a single copyable string
+  const formatAllTools = (): string => {
+    return events.map((event, index) => {
+      const toolName = event.data?.tool_name as string || 'unknown';
+      const toolInput = event.data?.tool_input as Record<string, unknown>;
+      const toolResult = event.data?.tool_result;
+
+      const formatData = (data: unknown): string => {
+        if (data === null || data === undefined) return '';
+        return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      };
+
+      let output = `## Tool ${index + 1}: ${toolName}\n`;
+      if (toolInput && Object.keys(toolInput).length > 0) {
+        output += `\n### Input\n\`\`\`json\n${formatData(toolInput)}\n\`\`\`\n`;
+      }
+      if (toolResult !== null && toolResult !== undefined) {
+        output += `\n### Result\n\`\`\`json\n${formatData(toolResult)}\n\`\`\`\n`;
+      }
+      return output;
+    }).join('\n---\n\n');
+  };
+
+  const handleCopyAll = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent toggle when clicking copy
+    try {
+      await navigator.clipboard.writeText(formatAllTools());
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   // Get unique tool names for summary
@@ -183,13 +218,13 @@ export function ToolGroup({ events }: ToolGroupProps) {
   const remaining = Object.keys(toolCounts).length - 4;
 
   return (
-    <div className="max-w-[70%] bg-muted/50 border border-border rounded-xl overflow-hidden">
+    <div className="group/toolgroup max-w-[70%] bg-muted/50 border border-border rounded-xl overflow-hidden">
       {/* Group header */}
-      <button
-        onClick={toggleGroup}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors">
+        <button
+          onClick={toggleGroup}
+          className="flex-1 flex items-center gap-3"
+        >
           <div className="flex items-center gap-1.5">
             <i className={`ri-arrow-down-s-line text-muted-foreground transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}></i>
             <i className="ri-tools-line text-muted-foreground"></i>
@@ -221,8 +256,18 @@ export function ToolGroup({ events }: ToolGroupProps) {
               )}
             </div>
           )}
-        </div>
-      </button>
+        </button>
+
+        {/* Copy All button */}
+        <button
+          onClick={handleCopyAll}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/toolgroup:opacity-100 ml-2"
+          title={copiedAll ? 'Copied!' : 'Copy all tools'}
+        >
+          <i className={`${copiedAll ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line'}`} />
+          <span>{copiedAll ? 'Copied' : 'Copy All'}</span>
+        </button>
+      </div>
 
       {/* Tool list */}
       {isGroupExpanded && (
