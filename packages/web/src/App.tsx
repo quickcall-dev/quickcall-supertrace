@@ -308,7 +308,8 @@ function App() {
     // Reset state when selecting a new session
     setHasMoreEvents(true);
     setHasNewMessages(false);
-    setContextData(null); // Clear context immediately for new session
+    setContextData(null);
+    setIsLoadingContext(true); // Set loading before async starts
 
     // Subscribe to this session's WebSocket updates
     subscribe(selectedSessionId);
@@ -319,7 +320,6 @@ function App() {
     const loadData = async () => {
       setIsLoading(true);
       setMetricsLoading(true);
-      setIsLoadingContext(true);
 
       // Load all data in parallel
       const sessionPromise = getSession(selectedSessionId, 30);
