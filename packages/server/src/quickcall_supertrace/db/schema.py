@@ -266,10 +266,6 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
         "CREATE INDEX IF NOT EXISTS idx_context_session ON session_context(session_id)",
         "CREATE INDEX IF NOT EXISTS idx_context_session_time ON session_context(session_id, timestamp DESC)",
     ]),
-    # v7: Add cost_usd column to session_context for cumulative session cost tracking
-    (7, "add_cost_usd_to_context", [
-        "ALTER TABLE session_context ADD COLUMN cost_usd REAL DEFAULT NULL",
-    ]),
     # Add future migrations here with incrementing version numbers
 ]
 

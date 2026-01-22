@@ -127,7 +127,6 @@ def main():
             "cache_read_tokens": ctx.get("current_usage", {}).get("cache_read_input_tokens", 0),
             "cache_create_tokens": ctx.get("current_usage", {}).get("cache_creation_input_tokens", 0),
             "model": model_info.get("id") or model_info.get("display_name"),
-            "cost_usd": cost.get("total_cost_usd"),
         }
         send_context_update(session_id, context_data)
 
