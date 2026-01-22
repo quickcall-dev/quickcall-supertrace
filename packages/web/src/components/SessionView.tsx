@@ -29,8 +29,6 @@ interface SessionViewProps {
   onClearNewMessages?: () => void;
   onLoadAllForSearch?: () => Promise<void>;
   isLoadingAllForSearch?: boolean;
-  contextData?: ContextData | null;
-  cost?: number | null;
 }
 
 type GroupedItem =
@@ -75,8 +73,6 @@ export function SessionView({
   onClearNewMessages,
   onLoadAllForSearch,
   isLoadingAllForSearch = false,
-  contextData: externalContextData,
-  cost,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -88,12 +84,9 @@ export function SessionView({
   const [showAllThinking, setShowAllThinking] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Context window state - use external data if provided, otherwise fetch
-  const [internalContextData, setInternalContextData] = useState<ContextData | null>(null);
+  // Context window state
+  const [contextData, setContextData] = useState<ContextData | null>(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
-
-  // Use external context data if provided, otherwise use internal
-  const contextData = externalContextData ?? internalContextData;
 
   // Extract model from the latest assistant_response event
   const model = useMemo(() => {
@@ -108,9 +101,8 @@ export function SessionView({
   }, [events]);
 
   // Fetch context data when session changes or events update
-  // Only skip if we have actual external data (not null/undefined)
   useEffect(() => {
-    if (externalContextData || !session?.id) {
+    if (!session?.id) {
       return;
     }
 
@@ -120,11 +112,14 @@ export function SessionView({
         const response = await getSessionContext(session.id);
         // API returns { snapshots: [...], count: N } - use latest snapshot
         if (response.snapshots && response.snapshots.length > 0) {
-          setInternalContextData(response.snapshots[0]);
+          setContextData(response.snapshots[0]);
+        } else {
+          setContextData(null);
         }
       } catch (error) {
-        // Context endpoint may not be available yet (Agent 1 dependency)
+        // Context endpoint may not be available yet
         console.debug('[SessionView] Context fetch failed:', error);
+        setContextData(null);
       } finally {
         setIsLoadingContext(false);
       }
@@ -132,7 +127,7 @@ export function SessionView({
 
     fetchContext();
     // Re-fetch when events change (e.g., after refresh) to get updated context
-  }, [session?.id, externalContextData, events.length]);
+  }, [session?.id, events.length]);
 
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -143,7 +138,7 @@ export function SessionView({
     setSearchQuery('');
     setShowSearch(false);
     setIsAtBottom(true);
-    setInternalContextData(null);
+    setContextData(null);
   }, [session?.id]);
 
   // Check if at bottom helper
@@ -593,11 +588,10 @@ export function SessionView({
       </div>
 
       {/* Status Bar - Model, Context, Cost */}
-      {(model || contextData || cost !== undefined) && (
+      {(model || contextData) && (
         <SessionStatusBar
           model={model}
           contextData={contextData}
-          cost={cost}
           isLoading={isLoadingContext}
         />
       )}
