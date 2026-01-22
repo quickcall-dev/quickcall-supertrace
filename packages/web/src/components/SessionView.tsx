@@ -107,7 +107,7 @@ export function SessionView({
     return null;
   }, [events]);
 
-  // Fetch context data when session changes (if not provided externally)
+  // Fetch context data when session changes or events update
   useEffect(() => {
     if (externalContextData !== undefined || !session?.id) {
       return;
@@ -130,7 +130,8 @@ export function SessionView({
     };
 
     fetchContext();
-  }, [session?.id, externalContextData]);
+    // Re-fetch when events change (e.g., after refresh) to get updated context
+  }, [session?.id, externalContextData, events.length]);
 
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
