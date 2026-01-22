@@ -11,6 +11,7 @@ and hooks are automatically configured.
 import json
 import logging
 import shutil
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -18,24 +19,53 @@ logger = logging.getLogger(__name__)
 # Claude Code settings path
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
-# Hook configuration to register
-SUPERTRACE_HOOKS = {
-    "Stop": [
-        {
-            "matcher": "*",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "quickcall-supertrace-hook stop",
-                    "timeout": 5
-                }
-            ]
-        }
-    ]
-}
-
 # Marker to identify our hooks
 SUPERTRACE_HOOK_MARKER = "quickcall-supertrace-hook"
+
+
+def get_hook_command_path() -> str:
+    """
+    Find the full path to quickcall-supertrace-hook command.
+
+    This is needed because Claude Code runs hooks in a shell that
+    may not have the same PATH as the user's terminal.
+    """
+    # The hook CLI is installed alongside the main package
+    # Find it relative to the current Python executable
+    python_bin_dir = Path(sys.executable).parent
+    hook_path = python_bin_dir / "quickcall-supertrace-hook"
+
+    if hook_path.exists():
+        return str(hook_path)
+
+    # Fallback: try to find via shutil.which
+    import shutil as sh
+    found = sh.which("quickcall-supertrace-hook")
+    if found:
+        return found
+
+    # Last resort: assume it's in PATH (may fail but worth trying)
+    logger.warning("Could not find quickcall-supertrace-hook path, using bare command")
+    return "quickcall-supertrace-hook"
+
+
+def get_supertrace_hooks() -> dict:
+    """Get hook configuration with the correct command path."""
+    hook_cmd = get_hook_command_path()
+    return {
+        "Stop": [
+            {
+                "matcher": "*",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": f"{hook_cmd} stop",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ]
+    }
 
 
 def get_claude_settings() -> dict:
@@ -97,8 +127,11 @@ def register_hooks() -> bool:
     hooks = settings["hooks"]
     modified = False
 
+    # Get hook configs with correct command path
+    supertrace_hooks = get_supertrace_hooks()
+
     # Register each hook type
-    for event_type, hook_configs in SUPERTRACE_HOOKS.items():
+    for event_type, hook_configs in supertrace_hooks.items():
         if event_type not in hooks:
             hooks[event_type] = []
 
@@ -165,9 +198,10 @@ def check_hooks_status() -> dict:
     """
     settings = get_claude_settings()
     hooks = settings.get("hooks", {})
+    supertrace_hooks = get_supertrace_hooks()
 
     registered = {}
-    for event_type in SUPERTRACE_HOOKS.keys():
+    for event_type in supertrace_hooks.keys():
         event_hooks = hooks.get(event_type, [])
         registered[event_type] = any(is_supertrace_hook(h) for h in event_hooks)
 
@@ -176,4 +210,5 @@ def check_hooks_status() -> dict:
         "settings_exists": CLAUDE_SETTINGS_PATH.exists(),
         "hooks_registered": registered,
         "all_registered": all(registered.values()),
+        "hook_command": get_hook_command_path(),
     }
