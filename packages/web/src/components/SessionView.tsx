@@ -6,12 +6,13 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
-import type { Session, Event, SessionContextData } from '../api/client';
+import type { Session, Event, AssistantResponseData } from '../api/client';
 import { getExportUrl, getSessionContext } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
 import { MessageBubble } from './MessageBubble';
 import { ToolGroup } from './ToolGroup';
-import { ContextWindowBar, type ContextData } from './ContextWindowBar';
+import { type ContextData } from './ContextWindowBar';
+import { SessionStatusBar } from './SessionStatusBar';
 
 interface SessionViewProps {
   session: Session | null;
@@ -29,6 +30,7 @@ interface SessionViewProps {
   onLoadAllForSearch?: () => Promise<void>;
   isLoadingAllForSearch?: boolean;
   contextData?: ContextData | null;
+  cost?: number | null;
 }
 
 type GroupedItem =
@@ -74,6 +76,7 @@ export function SessionView({
   onLoadAllForSearch,
   isLoadingAllForSearch = false,
   contextData: externalContextData,
+  cost,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,18 @@ export function SessionView({
 
   // Use external context data if provided, otherwise use internal
   const contextData = externalContextData ?? internalContextData;
+
+  // Extract model from the latest assistant_response event
+  const model = useMemo(() => {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.event_type === 'assistant_response' && event.data) {
+        const data = event.data as AssistantResponseData;
+        if (data.model) return data.model;
+      }
+    }
+    return null;
+  }, [events]);
 
   // Fetch context data when session changes (if not provided externally)
   useEffect(() => {
@@ -461,17 +476,6 @@ export function SessionView({
               Live
             </span>
           )}
-          {/* Context Window Bar */}
-          {contextData && (
-            <>
-              <span className="text-muted-foreground/30 hidden sm:inline">|</span>
-              <ContextWindowBar
-                sessionId={session.id}
-                contextData={contextData}
-                isLoading={isLoadingContext}
-              />
-            </>
-          )}
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Refresh button */}
@@ -584,6 +588,16 @@ export function SessionView({
           </a>
         </div>
       </div>
+
+      {/* Status Bar - Model, Context, Cost */}
+      {(model || contextData || cost !== undefined) && (
+        <SessionStatusBar
+          model={model}
+          contextData={contextData}
+          cost={cost}
+          isLoading={isLoadingContext}
+        />
+      )}
 
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">

@@ -8,7 +8,7 @@
  * Related: api/client.ts (getSessionContext), hooks/useWebSocket.ts (real-time updates)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 
 export interface ContextData {
   used_percentage: number;
@@ -20,9 +20,7 @@ export interface ContextData {
 }
 
 interface ContextWindowBarProps {
-  sessionId: string;
   contextData?: ContextData | null;
-  onRefresh?: () => void;
   isLoading?: boolean;
 }
 
@@ -67,9 +65,7 @@ function getColorClasses(percentage: number): {
 }
 
 export function ContextWindowBar({
-  sessionId,
   contextData,
-  onRefresh,
   isLoading = false,
 }: ContextWindowBarProps) {
   const [showTooltip, setShowTooltip] = useState(false);
