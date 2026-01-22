@@ -333,6 +333,187 @@ class Database:
         )
         await self.conn.commit()
 
+    # =====================
+    # Context Window operations
+    # =====================
+    #
+    # Context window tracking stores snapshots of token usage during sessions.
+    # Data is sent from Claude Code hooks and stored for real-time visualization.
+    #
+    # Schema: session_context table (see schema.py migration v6)
+    # Expected hook payload format:
+    # {"used_percentage": 42.5, "remaining_percentage": 57.5, "context_window_size": 200000,
+    #  "total_input_tokens": 85000, "total_output_tokens": 15000}
+
+    async def save_session_context(
+        self,
+        session_id: str,
+        timestamp: str,
+        used_percentage: float = 0.0,
+        remaining_percentage: float | None = None,
+        context_window_size: int = 200000,
+        total_input_tokens: int = 0,
+        total_output_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        cache_create_tokens: int = 0,
+        model: str | None = None,
+    ) -> int:
+        """
+        Save a context window snapshot for a session.
+
+        Args:
+            session_id: Session this context belongs to
+            timestamp: ISO timestamp of when this snapshot was taken
+            used_percentage: Percentage of context window used (0-100)
+            remaining_percentage: Percentage remaining (computed if not provided)
+            context_window_size: Maximum context window size for the model
+            total_input_tokens: Total input tokens consumed
+            total_output_tokens: Total output tokens generated
+            cache_read_tokens: Tokens read from cache (optional, for detailed stats)
+            cache_create_tokens: Tokens written to cache (optional, for detailed stats)
+            model: Model being used (optional, for reference)
+
+        Returns:
+            ID of the inserted context record
+        """
+        # Compute remaining percentage if not provided
+        if remaining_percentage is None:
+            remaining_percentage = 100.0 - used_percentage
+
+        cursor = await self.conn.execute(
+            """
+            INSERT INTO session_context (
+                session_id, timestamp, used_percentage, remaining_percentage,
+                context_window_size, total_input_tokens, total_output_tokens,
+                cache_read_tokens, cache_create_tokens, model
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                timestamp,
+                used_percentage,
+                remaining_percentage,
+                context_window_size,
+                total_input_tokens,
+                total_output_tokens,
+                cache_read_tokens,
+                cache_create_tokens,
+                model,
+            ),
+        )
+        await self.conn.commit()
+        return cursor.lastrowid or 0
+
+    async def get_session_context(
+        self, session_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """
+        Get context window snapshots for a session.
+
+        Returns most recent snapshots first (for charts showing context growth).
+
+        Args:
+            session_id: Session to get context for
+            limit: Maximum number of snapshots to return
+
+        Returns:
+            List of context snapshots with all fields
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT id, session_id, timestamp, used_percentage, remaining_percentage,
+                   context_window_size, total_input_tokens, total_output_tokens,
+                   cache_read_tokens, cache_create_tokens, model, created_at
+            FROM session_context
+            WHERE session_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (session_id, limit),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "session_id": row["session_id"],
+                "timestamp": row["timestamp"],
+                "used_percentage": row["used_percentage"],
+                "remaining_percentage": row["remaining_percentage"],
+                "context_window_size": row["context_window_size"],
+                "total_input_tokens": row["total_input_tokens"],
+                "total_output_tokens": row["total_output_tokens"],
+                "cache_read_tokens": row["cache_read_tokens"],
+                "cache_create_tokens": row["cache_create_tokens"],
+                "model": row["model"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    async def get_latest_session_context(
+        self, session_id: str
+    ) -> dict[str, Any] | None:
+        """
+        Get the most recent context snapshot for a session.
+
+        Used for displaying current context window status in the UI.
+
+        Args:
+            session_id: Session to get context for
+
+        Returns:
+            Latest context snapshot or None if no context data exists
+        """
+        cursor = await self.conn.execute(
+            """
+            SELECT id, session_id, timestamp, used_percentage, remaining_percentage,
+                   context_window_size, total_input_tokens, total_output_tokens,
+                   cache_read_tokens, cache_create_tokens, model, created_at
+            FROM session_context
+            WHERE session_id = ?
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """,
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "session_id": row["session_id"],
+            "timestamp": row["timestamp"],
+            "used_percentage": row["used_percentage"],
+            "remaining_percentage": row["remaining_percentage"],
+            "context_window_size": row["context_window_size"],
+            "total_input_tokens": row["total_input_tokens"],
+            "total_output_tokens": row["total_output_tokens"],
+            "cache_read_tokens": row["cache_read_tokens"],
+            "cache_create_tokens": row["cache_create_tokens"],
+            "model": row["model"],
+            "created_at": row["created_at"],
+        }
+
+    async def delete_session_context(self, session_id: str) -> int:
+        """
+        Delete all context snapshots for a session.
+
+        Used when clearing session data.
+
+        Args:
+            session_id: Session to delete context for
+
+        Returns:
+            Number of deleted records
+        """
+        cursor = await self.conn.execute(
+            "DELETE FROM session_context WHERE session_id = ?",
+            (session_id,),
+        )
+        await self.conn.commit()
+        return cursor.rowcount
+
     async def clear_all_data(self) -> dict[str, int]:
         """
         Clear all session data from the database for force reimport.
@@ -351,6 +532,7 @@ class Database:
             "messages",
             "session_intents",
             "session_metrics",
+            "session_context",
             "transcript_files",
             "sessions",
         ]
