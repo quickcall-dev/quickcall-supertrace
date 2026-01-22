@@ -31,15 +31,19 @@ Note: Background poller emits `session_updated` and `session_imported` (see poll
 Related: ingest/ (ingestion logic), ws/broadcast.py (realtime updates)
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter
 
+from ..db import get_db
 from ..ingest.poller import import_latest_sessions, poll_for_changes
 from ..ingest.importer import get_all_transcript_files, import_session_file
 from ..ingest.scanner import scan_sessions, get_session_file
 from ..ws import manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
@@ -214,5 +218,71 @@ async def scan_available_sessions(limit: int = 50) -> dict[str, Any]:
                 "is_tracked": str(f.file_path) in tracked_paths,
             }
             for f in files
+        ],
+    }
+
+
+@router.post("/reimport-all")
+async def force_reimport_all(limit: int = 50) -> dict[str, Any]:
+    """
+    Force reimport all sessions from scratch.
+
+    This is a destructive operation that:
+    1. Clears all session data from the database
+    2. Re-imports all sessions from JSONL files
+
+    Use this when import logic has changed and you need to
+    reprocess existing sessions with the new logic.
+
+    Args:
+        limit: Maximum number of sessions to reimport (default: 50)
+
+    Returns:
+        Summary of the reimport operation
+    """
+    timestamp = datetime.now(timezone.utc).isoformat()
+    db = await get_db()
+
+    # Step 1: Clear all existing data
+    logger.info("Force reimport: Clearing all session data...")
+    deleted_counts = await db.clear_all_data()
+    logger.info(f"Force reimport: Cleared data - {deleted_counts}")
+
+    # Step 2: Reimport all sessions
+    logger.info(f"Force reimport: Importing up to {limit} sessions...")
+    results = await import_latest_sessions(limit=limit)
+
+    total_messages = sum(r.messages_imported for r in results)
+    sessions_imported = sum(1 for r in results if r.messages_imported > 0)
+    errors = [r for r in results if r.error]
+
+    logger.info(
+        f"Force reimport complete: {sessions_imported} sessions, "
+        f"{total_messages} messages"
+    )
+
+    # Broadcast to all clients that sessions have been reimported
+    await manager.broadcast_to_all({
+        "type": "session_imported",
+        "session_id": "all",
+        "is_new": True,
+    })
+
+    return {
+        "status": "ok",
+        "timestamp": timestamp,
+        "cleared": deleted_counts,
+        "imported": {
+            "sessions": sessions_imported,
+            "messages": total_messages,
+            "errors": len(errors),
+        },
+        "sessions": [
+            {
+                "session_id": r.session_id,
+                "messages_imported": r.messages_imported,
+                "error": r.error,
+            }
+            for r in results
         ],
     }

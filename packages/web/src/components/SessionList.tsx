@@ -6,9 +6,9 @@
  * Clean, professional design matching QuickCall styling.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Session } from '../api/client';
-import { triggerIngest } from '../api/client';
+import { triggerIngest, forceReimportAll } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
 import { useVersion } from '../contexts/VersionContext';
 
@@ -88,6 +88,20 @@ export function SessionList({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [showReimportConfirm, setShowReimportConfirm] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowImportMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Use API version (updates after restart) with build-time fallback
   const { versionInfo } = useVersion();
@@ -97,6 +111,7 @@ export function SessionList({
   const handleImportSessions = async () => {
     if (isImporting) return;
 
+    setShowImportMenu(false);
     setIsImporting(true);
     setImportStatus('Importing...');
 
@@ -115,6 +130,27 @@ export function SessionList({
       setIsImporting(false);
       // Clear status after 3 seconds
       setTimeout(() => setImportStatus(null), 3000);
+    }
+  };
+
+  const handleForceReimport = async () => {
+    if (isImporting) return;
+
+    setShowReimportConfirm(false);
+    setShowImportMenu(false);
+    setIsImporting(true);
+    setImportStatus('Force reimporting...');
+
+    try {
+      const result = await forceReimportAll(50);
+      setImportStatus(`Reimported ${result.imported.sessions} sessions, ${result.imported.messages} messages`);
+      onSessionsImported();
+    } catch (error) {
+      setImportStatus('Force reimport failed');
+      console.error('Force reimport error:', error);
+    } finally {
+      setIsImporting(false);
+      setTimeout(() => setImportStatus(null), 5000);
     }
   };
 
@@ -217,22 +253,111 @@ export function SessionList({
           </div>
         </form>
 
-        {/* Import Sessions Button */}
-        <button
-          onClick={handleImportSessions}
-          disabled={isImporting}
-          className={`
-            mt-2 w-full max-w-full py-1.5 px-3 rounded-lg text-sm font-medium transition-all
-            flex items-center justify-center gap-2 box-border
-            ${isImporting
-              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }
-          `}
-        >
-          <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
-          <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
-        </button>
+        {/* Import Sessions Button with Dropdown */}
+        <div className="relative mt-2" ref={menuRef}>
+          <div className="flex w-full">
+            {/* Main button */}
+            <button
+              onClick={handleImportSessions}
+              disabled={isImporting}
+              className={`
+                flex-1 py-1.5 px-3 rounded-l-lg text-sm font-medium transition-all
+                flex items-center justify-center gap-2
+                ${isImporting
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }
+              `}
+            >
+              <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
+              <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
+            </button>
+            {/* Dropdown toggle */}
+            <button
+              onClick={() => setShowImportMenu(!showImportMenu)}
+              disabled={isImporting}
+              className={`
+                px-2 rounded-r-lg border-l border-primary-foreground/20 transition-all
+                ${isImporting
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                }
+              `}
+            >
+              <i className="ri-arrow-down-s-line"></i>
+            </button>
+          </div>
+
+          {/* Dropdown menu */}
+          {showImportMenu && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-[100] overflow-hidden">
+              <button
+                onClick={() => {
+                  setShowImportMenu(false);
+                  setShowReimportConfirm(true);
+                }}
+                className="w-full px-3 py-2.5 text-sm text-left hover:bg-destructive/10 transition-colors flex items-center gap-2 text-destructive"
+              >
+                <i className="ri-refresh-line"></i>
+                <span>Force Reimport All</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Force Reimport Confirmation Dialog */}
+        {showReimportConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200]">
+            <div className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+              {/* Header */}
+              <div className="px-5 py-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                  <i className="ri-alert-line text-destructive text-xl"></i>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Force Reimport All Sessions</h3>
+              </div>
+
+              {/* Body */}
+              <div className="px-5 pb-4 space-y-3">
+                <p className="text-sm text-muted-foreground">This will:</p>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-start gap-3">
+                    <i className="ri-delete-bin-line text-destructive mt-0.5 shrink-0"></i>
+                    <span className="text-foreground">Delete all session data from the database</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <i className="ri-refresh-line text-primary mt-0.5 shrink-0"></i>
+                    <span className="text-foreground">Re-import all sessions from JSONL files</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <i className="ri-restart-line text-amber-500 mt-0.5 shrink-0"></i>
+                    <span className="text-foreground">Reset message indices and computed fields</span>
+                  </li>
+                </ul>
+                <div className="bg-destructive/10 text-destructive text-sm px-3 py-2.5 rounded-lg flex items-center gap-2 mt-4">
+                  <i className="ri-error-warning-line shrink-0"></i>
+                  <span>This cannot be undone.</span>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-border flex justify-end gap-3 bg-muted/30">
+                <button
+                  onClick={() => setShowReimportConfirm(false)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-accent transition-colors text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleForceReimport}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                >
+                  Force Reimport
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Import Status */}
         {importStatus && (

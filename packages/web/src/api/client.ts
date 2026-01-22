@@ -205,6 +205,32 @@ export async function triggerIngest(limit = 50): Promise<IngestResponse> {
   return response.json();
 }
 
+export interface ForceReimportResponse {
+  status: string;
+  timestamp: string;
+  cleared: Record<string, number>;
+  imported: {
+    sessions: number;
+    messages: number;
+    errors: number;
+  };
+  sessions: Array<{
+    session_id: string;
+    messages_imported: number;
+    error?: string;
+  }>;
+}
+
+export async function forceReimportAll(limit = 50): Promise<ForceReimportResponse> {
+  const response = await fetch(`${BASE_URL}/ingest/reimport-all?limit=${limit}`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json();
+}
+
 export async function getIngestStatus(): Promise<IngestStatusResponse> {
   return fetchJson(`${BASE_URL}/ingest/status`);
 }

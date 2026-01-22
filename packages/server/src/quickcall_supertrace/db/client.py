@@ -333,6 +333,35 @@ class Database:
         )
         await self.conn.commit()
 
+    async def clear_all_data(self) -> dict[str, int]:
+        """
+        Clear all session data from the database for force reimport.
+
+        Deletes from all tables: messages_fts, messages, session_intents,
+        session_metrics, transcript_files, sessions.
+
+        Returns:
+            Dictionary with count of deleted rows per table
+        """
+        counts = {}
+
+        # Delete in order of dependencies (FTS first, then main tables)
+        tables = [
+            "messages_fts",
+            "messages",
+            "session_intents",
+            "session_metrics",
+            "transcript_files",
+            "sessions",
+        ]
+
+        for table in tables:
+            cursor = await self.conn.execute(f"DELETE FROM {table}")
+            counts[table] = cursor.rowcount
+
+        await self.conn.commit()
+        return counts
+
     async def get_messages_as_events(
         self, session_id: str, limit: int = 10000
     ) -> list[dict[str, Any]]:
