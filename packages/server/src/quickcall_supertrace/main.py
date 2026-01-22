@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .db import get_db
+from .hooks.setup import register_hooks
 
 # Static files directory (bundled frontend)
 STATIC_DIR = Path(__file__).parent / "static"
@@ -48,6 +49,11 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting QuickCall SuperTrace server...")
     await get_db()
+
+    # Auto-register Claude Code hooks (unless disabled)
+    auto_hooks = os.environ.get("QUICKCALL_SUPERTRACE_AUTO_HOOKS", "true").lower() == "true"
+    if auto_hooks:
+        register_hooks()
 
     # Start background poller if enabled
     enable_poller = os.environ.get("QUICKCALL_SUPERTRACE_ENABLE_POLLER", "true").lower() == "true"

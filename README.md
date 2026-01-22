@@ -58,65 +58,44 @@ Open http://localhost:7845 in your browser.
 - **WebSocket updates** - Live updates without page refresh
 - **Context window tracking** - Real-time context usage with color-coded progress bar
 
-## Context Window Tracking (Optional)
+## Context Window Tracking
 
-Enable real-time context window tracking by configuring Claude Code hooks.
+Real-time context window tracking is **automatically enabled** when you run SuperTrace.
+
+### How It Works
+
+1. When `quickcall-supertrace` starts, it automatically configures Claude Code hooks
+2. After each Claude response, the hook captures token usage
+3. Context data is sent to the SuperTrace server
+4. The UI displays a real-time progress bar:
+   - **Green** - Under 50% usage
+   - **Yellow** - 50-75% usage
+   - **Red** - Over 75% usage
 
 ### Setup
 
-Add this to your Claude Code settings (`~/.claude/settings.json`):
+Just run SuperTrace - hooks are configured automatically:
 
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "quickcall-supertrace-hook stop",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
+```bash
+quickcall-supertrace
 ```
 
-Then restart Claude Code to load the hooks.
+Then **restart Claude Code** to load the hooks.
 
-### What It Does
+### Disable Auto-Registration
 
-The hook captures context window usage after each Claude response:
-- **Green bar** - Under 50% usage (plenty of context remaining)
-- **Yellow bar** - 50-75% usage (context filling up)
-- **Red bar** - Over 75% usage (nearing context limit)
+If you don't want automatic hook registration:
 
-### Available Hook Commands
-
-| Command | Event | Description |
-|---------|-------|-------------|
-| `quickcall-supertrace-hook stop` | Stop | Captures context after Claude responds |
-| `quickcall-supertrace-hook tool` | PostToolUse | Captures context after each tool call |
+```bash
+QUICKCALL_SUPERTRACE_AUTO_HOOKS=false quickcall-supertrace
+```
 
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `QUICKCALL_SUPERTRACE_URL` | http://localhost:7845 | Server URL |
-| `QUICKCALL_SUPERTRACE_DEBUG` | false | Enable debug logging |
-
-### How It Works
-
-1. Claude Code calls `quickcall-supertrace-hook` after each response
-2. The hook reads token usage from the session transcript
-3. Calculates context window percentage
-4. POSTs data to SuperTrace server
-5. Frontend displays real-time progress bar
-
-No external dependencies required - the hook CLI is bundled with `quickcall-supertrace`.
+| `QUICKCALL_SUPERTRACE_AUTO_HOOKS` | true | Auto-register Claude Code hooks |
+| `QUICKCALL_SUPERTRACE_DEBUG` | false | Enable debug logging for hooks |
 
 ## Dashboard Metrics
 
