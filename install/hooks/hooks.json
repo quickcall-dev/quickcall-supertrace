@@ -1,0 +1,17 @@
+{
+  "description": "SuperTrace context tracking hook - sends context window usage to SuperTrace backend",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/context-tracker.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

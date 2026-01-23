@@ -1,0 +1,13 @@
+{
+  "name": "supertrace",
+  "version": "1.0.0",
+  "description": "SuperTrace context tracking - sends real-time context window usage data to SuperTrace backend for monitoring",
+  "author": {
+    "name": "QuickCall",
+    "email": "hello@quickcall.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quickcall-dev/quickcall-supertrace"
+  }
+}

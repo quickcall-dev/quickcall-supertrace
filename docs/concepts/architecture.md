@@ -6,6 +6,11 @@ How QuickCall SuperTrace captures and displays Claude Code sessions.
 
 ```mermaid
 flowchart TB
+    subgraph "Real-time (Hooks)"
+        H1[Claude Code] -->|Stop event| H2[Hook CLI]
+        H2 -->|POST /context| API
+    end
+
     subgraph Ingestion
         A[~/.claude/projects/] --> B[Scanner]
         B --> C[Parser]
@@ -14,6 +19,7 @@ flowchart TB
 
     subgraph Storage
         D --> E[(SQLite WAL)]
+        API --> E
     end
 
     subgraph API
@@ -41,7 +47,51 @@ Each line is a JSON object representing a message:
 {"type":"assistant","message":{"content":[...],"usage":{...}},"timestamp":"2026-01-14T10:00:10Z"}
 ```
 
-### 2. Ingestion Pipeline
+### 2. Hooks System (Real-time Context Tracking)
+
+Claude Code supports hooks that fire on specific events. SuperTrace uses the **Stop hook** to track context window usage in real-time.
+
+**How it works:**
+1. On server startup, SuperTrace registers hooks in `~/.claude/settings.json`
+2. When Claude finishes responding, the Stop hook fires
+3. Hook CLI reads the transcript and extracts token usage
+4. Context data is POSTed to SuperTrace server
+5. Server broadcasts via WebSocket to update UI instantly
+
+**Components:**
+
+| File | Purpose |
+|------|---------|
+| `hooks/setup.py` | Auto-registers hooks on server startup |
+| `hooks/cli.py` | CLI entry point (`quickcall-supertrace-hook`) |
+| `hooks/handlers.py` | Processes hook events, extracts context data |
+| `hooks/models.py` | Pydantic models for hook input/output |
+
+**Context Calculation:**
+```
+Total Context = input_tokens + cache_read_tokens + cache_create_tokens
+Context % = (Total Context / Model Context Window) × 100
+```
+
+Note: Output tokens are NOT included in context window calculation.
+
+**Hook Registration** (in `~/.claude/settings.json`):
+```json
+{
+  "hooks": {
+    "Stop": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "/path/to/quickcall-supertrace-hook stop",
+        "timeout": 5
+      }]
+    }]
+  }
+}
+```
+
+### 3. Ingestion Pipeline (Batch Import)
 
 **Scanner** (`packages/server/quickcall_supertrace/ingest/scanner.py`)
 - Finds all JSONL files in `~/.claude/projects/`
@@ -64,7 +114,7 @@ Each line is a JSON object representing a message:
 - Triggers incremental imports
 - Broadcasts updates via WebSocket
 
-### 3. Database (SQLite)
+### 4. Database (SQLite)
 
 Location: `~/.quickcall-supertrace/data.db`
 
@@ -75,6 +125,7 @@ Location: `~/.quickcall-supertrace/data.db`
 | `sessions` | Session metadata (id, project_path, timestamps) |
 | `messages` | Parsed JSONL messages with extracted fields |
 | `transcript_files` | Tracks ingested files (mtime, byte offset) |
+| `session_context` | Context window snapshots (from hooks) |
 | `session_metrics` | Pre-computed aggregates |
 | `messages_fts` | Full-text search index |
 
@@ -83,7 +134,7 @@ Location: `~/.quickcall-supertrace/data.db`
 - Denormalized fields in `messages` for query performance
 - FTS5 for full-text search across content
 
-### 4. REST API (FastAPI)
+### 5. REST API (FastAPI)
 
 **Routes:**
 
@@ -91,13 +142,15 @@ Location: `~/.quickcall-supertrace/data.db`
 |----------|---------|
 | `GET /api/sessions` | List sessions (paginated) |
 | `GET /api/sessions/{id}` | Get session with events |
+| `GET /api/sessions/{id}/context` | Get context window snapshots |
+| `POST /api/sessions/{id}/context` | Store context update (from hooks) |
 | `GET /api/sessions/{id}/export` | Export as JSON/Markdown |
 | `GET /api/metrics/session/{id}` | Compute session metrics |
 | `POST /api/ingest` | Trigger manual import |
 | `GET /api/ingest/status` | Show tracked files |
 | `WS /ws` | Real-time updates |
 
-### 5. Metrics System
+### 6. Metrics System
 
 **Architecture:** Decorator-based plugin system
 
@@ -116,7 +169,7 @@ def estimated_cost(events: PreprocessedEvents) -> float:
 
 **Preprocessing:** Single-pass extraction of commonly-needed data for efficiency.
 
-### 6. React Frontend
+### 7. React Frontend
 
 **Tech Stack:** React 19, TypeScript, Tailwind CSS, Vite
 
@@ -139,7 +192,29 @@ def estimated_cost(events: PreprocessedEvents) -> float:
 
 ## Data Flow
 
-### Import Flow
+### Context Tracking Flow (Real-time)
+
+```mermaid
+sequenceDiagram
+    participant CC as Claude Code
+    participant Hook as Hook CLI
+    participant API as SuperTrace API
+    participant WS as WebSocket
+    participant UI as Frontend
+
+    CC->>CC: User sends prompt
+    CC->>CC: Claude responds
+    CC->>Hook: Stop event (stdin JSON)
+    Hook->>Hook: Read transcript JSONL
+    Hook->>Hook: Extract token usage
+    Hook->>Hook: Calculate context %
+    Hook->>API: POST /sessions/{id}/context
+    API->>API: Store snapshot
+    API->>WS: Broadcast context_updated
+    WS->>UI: Update status bar
+```
+
+### Import Flow (Batch)
 
 ```mermaid
 sequenceDiagram

@@ -20,6 +20,7 @@ interface SessionListProps {
   onSessionsImported: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  unreadSessionIds?: string[];
 }
 
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Older';
@@ -83,6 +84,7 @@ export function SessionList({
   onSessionsImported,
   isDark,
   onToggleTheme,
+  unreadSessionIds = [],
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -109,6 +111,7 @@ export function SessionList({
   console.log('[SessionList] versionInfo:', versionInfo?.currentVersion, 'displayVersion:', displayVersion);
 
   const handleImportSessions = async () => {
+    console.log('[SessionList] Import button clicked, isImporting:', isImporting);
     if (isImporting) return;
 
     setShowImportMenu(false);
@@ -240,7 +243,7 @@ export function SessionList({
       {/* Search & Import - below header */}
       <div className="p-3 border-b border-border shrink-0">
         {/* Search */}
-        <form onSubmit={handleSearch} className="w-full max-w-full">
+        <form onSubmit={handleSearch} className="w-full">
           <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-all">
             <i className="ri-search-line text-muted-foreground text-sm shrink-0"></i>
             <input
@@ -255,38 +258,30 @@ export function SessionList({
 
         {/* Import Sessions Button with Dropdown */}
         <div className="relative mt-2" ref={menuRef}>
-          <div className="flex w-full">
-            {/* Main button */}
-            <button
-              onClick={handleImportSessions}
-              disabled={isImporting}
-              className={`
-                flex-1 py-1.5 px-3 rounded-l-lg text-sm font-medium transition-all
-                flex items-center justify-center gap-2
-                ${isImporting
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
-              <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
-            </button>
-            {/* Dropdown toggle */}
-            <button
-              onClick={() => setShowImportMenu(!showImportMenu)}
-              disabled={isImporting}
-              className={`
-                px-2 rounded-r-lg border-l border-primary-foreground/20 transition-all
-                ${isImporting
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                }
-              `}
-            >
-              <i className="ri-arrow-down-s-line"></i>
-            </button>
-          </div>
+          {/* Single button with integrated dropdown */}
+          <button
+            onClick={handleImportSessions}
+            disabled={isImporting}
+            className={`
+              w-full py-1.5 px-3 rounded-lg text-sm font-medium transition-all
+              flex items-center justify-center gap-2
+              ${isImporting
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-primary text-primary-foreground hover:bg-primary/80 active:bg-primary/70 cursor-pointer'
+              }
+            `}
+          >
+            <i className={`${isImporting ? 'ri-loader-4-line animate-spin' : 'ri-download-2-line'} shrink-0`}></i>
+            <span className="truncate">{isImporting ? 'Importing...' : 'Import Sessions'}</span>
+            {/* Dropdown arrow */}
+            <i
+              className="ri-arrow-down-s-line ml-auto shrink-0 hover:bg-primary-foreground/10 rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowImportMenu(!showImportMenu);
+              }}
+            ></i>
+          </button>
 
           {/* Dropdown menu */}
           {showImportMenu && (
@@ -394,6 +389,7 @@ export function SessionList({
               {/* Sessions in Group */}
               {groupSessions.map((session) => {
                 const isSelected = selectedId === session.id;
+                const isUnread = unreadSessionIds.includes(session.id);
                 const prompt = session.first_prompt || 'New session';
 
                 return (
@@ -401,16 +397,20 @@ export function SessionList({
                     key={session.id}
                     onClick={() => onSelect(session.id)}
                     className={`
-                      w-full px-4 py-3 text-left transition-all duration-150
+                      relative w-full px-4 py-3 text-left transition-all duration-150
                       ${isSelected
                         ? 'bg-accent border-l-2 border-primary'
                         : 'hover:bg-accent/50 border-l-2 border-transparent'
                       }
                     `}
                   >
-                    <div className="flex items-start gap-3">
+                    {/* Unread indicator dot - top right, aligned with text */}
+                    {isUnread && !isSelected && (
+                      <div className="absolute top-3.5 right-3 w-2 h-2 bg-teal-500 rounded-full" />
+                    )}
+                    <div className="flex items-start">
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
+                        <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
                           {prompt}
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">

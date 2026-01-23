@@ -120,10 +120,9 @@ async def _process_session_files(
             )
             results.append(result)
 
-            # Broadcast update only to clients subscribed to this session
-            # (prevents UI disruption for users viewing other sessions)
+            # Broadcast update to ALL clients so they can track unread sessions
             if options.broadcast_updates and result.messages_imported > 0 and not result.error:
-                await manager.broadcast_to_session(result.session_id, {
+                await manager.broadcast_to_all({
                     "type": "session_updated",
                     "session_id": result.session_id,
                     "new_messages": result.messages_imported,

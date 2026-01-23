@@ -17,6 +17,7 @@
 <p align="center">
   <a href="#install">Install</a> |
   <a href="#features">Features</a> |
+  <a href="#context-window-tracking-optional">Context Tracking</a> |
   <a href="#configuration">Configuration</a> |
   <a href="#docker">Docker</a> |
   <a href="#troubleshooting">Troubleshooting</a>
@@ -33,7 +34,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://quickcall.dev/supertrace/install.sh | sh
+curl -fsSL https://quickcall.dev/supertrace/install.sh | bash
 ```
 
 Then run:
@@ -55,6 +56,46 @@ Open http://localhost:7845 in your browser.
 - **Full-text search** - Find anything across all sessions
 - **Export** - Download sessions as JSON or Markdown
 - **WebSocket updates** - Live updates without page refresh
+- **Context window tracking** - Real-time context usage with color-coded progress bar
+
+## Context Window Tracking
+
+Real-time context window tracking is **automatically enabled** when you run SuperTrace.
+
+### How It Works
+
+1. When `quickcall-supertrace` starts, it automatically configures Claude Code hooks
+2. After each Claude response, the hook captures token usage
+3. Context data is sent to the SuperTrace server
+4. The UI displays a real-time progress bar:
+   - **Green** - Under 50% usage
+   - **Yellow** - 50-75% usage
+   - **Red** - Over 75% usage
+
+### Setup
+
+Just run SuperTrace - hooks are configured automatically:
+
+```bash
+quickcall-supertrace
+```
+
+Then **restart Claude Code** to load the hooks.
+
+### Disable Auto-Registration
+
+If you don't want automatic hook registration:
+
+```bash
+QUICKCALL_SUPERTRACE_AUTO_HOOKS=false quickcall-supertrace
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QUICKCALL_SUPERTRACE_AUTO_HOOKS` | true | Auto-register Claude Code hooks |
+| `QUICKCALL_SUPERTRACE_DEBUG` | false | Enable debug logging for hooks |
 
 ## Dashboard Metrics
 

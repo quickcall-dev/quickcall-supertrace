@@ -1,13 +1,14 @@
 #!/bin/sh
 # ------------------------------------------------------------------------------
-# QuickCall SuperTrace Installer
+# QuickCall SuperTrace Installer (No curl required)
 # ------------------------------------------------------------------------------
 #
-# Usage: curl -fsSL https://quickcall.dev/supertrace/install.sh | sh
-#    OR: curl -fsSL https://quickcall.dev/supertrace/install.sh | bash
+# Usage: wget -qO- https://quickcall.dev/supertrace/install-no-curl.sh | sh
+#    OR: wget -qO- https://quickcall.dev/supertrace/install-no-curl.sh | bash
+#    OR: sh install-no-curl.sh
 #
 # What this script does:
-#   1. Installs uv (Python package manager) if not present
+#   1. Installs uv (Python package manager) if not present (using wget or pip)
 #   2. Detects your shell config file (.zshrc or .bashrc)
 #   3. Adds config block with markers (>>> quickcall-supertrace >>>)
 #   4. Re-running updates the config block (safe to run multiple times)
@@ -25,13 +26,6 @@ echo ""
 
 # --- Pre-flight checks ---
 
-# Check for curl
-if ! command -v curl >/dev/null 2>&1; then
-    echo "[!] Error: curl is required but not installed."
-    echo "    Install curl and try again."
-    exit 1
-fi
-
 # Warn if running as root
 if [ "$(id -u)" = "0" ]; then
     echo "[!] Warning: Running as root is not recommended."
@@ -47,10 +41,38 @@ if command -v uv >/dev/null 2>&1; then
     echo "      uv is already installed"
 else
     echo "      Installing uv..."
-    if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
-        echo "[!] Error: Failed to install uv"
+
+    # Try wget first
+    if command -v wget >/dev/null 2>&1; then
+        echo "      Using wget to download uv installer..."
+        if ! wget -qO- https://astral.sh/uv/install.sh | sh; then
+            echo "[!] Error: Failed to install uv with wget"
+            exit 1
+        fi
+    # Try pip as fallback
+    elif command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1; then
+        echo "      Using pip to install uv..."
+        PIP_CMD="pip"
+        if ! command -v pip >/dev/null 2>&1; then
+            PIP_CMD="pip3"
+        fi
+        if ! $PIP_CMD install uv; then
+            echo "[!] Error: Failed to install uv with pip"
+            exit 1
+        fi
+    else
+        echo "[!] Error: Neither wget nor pip is available."
+        echo ""
+        echo "Please install uv manually:"
+        echo "  1. Visit: https://github.com/astral-sh/uv/releases"
+        echo "  2. Download the binary for your system"
+        echo "  3. Extract and move to ~/.local/bin/uv"
+        echo "  4. Run: chmod +x ~/.local/bin/uv"
+        echo ""
+        echo "Then run this script again."
         exit 1
     fi
+
     export PATH="$HOME/.local/bin:$PATH"
     echo "      uv installed successfully"
 fi

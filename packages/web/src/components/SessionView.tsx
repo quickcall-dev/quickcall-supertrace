@@ -6,11 +6,13 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, type MutableRefObject } from 'react';
-import type { Session, Event } from '../api/client';
+import type { Session, Event, AssistantResponseData } from '../api/client';
 import { getExportUrl } from '../api/client';
 import { formatDate, formatTime } from '../utils/time';
 import { MessageBubble } from './MessageBubble';
 import { ToolGroup } from './ToolGroup';
+import { type ContextData } from './ContextWindowBar';
+import { SessionStatusBar } from './SessionStatusBar';
 
 interface SessionViewProps {
   session: Session | null;
@@ -27,6 +29,9 @@ interface SessionViewProps {
   onClearNewMessages?: () => void;
   onLoadAllForSearch?: () => Promise<void>;
   isLoadingAllForSearch?: boolean;
+  // Context data managed by App.tsx for real-time WebSocket updates
+  contextData?: ContextData | null;
+  isLoadingContext?: boolean;
 }
 
 type GroupedItem =
@@ -71,6 +76,8 @@ export function SessionView({
   onClearNewMessages,
   onLoadAllForSearch,
   isLoadingAllForSearch = false,
+  contextData = null,
+  isLoadingContext = false,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -82,10 +89,72 @@ export function SessionView({
   const [showAllThinking, setShowAllThinking] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Extract model: prefer context data (most recent from hooks), fallback to events
+  const model = useMemo(() => {
+    // First check context data - this has the most up-to-date model from hooks
+    if (contextData?.model) {
+      return contextData.model;
+    }
+
+    // Fallback: extract from events (assistant_stop has the model info)
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.event_type === 'assistant_stop' && event.data) {
+        const data = event.data as AssistantResponseData;
+        if (data.model) return data.model;
+      }
+    }
+    return null;
+  }, [events, contextData]);
+
+  // Derive context data from events when no real-time context available
+  // Context = input_tokens + cache_read_tokens + cache_create_tokens
+  const derivedContextData = useMemo((): ContextData | null => {
+    // If we have real-time context data, use that
+    if (contextData) return contextData;
+
+    // Find the last assistant_stop event with token_usage
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.event_type === 'assistant_stop' && event.data) {
+        const data = event.data as AssistantResponseData;
+        const tokenUsage = data.token_usage as {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_read_input_tokens?: number;
+          cache_creation_input_tokens?: number;
+        } | undefined;
+
+        if (tokenUsage) {
+          const inputTokens = tokenUsage.input_tokens || 0;
+          const cacheRead = tokenUsage.cache_read_input_tokens || 0;
+          const cacheCreate = tokenUsage.cache_creation_input_tokens || 0;
+          const totalContext = inputTokens + cacheRead + cacheCreate;
+
+          // Context window size based on model (default to 200k)
+          const contextWindowSize = 200000;
+          const usedPercentage = (totalContext / contextWindowSize) * 100;
+
+          return {
+            used_percentage: usedPercentage,
+            remaining_percentage: 100 - usedPercentage,
+            context_window_size: contextWindowSize,
+            total_input_tokens: inputTokens,
+            total_output_tokens: tokenUsage.output_tokens || 0,
+            cache_read_tokens: cacheRead,
+            cache_create_tokens: cacheCreate,
+            model: data.model,
+          };
+        }
+      }
+    }
+    return null;
+  }, [events, contextData]);
+
   // Scroll to bottom button state
   const [isAtBottom, setIsAtBottom] = useState(true);
 
-  // Clear event refs and search when session changes
+  // Clear event refs and search when session changes (context is managed by App.tsx)
   useEffect(() => {
     eventRefs.current.clear();
     setSearchQuery('');
@@ -538,6 +607,15 @@ export function SessionView({
           </a>
         </div>
       </div>
+
+      {/* Status Bar - Model, Context (real-time or derived from events) */}
+      {(model || derivedContextData) && (
+        <SessionStatusBar
+          model={model}
+          contextData={derivedContextData}
+          isLoading={isLoadingContext && !derivedContextData}
+        />
+      )}
 
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">

@@ -7,7 +7,7 @@
 
 [project]
 name = "quickcall-supertrace"
-version = "0.2.10"
+version = "0.2.11"
 description = "QuickCall SuperTrace - Tracing server for AI coding assistant sessions"
 readme = "README.md"
 license = "Apache-2.0"
@@ -43,6 +43,8 @@ Issues = "https://github.com/quickcall-dev/quickcall-supertrace/issues"
 
 [project.scripts]
 quickcall-supertrace = "quickcall_supertrace.main:run"
+quickcall-supertrace-hook = "quickcall_supertrace.hooks.cli:main"
+quickcall-supertrace-statusline = "quickcall_supertrace.hooks.statusline:main"
 
 [build-system]
 requires = ["hatchling"]
