@@ -141,12 +141,10 @@ function App() {
     setContextData(message.data as ContextData);
   }, [selectedSessionId]);
 
-  // Handle session selection - also clears unread status and triggers "New messages" if unread
+  // Handle session selection - also clears unread status
   const handleSelectSession = useCallback((sessionId: string | null) => {
-    // If selecting an unread session, set hasNewMessages so user sees "New messages" button
-    if (sessionId && unreadSessionIds.includes(sessionId)) {
-      setHasNewMessages(true);
-    }
+    // Track if this session was unread (used in useEffect to set hasNewMessages)
+    selectedSessionWasUnreadRef.current = sessionId ? unreadSessionIds.includes(sessionId) : false;
     setSelectedSessionId(sessionId);
     // Clear unread status when session is selected
     if (sessionId) {
@@ -179,6 +177,9 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [isLoadingAllForSearch, setIsLoadingAllForSearch] = useState(false);
+
+  // Track if the session being selected was unread (to show "New messages" button)
+  const selectedSessionWasUnreadRef = useRef(false);
 
   // Handle scroll to event from analytics panel
   // If event not loaded, load all events first then scroll
@@ -328,7 +329,9 @@ function App() {
 
     // Reset state when selecting a new session
     setHasMoreEvents(true);
-    setHasNewMessages(false);
+    // If the selected session was unread, show "New messages" button; otherwise reset
+    setHasNewMessages(selectedSessionWasUnreadRef.current);
+    selectedSessionWasUnreadRef.current = false; // Reset the ref
     setContextData(null);
     setIsLoadingContext(true); // Set loading before async starts
 
