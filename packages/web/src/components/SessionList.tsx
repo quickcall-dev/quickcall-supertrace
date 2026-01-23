@@ -407,7 +407,7 @@ export function SessionList({
                     <div className="flex items-start gap-2">
                       {/* Unread indicator dot */}
                       {isUnread && !isSelected && (
-                        <div className="w-2 h-2 mt-1.5 bg-primary rounded-full shrink-0 animate-pulse" />
+                        <div className="w-2 h-2 mt-1.5 bg-teal-500 rounded-full shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
