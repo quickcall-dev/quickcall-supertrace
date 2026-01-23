@@ -397,18 +397,18 @@ export function SessionList({
                     key={session.id}
                     onClick={() => onSelect(session.id)}
                     className={`
-                      w-full px-4 py-3 text-left transition-all duration-150
+                      relative w-full px-4 py-3 text-left transition-all duration-150
                       ${isSelected
                         ? 'bg-accent border-l-2 border-primary'
                         : 'hover:bg-accent/50 border-l-2 border-transparent'
                       }
                     `}
                   >
-                    <div className="flex items-start gap-2">
-                      {/* Unread indicator dot */}
-                      {isUnread && !isSelected && (
-                        <div className="w-2 h-2 mt-1.5 bg-teal-500 rounded-full shrink-0" />
-                      )}
+                    {/* Unread indicator dot - top right corner */}
+                    {isUnread && !isSelected && (
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-teal-500 rounded-full" />
+                    )}
+                    <div className="flex items-start">
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
                           {prompt}
