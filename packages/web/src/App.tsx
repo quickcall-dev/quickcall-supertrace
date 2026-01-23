@@ -141,14 +141,18 @@ function App() {
     setContextData(message.data as ContextData);
   }, [selectedSessionId]);
 
-  // Handle session selection - also clears unread status
+  // Handle session selection - also clears unread status and triggers "New messages" if unread
   const handleSelectSession = useCallback((sessionId: string | null) => {
+    // If selecting an unread session, set hasNewMessages so user sees "New messages" button
+    if (sessionId && unreadSessionIds.includes(sessionId)) {
+      setHasNewMessages(true);
+    }
     setSelectedSessionId(sessionId);
     // Clear unread status when session is selected
     if (sessionId) {
       setUnreadSessionIds(prev => prev.filter(id => id !== sessionId));
     }
-  }, [setSelectedSessionId, setUnreadSessionIds]);
+  }, [setSelectedSessionId, setUnreadSessionIds, unreadSessionIds]);
 
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
