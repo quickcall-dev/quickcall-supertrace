@@ -404,9 +404,9 @@ export function SessionList({
                       }
                     `}
                   >
-                    {/* Unread indicator dot - top right corner */}
+                    {/* Unread indicator dot - top right, aligned with text */}
                     {isUnread && !isSelected && (
-                      <div className="absolute top-2 right-2 w-2 h-2 bg-teal-500 rounded-full" />
+                      <div className="absolute top-3.5 right-3 w-2 h-2 bg-teal-500 rounded-full" />
                     )}
                     <div className="flex items-start">
                       <div className="flex-1 min-w-0">
