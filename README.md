@@ -34,7 +34,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://quickcall.dev/supertrace/install.sh | sh
+curl -fsSL https://quickcall.dev/supertrace/install.sh | bash
 ```
 
 Then run:
