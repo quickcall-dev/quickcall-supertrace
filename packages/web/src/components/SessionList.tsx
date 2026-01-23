@@ -20,6 +20,7 @@ interface SessionListProps {
   onSessionsImported: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  unreadSessionIds?: string[];
 }
 
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Older';
@@ -83,6 +84,7 @@ export function SessionList({
   onSessionsImported,
   isDark,
   onToggleTheme,
+  unreadSessionIds = [],
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -387,6 +389,7 @@ export function SessionList({
               {/* Sessions in Group */}
               {groupSessions.map((session) => {
                 const isSelected = selectedId === session.id;
+                const isUnread = unreadSessionIds.includes(session.id);
                 const prompt = session.first_prompt || 'New session';
 
                 return (
@@ -401,9 +404,13 @@ export function SessionList({
                       }
                     `}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2">
+                      {/* Unread indicator dot */}
+                      {isUnread && !isSelected && (
+                        <div className="w-2 h-2 mt-1.5 bg-primary rounded-full shrink-0 animate-pulse" />
+                      )}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
+                        <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
                           {prompt}
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">

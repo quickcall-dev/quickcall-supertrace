@@ -45,6 +45,9 @@ function App() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [analyticsExpanded, setAnalyticsExpanded] = useLocalStorage('supertrace-analytics-expanded', true);
 
+  // Unread session tracking - persisted to localStorage
+  const [unreadSessionIds, setUnreadSessionIds] = useLocalStorage<string[]>('supertrace-unread-sessions', []);
+
   // Panel widths (persisted) - responsive to viewport
   // Default: analytics and chat split remaining space roughly equally
   const getDefaultSessionListWidth = () => typeof window !== 'undefined' && window.innerWidth < 1024 ? 180 : 224;
@@ -138,6 +141,15 @@ function App() {
     setContextData(message.data as ContextData);
   }, [selectedSessionId]);
 
+  // Handle session selection - also clears unread status
+  const handleSelectSession = useCallback((sessionId: string | null) => {
+    setSelectedSessionId(sessionId);
+    // Clear unread status when session is selected
+    if (sessionId) {
+      setUnreadSessionIds(prev => prev.filter(id => id !== sessionId));
+    }
+  }, [setSelectedSessionId, setUnreadSessionIds]);
+
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
     const maxWidth = window.innerWidth < 1024 ? 200 : 400;
@@ -226,15 +238,20 @@ function App() {
   const handleSessionUpdated = useCallback(async (sessionId: string, newMessages: number) => {
     console.log('[App] Session updated:', sessionId, 'new messages:', newMessages);
 
-    // Only refresh session list if it's the current session or no session selected
-    // This prevents UI disruption when viewing an inactive session while another is active
-    if (sessionId === selectedSessionId || !selectedSessionId) {
-      try {
-        const data = await getSessions();
-        setSessions(data.sessions);
-      } catch (error) {
-        console.error('Failed to refresh sessions:', error);
-      }
+    // Mark session as unread if it's NOT the currently selected session
+    if (sessionId !== selectedSessionId && newMessages > 0) {
+      setUnreadSessionIds(prev => {
+        if (prev.includes(sessionId)) return prev;
+        return [...prev, sessionId];
+      });
+    }
+
+    // Always refresh session list to update order
+    try {
+      const data = await getSessions();
+      setSessions(data.sessions);
+    } catch (error) {
+      console.error('Failed to refresh sessions:', error);
     }
 
     // If this is the currently selected session, reload events, metrics, and context
@@ -260,7 +277,7 @@ function App() {
         console.error('Failed to reload session:', error);
       }
     }
-  }, [selectedSessionId, metricsHoursBack]);
+  }, [selectedSessionId, metricsHoursBack, setUnreadSessionIds]);
 
   const { subscribe } = useWebSocket({
     onSessionImported: handleSessionImported,
@@ -517,12 +534,13 @@ function App() {
           <SessionList
             sessions={sessions}
             selectedId={selectedSessionId}
-            onSelect={setSelectedSessionId}
+            onSelect={handleSelectSession}
             onSearch={handleSearch}
             onSessionsImported={() => handleSessionImported('')}
             isDark={isDark}
             onToggleTheme={toggleTheme}
-                      />
+            unreadSessionIds={unreadSessionIds}
+          />
         </div>
 
         {/* Welcome screen spanning main area */}
@@ -611,11 +629,12 @@ function App() {
         <SessionList
           sessions={sessions}
           selectedId={selectedSessionId}
-          onSelect={setSelectedSessionId}
+          onSelect={handleSelectSession}
           onSearch={handleSearch}
           onSessionsImported={() => handleSessionImported('')}
           isDark={isDark}
           onToggleTheme={toggleTheme}
+          unreadSessionIds={unreadSessionIds}
         />
       </div>
 
