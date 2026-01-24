@@ -152,6 +152,15 @@ function App() {
     }
   }, [setSelectedSessionId, setUnreadSessionIds, unreadSessionIds]);
 
+  // Handle session deletion - remove from list and clear selection if needed
+  const handleSessionDeleted = useCallback((sessionId: string) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    // If the deleted session was selected, clear selection
+    if (selectedSessionId === sessionId) {
+      setSelectedSessionId(null);
+    }
+  }, [selectedSessionId, setSelectedSessionId]);
+
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
     const maxWidth = window.innerWidth < 1024 ? 200 : 400;
@@ -544,6 +553,7 @@ function App() {
             onSelect={handleSelectSession}
             onSearch={handleSearch}
             onSessionsImported={() => handleSessionImported('')}
+            onSessionDeleted={handleSessionDeleted}
             isDark={isDark}
             onToggleTheme={toggleTheme}
             unreadSessionIds={unreadSessionIds}
@@ -639,6 +649,7 @@ function App() {
           onSelect={handleSelectSession}
           onSearch={handleSearch}
           onSessionsImported={() => handleSessionImported('')}
+          onSessionDeleted={handleSessionDeleted}
           isDark={isDark}
           onToggleTheme={toggleTheme}
           unreadSessionIds={unreadSessionIds}
