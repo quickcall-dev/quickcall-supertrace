@@ -8,9 +8,17 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Session } from '../api/client';
-import { triggerIngest, forceReimportAll } from '../api/client';
+import { triggerIngest, forceReimportAll, deleteSession } from '../api/client';
 import { parseUTCTimestamp } from '../utils/time';
 import { useVersion } from '../contexts/VersionContext';
+import { SessionContextMenu, type SessionAction } from './SessionContextMenu';
+import { DeleteSessionDialog } from './DeleteSessionDialog';
+import { ExportModal, type ExportLevel } from './ExportModal';
+import {
+  exportToHTML,
+  downloadFile,
+  type ExportLevel as ExportLevelType,
+} from '../utils/exportHelpers';
 
 interface SessionListProps {
   sessions: Session[];
@@ -18,6 +26,7 @@ interface SessionListProps {
   onSelect: (id: string) => void;
   onSearch: (query: string) => void;
   onSessionsImported: () => void;
+  onSessionDeleted?: (sessionId: string) => void;
   isDark: boolean;
   onToggleTheme: () => void;
   unreadSessionIds?: string[];
@@ -82,6 +91,7 @@ export function SessionList({
   onSelect,
   onSearch,
   onSessionsImported,
+  onSessionDeleted,
   isDark,
   onToggleTheme,
   unreadSessionIds = [],
@@ -93,6 +103,11 @@ export function SessionList({
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [showReimportConfirm, setShowReimportConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Session context menu state
+  const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
+  const [deleteDialogSession, setDeleteDialogSession] = useState<Session | null>(null);
+  const [exportModalSession, setExportModalSession] = useState<Session | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -163,6 +178,30 @@ export function SessionList({
     navigator.clipboard.writeText(filePath);
     setCopiedId(session.id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Session context menu handlers
+  const handleSessionAction = (session: Session, action: SessionAction) => {
+    switch (action) {
+      case 'share':
+        setExportModalSession(session);
+        break;
+      case 'delete':
+        setDeleteDialogSession(session);
+        break;
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!deleteDialogSession) return;
+    await deleteSession(deleteDialogSession.id);
+    onSessionDeleted?.(deleteDialogSession.id);
+  };
+
+  // Export handlers - implemented by Agent 3
+  const handleExportHTML = async (sessionId: string, level: ExportLevel) => {
+    const { html, filename } = await exportToHTML(sessionId, level as ExportLevelType);
+    downloadFile(html, filename, 'text/html');
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,44 +430,58 @@ export function SessionList({
                 const isSelected = selectedId === session.id;
                 const isUnread = unreadSessionIds.includes(session.id);
                 const prompt = session.first_prompt || 'New session';
+                const isMenuOpen = openMenuSessionId === session.id;
 
                 return (
-                  <button
+                  <div
                     key={session.id}
-                    onClick={() => onSelect(session.id)}
-                    className={`
-                      relative w-full px-4 py-3 text-left transition-all duration-150
-                      ${isSelected
-                        ? 'bg-accent border-l-2 border-primary'
-                        : 'hover:bg-accent/50 border-l-2 border-transparent'
-                      }
-                    `}
+                    className="group relative"
                   >
-                    {/* Unread indicator dot - top right, aligned with text */}
-                    {isUnread && !isSelected && (
-                      <div className="absolute top-3.5 right-3 w-2 h-2 bg-teal-500 rounded-full" />
-                    )}
-                    <div className="flex items-start">
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
-                          {prompt}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[11px] text-muted-foreground">
-                            {getRelativeTime(session.started_at)}
-                          </span>
-                          <span className="text-muted-foreground/50">·</span>
-                          <span
-                            className={`text-[11px] font-mono cursor-pointer transition-colors ${copiedId === session.id ? 'text-[color:var(--success)]' : 'text-muted-foreground hover:text-primary'}`}
-                            title={getSessionFilePath(session)}
-                            onClick={(e) => handleCopyPath(e, session)}
-                          >
-                            {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 8)}
-                          </span>
+                    <button
+                      onClick={() => onSelect(session.id)}
+                      className={`
+                        relative w-full px-4 py-3 text-left transition-all duration-150
+                        ${isSelected
+                          ? 'bg-accent border-l-2 border-primary'
+                          : 'hover:bg-accent/50 border-l-2 border-transparent'
+                        }
+                      `}
+                    >
+                      {/* Unread indicator dot - top right, aligned with text */}
+                      {isUnread && !isSelected && (
+                        <div className="absolute top-3.5 right-10 w-2 h-2 bg-teal-500 rounded-full" />
+                      )}
+                      <div className="flex items-start">
+                        <div className="flex-1 min-w-0 pr-6">
+                          <p className={`text-sm leading-snug ${isSelected ? 'text-foreground font-medium' : isUnread ? 'text-foreground font-medium' : 'text-foreground'} line-clamp-2`}>
+                            {prompt}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              {getRelativeTime(session.started_at)}
+                            </span>
+                            <span className="text-muted-foreground/50">·</span>
+                            <span
+                              className={`text-[11px] font-mono cursor-pointer transition-colors ${copiedId === session.id ? 'text-[color:var(--success)]' : 'text-muted-foreground hover:text-primary'}`}
+                              title={getSessionFilePath(session)}
+                              onClick={(e) => handleCopyPath(e, session)}
+                            >
+                              {copiedId === session.id ? '✓ Copied' : session.id.slice(0, 8)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                    </button>
+
+                    {/* 3-dot context menu - shows on hover */}
+                    <div className={`absolute right-2 top-3 ${isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                      <SessionContextMenu
+                        isOpen={isMenuOpen}
+                        onOpenChange={(open) => setOpenMenuSessionId(open ? session.id : null)}
+                        onAction={(action) => handleSessionAction(session, action)}
+                      />
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -440,6 +493,23 @@ export function SessionList({
       <div className="px-4 py-3 border-t border-border text-[11px] text-muted-foreground text-center">
         {sessions.length} session{sessions.length !== 1 ? 's' : ''}
       </div>
+
+      {/* Delete Session Dialog */}
+      <DeleteSessionDialog
+        sessionId={deleteDialogSession?.id || ''}
+        isOpen={deleteDialogSession !== null}
+        onClose={() => setDeleteDialogSession(null)}
+        onConfirm={handleDeleteSession}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        sessionId={exportModalSession?.id || ''}
+        sessionTitle={exportModalSession?.first_prompt || 'Session'}
+        isOpen={exportModalSession !== null}
+        onClose={() => setExportModalSession(null)}
+        onExportHTML={handleExportHTML}
+      />
     </div>
   );
 }

@@ -266,6 +266,15 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
         "CREATE INDEX IF NOT EXISTS idx_context_session ON session_context(session_id)",
         "CREATE INDEX IF NOT EXISTS idx_context_session_time ON session_context(session_id, timestamp DESC)",
     ]),
+    # v7: Track deleted sessions to prevent re-import
+    # When a user deletes a session, we record its ID so auto-import won't re-ingest it
+    # The JSONL file remains on disk but we skip it during discovery
+    (7, "add_deleted_sessions_table", [
+        """CREATE TABLE IF NOT EXISTS deleted_sessions (
+            session_id TEXT PRIMARY KEY,
+            deleted_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )""",
+    ]),
     # Add future migrations here with incrementing version numbers
 ]
 

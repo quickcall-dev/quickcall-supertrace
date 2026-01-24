@@ -12,6 +12,8 @@ import { SessionList } from './components/SessionList';
 import { SessionView } from './components/SessionView';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { ResizeHandle } from './components/ResizeHandle';
+import { ExportModal, type ExportLevel } from './components/ExportModal';
+import { exportToHTML, downloadFile, type ExportLevel as ExportLevelType } from './utils/exportHelpers';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -152,6 +154,15 @@ function App() {
     }
   }, [setSelectedSessionId, setUnreadSessionIds, unreadSessionIds]);
 
+  // Handle session deletion - remove from list and clear selection if needed
+  const handleSessionDeleted = useCallback((sessionId: string) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    // If the deleted session was selected, clear selection
+    if (selectedSessionId === sessionId) {
+      setSelectedSessionId(null);
+    }
+  }, [selectedSessionId, setSelectedSessionId]);
+
   // Resize handlers
   const handleSessionListResize = useCallback((deltaX: number) => {
     const maxWidth = window.innerWidth < 1024 ? 200 : 400;
@@ -227,6 +238,9 @@ function App() {
   // Context window data - managed here to receive WebSocket updates
   const [contextData, setContextData] = useState<ContextData | null>(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
+
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Handle new session imported via WebSocket - refresh session list
   const handleSessionImported = useCallback(async (sessionId: string) => {
@@ -512,6 +526,12 @@ function App() {
     }
   }, [selectedSessionId, isLoadingAllForSearch, events.length, totalEvents]);
 
+  // Handle export HTML
+  const handleExportHTML = useCallback(async (sessionId: string, level: ExportLevel) => {
+    const { html, filename } = await exportToHTML(sessionId, level as ExportLevelType);
+    downloadFile(html, filename, 'text/html');
+  }, []);
+
   // Handle search
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -544,6 +564,7 @@ function App() {
             onSelect={handleSelectSession}
             onSearch={handleSearch}
             onSessionsImported={() => handleSessionImported('')}
+            onSessionDeleted={handleSessionDeleted}
             isDark={isDark}
             onToggleTheme={toggleTheme}
             unreadSessionIds={unreadSessionIds}
@@ -639,6 +660,7 @@ function App() {
           onSelect={handleSelectSession}
           onSearch={handleSearch}
           onSessionsImported={() => handleSessionImported('')}
+          onSessionDeleted={handleSessionDeleted}
           isDark={isDark}
           onToggleTheme={toggleTheme}
           unreadSessionIds={unreadSessionIds}
@@ -686,8 +708,18 @@ function App() {
           isLoadingAllForSearch={isLoadingAllForSearch}
           contextData={contextData}
           isLoadingContext={isLoadingContext}
+          onShare={() => setShowExportModal(true)}
         />
       </div>
+
+      {/* Export Modal */}
+      <ExportModal
+        sessionId={selectedSessionId || ''}
+        sessionTitle={selectedSession?.first_prompt || 'Session'}
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExportHTML={handleExportHTML}
+      />
 
       {/* Update notification */}
       <UpdateNotification />

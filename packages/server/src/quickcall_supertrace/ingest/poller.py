@@ -38,6 +38,7 @@ import os
 from dataclasses import dataclass
 from typing import Callable, Awaitable
 
+from ..db import get_db
 from ..ws import manager
 from .scanner import scan_sessions, TranscriptFileInfo
 from .importer import (
@@ -70,6 +71,7 @@ async def _process_session_files(
     Core logic for processing session files.
 
     Shared by poll_for_changes() and import_latest_sessions().
+    Skips sessions that have been deleted by the user.
 
     Args:
         limit: Maximum number of files to scan
@@ -84,10 +86,20 @@ async def _process_session_files(
     tracked_files = await get_all_transcript_files()
     tracked_map = {f["file_path"]: f for f in tracked_files}
 
+    # Get deleted session IDs to skip
+    db = await get_db()
+    deleted_session_ids = await db.get_deleted_session_ids()
+
     # Scan for session files
     current_files = scan_sessions(limit=limit)
 
     for file_info in current_files:
+        # Skip sessions that were deleted by the user
+        if file_info.session_id in deleted_session_ids:
+            if options.log_progress:
+                logger.debug(f"Skipping deleted session: {file_info.session_id}")
+            continue
+
         file_path = str(file_info.file_path)
         existing = tracked_map.get(file_path)
 

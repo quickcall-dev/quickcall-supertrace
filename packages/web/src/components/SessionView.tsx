@@ -32,6 +32,8 @@ interface SessionViewProps {
   // Context data managed by App.tsx for real-time WebSocket updates
   contextData?: ContextData | null;
   isLoadingContext?: boolean;
+  // Share/Export
+  onShare?: () => void;
 }
 
 type GroupedItem =
@@ -78,6 +80,7 @@ export function SessionView({
   isLoadingAllForSearch = false,
   contextData = null,
   isLoadingContext = false,
+  onShare,
 }: SessionViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -597,14 +600,16 @@ export function SessionView({
           >
             JSONL
           </a>
-          <a
-            href={getExportUrl(session.id, 'md')}
-            download
-            className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
-            title="Export Markdown"
-          >
-            MD
-          </a>
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors flex items-center gap-1"
+              title="Export shareable HTML dashboard"
+            >
+              <i className="ri-share-line text-xs" />
+              Share
+            </button>
+          )}
         </div>
       </div>
 

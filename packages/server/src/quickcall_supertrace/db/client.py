@@ -145,6 +145,140 @@ class Database:
             "file_path": row["file_path"],
         }
 
+    async def delete_session(self, session_id: str) -> dict[str, int]:
+        """
+        Delete a session and all related data from the database.
+
+        NOTE: This does NOT delete the original JSONL file from disk.
+        Only database records are removed. The session_id is recorded in
+        deleted_sessions table to prevent re-import during auto-discovery.
+
+        Deletes from tables in dependency order:
+        - messages_fts (FTS index)
+        - messages
+        - session_intents
+        - session_metrics
+        - session_context
+        - transcript_files
+        - sessions
+
+        Args:
+            session_id: Session to delete
+
+        Returns:
+            Dictionary with count of deleted rows per table
+        """
+        counts = {}
+
+        # Record session_id in deleted_sessions BEFORE deleting
+        # This prevents the JSONL file from being re-imported during auto-discovery
+        try:
+            await self.conn.execute(
+                "INSERT OR REPLACE INTO deleted_sessions (session_id) VALUES (?)",
+                (session_id,),
+            )
+        except Exception:
+            # Table doesn't exist yet - migration v7 not run
+            # Session will still be deleted, just might get re-imported
+            pass
+
+        # Delete FTS entries for messages in this session
+        # FTS table is linked to messages via rowid, so we need to delete
+        # from messages_fts where the rowid matches message ids for this session
+        cursor = await self.conn.execute(
+            """
+            DELETE FROM messages_fts
+            WHERE rowid IN (SELECT id FROM messages WHERE session_id = ?)
+            """,
+            (session_id,),
+        )
+        counts["messages_fts"] = cursor.rowcount
+
+        # Delete messages
+        cursor = await self.conn.execute(
+            "DELETE FROM messages WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["messages"] = cursor.rowcount
+
+        # Delete session intents
+        cursor = await self.conn.execute(
+            "DELETE FROM session_intents WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_intents"] = cursor.rowcount
+
+        # Delete session metrics
+        cursor = await self.conn.execute(
+            "DELETE FROM session_metrics WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_metrics"] = cursor.rowcount
+
+        # Delete session context snapshots
+        cursor = await self.conn.execute(
+            "DELETE FROM session_context WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_context"] = cursor.rowcount
+
+        # Delete transcript file record
+        cursor = await self.conn.execute(
+            "DELETE FROM transcript_files WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["transcript_files"] = cursor.rowcount
+
+        # Finally delete the session itself
+        cursor = await self.conn.execute(
+            "DELETE FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        counts["sessions"] = cursor.rowcount
+
+        await self.conn.commit()
+        return counts
+
+    async def is_session_deleted(self, session_id: str) -> bool:
+        """
+        Check if a session has been deleted by the user.
+
+        Used by the ingest/poller to skip re-importing deleted sessions.
+
+        Args:
+            session_id: Session to check
+
+        Returns:
+            True if session was deleted, False otherwise
+        """
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM deleted_sessions WHERE session_id = ?",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        return row is not None
+
+    async def get_deleted_session_ids(self) -> set[str]:
+        """
+        Get all deleted session IDs.
+
+        Used by the ingest/poller to filter out deleted sessions in bulk.
+        Returns empty set if table doesn't exist yet (migration not run).
+
+        Returns:
+            Set of deleted session IDs
+        """
+        try:
+            cursor = await self.conn.execute(
+                "SELECT session_id FROM deleted_sessions"
+            )
+            rows = await cursor.fetchall()
+            return {row["session_id"] for row in rows}
+        except Exception:
+            # Table doesn't exist yet - migration v7 not run
+            # Return empty set so polling continues to work
+            return set()
+
     # =====================
     # Message operations
     # =====================
@@ -527,6 +661,7 @@ class Database:
         counts = {}
 
         # Delete in order of dependencies (FTS first, then main tables)
+        # Also clear deleted_sessions so force reimport brings back everything
         tables = [
             "messages_fts",
             "messages",
@@ -535,6 +670,7 @@ class Database:
             "session_context",
             "transcript_files",
             "sessions",
+            "deleted_sessions",  # Clear so force reimport brings back all sessions
         ]
 
         for table in tables:
