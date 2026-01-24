@@ -249,15 +249,7 @@ export function generateDashboardHTML(data: DashboardData): string {
     </section>
     ` : ''}
 
-    ${session.first_prompt ? `
-    <!-- First Prompt Preview -->
-    <section class="prompt-section">
-      <h2 class="section-title">First Prompt</h2>
-      <div class="prompt-card">
-        <p class="prompt-text">${escapeHTML(session.first_prompt.slice(0, 500))}${session.first_prompt.length > 500 ? '...' : ''}</p>
-      </div>
-    </section>
-    ` : ''}
+    ${generateConversationSection(data.events, metadata.export_level)}
 
     <!-- Footer -->
     <footer class="footer">
@@ -559,23 +551,81 @@ function getInlineCSS(): string {
       color: var(--fg-muted);
     }
 
-    /* Prompt Section */
-    .prompt-section {
+    /* Conversation Section */
+    .conversation-section {
       margin-bottom: 24px;
     }
 
-    .prompt-card {
+    .conversation-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
+      padding: 12px 16px;
     }
 
-    .prompt-text {
+    .message-user {
+      border-left: 3px solid var(--info);
+    }
+
+    .message-assistant {
+      border-left: 3px solid var(--success);
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .message-role {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .message-user .message-role {
+      color: var(--info);
+    }
+
+    .message-assistant .message-role {
+      color: var(--success);
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: var(--fg-muted);
+    }
+
+    .message-content {
       font-size: 14px;
       line-height: 1.6;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+
+    .conversation-more {
+      text-align: center;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      color: var(--fg-muted);
+      font-size: 13px;
+    }
+
+    .conversation-hint {
+      display: block;
+      font-size: 11px;
+      margin-top: 4px;
+      opacity: 0.7;
     }
 
     /* Footer */
@@ -687,4 +737,123 @@ function escapeHTML(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/**
+ * Generate conversation timeline section
+ */
+function generateConversationSection(
+  events: DashboardData['events'],
+  exportLevel: string
+): string {
+  if (!events || events.length === 0) {
+    return '';
+  }
+
+  // Filter to conversation events (user prompts and assistant responses)
+  const conversationEvents = events.filter(e =>
+    e.event_type === 'user_prompt' ||
+    e.event_type === 'assistant_response' ||
+    e.event_type === 'user_message' ||
+    e.event_type === 'assistant_message'
+  );
+
+  if (conversationEvents.length === 0) {
+    return '';
+  }
+
+  // Limit based on export level
+  const maxMessages = exportLevel === 'summary' ? 10 : exportLevel === 'full' ? 100 : conversationEvents.length;
+  const displayEvents = conversationEvents.slice(0, maxMessages);
+  const hasMore = conversationEvents.length > maxMessages;
+
+  const messagesHTML = displayEvents.map(event => {
+    const isUser = event.event_type === 'user_prompt' || event.event_type === 'user_message';
+    const content = extractMessageContent(event);
+    const truncatedContent = truncateMessage(content, exportLevel);
+
+    return `
+      <div class="message ${isUser ? 'message-user' : 'message-assistant'}">
+        <div class="message-header">
+          <span class="message-role">${isUser ? 'User' : 'Claude'}</span>
+          ${event.timestamp ? `<span class="message-time">${formatMessageTime(event.timestamp)}</span>` : ''}
+        </div>
+        <div class="message-content">${escapeHTML(truncatedContent)}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <!-- Conversation Timeline -->
+    <section class="conversation-section">
+      <h2 class="section-title">Conversation (${conversationEvents.length} messages)</h2>
+      <div class="conversation-timeline">
+        ${messagesHTML}
+        ${hasMore ? `
+          <div class="conversation-more">
+            <span>+ ${conversationEvents.length - maxMessages} more messages</span>
+            <span class="conversation-hint">Export with "Full" or "Archive" level to see all messages</span>
+          </div>
+        ` : ''}
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * Extract message content from event data
+ */
+function extractMessageContent(event: DashboardData['events'][0]): string {
+  const data = event.data;
+  if (!data) return '';
+
+  // Handle different event data structures
+  if (typeof data === 'object') {
+    // User prompt
+    if ('prompt' in data && typeof data.prompt === 'string') {
+      return data.prompt;
+    }
+    // Assistant response with message
+    if ('message' in data && typeof data.message === 'string') {
+      return data.message;
+    }
+    // Content array (Claude API format)
+    if ('content' in data && Array.isArray(data.content)) {
+      return (data.content as Array<{ type: string; text?: string }>)
+        .filter(c => c.type === 'text' && c.text)
+        .map(c => c.text)
+        .join('\n');
+    }
+    // Text field
+    if ('text' in data && typeof data.text === 'string') {
+      return data.text;
+    }
+    // Response text
+    if ('response' in data && typeof data.response === 'string') {
+      return data.response;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Truncate message based on export level
+ */
+function truncateMessage(content: string, exportLevel: string): string {
+  const maxLength = exportLevel === 'summary' ? 500 : exportLevel === 'full' ? 2000 : content.length;
+  if (content.length <= maxLength) return content;
+  return content.slice(0, maxLength) + '...';
+}
+
+/**
+ * Format message timestamp
+ */
+function formatMessageTime(timestamp: string): string {
+  try {
+    const date = new Date(timestamp.endsWith('Z') ? timestamp : timestamp + 'Z');
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
