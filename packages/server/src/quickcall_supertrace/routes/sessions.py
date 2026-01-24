@@ -7,6 +7,7 @@ fetching session events, exporting sessions, and context window tracking.
 Related: db/client.py (queries), export.py (export logic), ws/broadcast.py (WebSocket)
 """
 
+import importlib.metadata
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,14 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
+
+
+def _get_package_version() -> str:
+    """Get package version dynamically."""
+    try:
+        return importlib.metadata.version("quickcall-supertrace")
+    except importlib.metadata.PackageNotFoundError:
+        return "dev"
 
 from ..db import get_db
 from ..metrics import compute_metrics
@@ -531,7 +540,7 @@ async def _prepare_share_data(
         "metadata": {
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "export_level": level,
-            "version": "0.2.12",  # Should match package version
+            "version": _get_package_version(),
             "events_total": total_events,
             "events_included": len(events),
         },
