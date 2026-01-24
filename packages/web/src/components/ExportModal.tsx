@@ -1,15 +1,14 @@
 /**
  * Export modal component.
  *
- * Modal for exporting session dashboards as HTML or PNG.
- * Includes format selection, export level dropdown, and progress states.
+ * Modal for exporting session dashboards as HTML.
+ * Includes export level dropdown and progress states.
  *
  * Export functions are provided by Agent 3 (exportHelpers.ts).
  */
 
 import { useState } from 'react';
 
-export type ExportFormat = 'html' | 'png';
 export type ExportLevel = 'summary' | 'full' | 'archive';
 
 type ExportState = 'idle' | 'loading' | 'success' | 'error';
@@ -19,9 +18,7 @@ interface ExportModalProps {
   sessionTitle: string;
   isOpen: boolean;
   onClose: () => void;
-  // Export functions - will be provided by Agent 3
   onExportHTML?: (sessionId: string, level: ExportLevel) => Promise<void>;
-  onExportPNG?: (sessionId: string, level: ExportLevel) => Promise<void>;
 }
 
 const EXPORT_LEVELS: { value: ExportLevel; label: string; description: string }[] = [
@@ -36,9 +33,7 @@ export function ExportModal({
   isOpen,
   onClose,
   onExportHTML,
-  onExportPNG,
 }: ExportModalProps) {
-  const [format, setFormat] = useState<ExportFormat>('html');
   const [level, setLevel] = useState<ExportLevel>('summary');
   const [state, setState] = useState<ExportState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +45,12 @@ export function ExportModal({
     setError(null);
 
     try {
-      if (format === 'html') {
-        if (onExportHTML) {
-          await onExportHTML(sessionId, level);
-        } else {
-          // Stub for now - Agent 3 will implement
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          console.log(`[ExportModal] HTML export stub: ${sessionId}, level: ${level}`);
-        }
+      if (onExportHTML) {
+        await onExportHTML(sessionId, level);
       } else {
-        if (onExportPNG) {
-          await onExportPNG(sessionId, level);
-        } else {
-          // Stub for now - Agent 3 will implement
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          console.log(`[ExportModal] PNG export stub: ${sessionId}, level: ${level}`);
-        }
+        // Stub for now
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`[ExportModal] HTML export stub: ${sessionId}, level: ${level}`);
       }
       setState('success');
       // Auto-close after success
@@ -152,9 +137,7 @@ export function ExportModal({
               <div className="w-12 h-12 mx-auto mb-3 bg-primary/10 rounded-full flex items-center justify-center">
                 <i className="ri-loader-4-line text-primary text-2xl animate-spin"></i>
               </div>
-              <p className="text-foreground font-medium">
-                {format === 'html' ? 'Generating HTML...' : 'Rendering PNG...'}
-              </p>
+              <p className="text-foreground font-medium">Generating HTML...</p>
               <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
             </div>
           )}
@@ -162,51 +145,6 @@ export function ExportModal({
           {/* Idle State - Selection UI */}
           {state === 'idle' && (
             <>
-              {/* Format Selection */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Format
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setFormat('html')}
-                    className={`
-                      px-4 py-3 rounded-lg border text-left transition-all
-                      ${format === 'html'
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                        : 'border-border hover:border-primary/50 hover:bg-accent/50'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center gap-2">
-                      <i className={`ri-file-code-line text-lg ${format === 'html' ? 'text-primary' : 'text-muted-foreground'}`}></i>
-                      <span className={`font-medium ${format === 'html' ? 'text-primary' : 'text-foreground'}`}>HTML</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Standalone dashboard
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => setFormat('png')}
-                    className={`
-                      px-4 py-3 rounded-lg border text-left transition-all
-                      ${format === 'png'
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                        : 'border-border hover:border-primary/50 hover:bg-accent/50'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center gap-2">
-                      <i className={`ri-image-line text-lg ${format === 'png' ? 'text-primary' : 'text-muted-foreground'}`}></i>
-                      <span className={`font-medium ${format === 'png' ? 'text-primary' : 'text-foreground'}`}>PNG</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Screenshot image
-                    </p>
-                  </button>
-                </div>
-              </div>
-
               {/* Export Level */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -225,13 +163,11 @@ export function ExportModal({
                 </select>
               </div>
 
-              {/* Format-specific info */}
+              {/* Info */}
               <div className="bg-muted/50 text-muted-foreground text-xs px-3 py-2.5 rounded-lg flex items-start gap-2">
                 <i className="ri-information-line shrink-0 mt-0.5"></i>
                 <span>
-                  {format === 'html'
-                    ? 'HTML exports are self-contained files with inline CSS and charts. Works offline with dark/light mode.'
-                    : 'PNG exports capture a high-quality screenshot of the dashboard (1200px width, 2x scale).'}
+                  HTML exports are self-contained files with inline CSS and charts. Works offline with dark/light mode.
                 </span>
               </div>
             </>
@@ -260,8 +196,8 @@ export function ExportModal({
                 </>
               ) : (
                 <>
-                  <i className={format === 'html' ? 'ri-file-download-line' : 'ri-image-line'}></i>
-                  <span>Export {format.toUpperCase()}</span>
+                  <i className="ri-file-download-line"></i>
+                  <span>Export HTML</span>
                 </>
               )}
             </button>

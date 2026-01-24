@@ -1,31 +1,26 @@
 /**
  * Session context menu component.
  *
- * 3-dot dropdown menu for session actions: Share, Copy Session ID, Delete.
+ * 3-dot dropdown menu for session actions: Share, Delete.
  * Positioned absolutely on session item, appears on hover.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
-export type SessionAction = 'share' | 'copy' | 'delete';
+export type SessionAction = 'share' | 'delete';
 
 interface SessionContextMenuProps {
-  sessionId: string;
-  filePath: string;
   onAction: (action: SessionAction) => void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function SessionContextMenu({
-  sessionId: _sessionId,
-  filePath,
   onAction,
   isOpen,
   onOpenChange,
 }: SessionContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -50,17 +45,6 @@ export function SessionContextMenu({
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onOpenChange]);
-
-  const handleCopySessionId = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(filePath);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      onOpenChange(false);
-    }, 1500);
-    onAction('copy');
-  };
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,7 +80,7 @@ export function SessionContextMenu({
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-lg shadow-xl z-[100] overflow-hidden py-1"
+          className="absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-lg shadow-xl z-[100] overflow-hidden py-1"
         >
           {/* Share */}
           <button
@@ -106,16 +90,6 @@ export function SessionContextMenu({
           >
             <i className="ri-share-line text-muted-foreground"></i>
             <span>Share</span>
-          </button>
-
-          {/* Copy Session ID */}
-          <button
-            role="menuitem"
-            onClick={handleCopySessionId}
-            className="w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2.5 text-foreground"
-          >
-            <i className={`${copied ? 'ri-check-line text-[color:var(--success)]' : 'ri-file-copy-line text-muted-foreground'}`}></i>
-            <span>{copied ? 'Copied!' : 'Copy Session ID'}</span>
           </button>
 
           {/* Divider */}

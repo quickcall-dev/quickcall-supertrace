@@ -16,7 +16,6 @@ import { DeleteSessionDialog } from './DeleteSessionDialog';
 import { ExportModal, type ExportLevel } from './ExportModal';
 import {
   exportToHTML,
-  exportSessionToPNG,
   downloadFile,
   type ExportLevel as ExportLevelType,
 } from '../utils/exportHelpers';
@@ -187,11 +186,6 @@ export function SessionList({
       case 'share':
         setExportModalSession(session);
         break;
-      case 'copy':
-        // Copy is handled in SessionContextMenu
-        setCopiedId(session.id);
-        setTimeout(() => setCopiedId(null), 2000);
-        break;
       case 'delete':
         setDeleteDialogSession(session);
         break;
@@ -208,15 +202,6 @@ export function SessionList({
   const handleExportHTML = async (sessionId: string, level: ExportLevel) => {
     const { html, filename } = await exportToHTML(sessionId, level as ExportLevelType);
     downloadFile(html, filename, 'text/html');
-  };
-
-  const handleExportPNG = async (sessionId: string, level: ExportLevel) => {
-    const { blob, filename } = await exportSessionToPNG(
-      sessionId,
-      level as ExportLevelType,
-      { width: 1200, scale: 2, format: 'png' }
-    );
-    downloadFile(blob, filename, 'image/png');
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -491,8 +476,6 @@ export function SessionList({
                     {/* 3-dot context menu - shows on hover */}
                     <div className={`absolute right-2 top-3 ${isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                       <SessionContextMenu
-                        sessionId={session.id}
-                        filePath={getSessionFilePath(session)}
                         isOpen={isMenuOpen}
                         onOpenChange={(open) => setOpenMenuSessionId(open ? session.id : null)}
                         onAction={(action) => handleSessionAction(session, action)}
@@ -526,7 +509,6 @@ export function SessionList({
         isOpen={exportModalSession !== null}
         onClose={() => setExportModalSession(null)}
         onExportHTML={handleExportHTML}
-        onExportPNG={handleExportPNG}
       />
     </div>
   );
