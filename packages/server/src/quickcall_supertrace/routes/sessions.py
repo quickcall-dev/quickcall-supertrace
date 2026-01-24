@@ -16,6 +16,8 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from ..db import get_db
+from ..metrics import compute_metrics
+from ..metrics.preprocess import preprocess_events
 from ..ws import manager
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -70,6 +72,40 @@ async def list_sessions(limit: int = 50, offset: int = 0) -> dict[str, Any]:
     db = await get_db()
     sessions = await db.get_sessions(limit=limit, offset=offset)
     return {"sessions": sessions, "count": len(sessions)}
+
+
+@router.delete("/{session_id}")
+async def delete_session(session_id: str) -> dict[str, Any]:
+    """
+    Delete a session and all related data from the database.
+
+    NOTE: This does NOT delete the original JSONL file from ~/.claude/projects/.
+    Only database records are removed (sessions, messages, metrics, context snapshots).
+
+    The JSONL file remains on disk so users can re-import if needed.
+
+    Args:
+        session_id: ID of the session to delete
+
+    Returns:
+        Deletion status and counts of deleted records per table
+    """
+    db = await get_db()
+
+    # Check if session exists first
+    session = await db.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Delete session and all related data
+    counts = await db.delete_session(session_id)
+
+    return {
+        "status": "deleted",
+        "session_id": session_id,
+        "deleted_counts": counts,
+        "note": "JSONL file remains at ~/.claude/projects/ and can be re-imported",
+    }
 
 
 def _slim_event(event: dict) -> dict:
@@ -284,13 +320,68 @@ async def get_session_events(
     return {"events": events, "count": len(events)}
 
 
-@router.get("/{session_id}/export")
-async def export_session(session_id: str, format: str = "json") -> Response:
-    """
-    Export session in JSON or Markdown format.
+# =============================================================================
+# Export Level Configuration
+# =============================================================================
 
-    - format=json: Full data export
-    - format=md: Human-readable markdown
+# Event limits for each export level
+EXPORT_LEVEL_LIMITS = {
+    "summary": 20,     # Quick shares, screenshots
+    "full": 1000,      # Comprehensive analysis
+    "archive": 10000,  # Complete backup (effectively unlimited for most sessions)
+}
+
+
+def _get_event_limit(level: str) -> int:
+    """Get event limit for export level. Defaults to 'full' for unknown levels."""
+    return EXPORT_LEVEL_LIMITS.get(level, EXPORT_LEVEL_LIMITS["full"])
+
+
+def _truncate_events_for_export(events: list[dict], level: str) -> tuple[list[dict], int]:
+    """
+    Truncate events based on export level.
+
+    Returns tuple of (truncated_events, total_count).
+    For summary level, returns first N events (beginning of session).
+    For full/archive, returns last N events (most recent).
+    """
+    total = len(events)
+    limit = _get_event_limit(level)
+
+    if total <= limit:
+        return events, total
+
+    # For summary, return first N (beginning of session for overview)
+    # For full/archive, return last N (most recent activity)
+    if level == "summary":
+        return events[:limit], total
+    else:
+        return events[-limit:], total
+
+
+@router.get("/{session_id}/export", response_model=None)
+async def export_session(
+    session_id: str,
+    format: str = "json",
+    level: str = "full",
+) -> Response | dict[str, Any]:
+    """
+    Export session in various formats.
+
+    Args:
+        session_id: Session to export
+        format: Export format
+            - json: Full data export (downloadable file)
+            - md: Human-readable markdown (downloadable file)
+            - jsonl: Raw JSONL file from disk (downloadable file)
+            - share_data: Optimized payload for sharing (JSON response for frontend)
+        level: Export level (controls event truncation)
+            - summary: First 20 events (~50KB) - for quick shares
+            - full: Last 1000 events (~500KB) - for comprehensive analysis
+            - archive: All events (~5MB) - for complete backup
+
+    Returns:
+        Response (for file downloads) or dict (for share_data format)
     """
     db = await get_db()
 
@@ -298,10 +389,28 @@ async def export_session(session_id: str, format: str = "json") -> Response:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    events = await db.get_messages_as_events(session_id, limit=10000)
+    # Validate level parameter
+    if level not in EXPORT_LEVEL_LIMITS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid level. Use: {', '.join(EXPORT_LEVEL_LIMITS.keys())}"
+        )
+
+    # Get all events (we'll truncate based on level)
+    all_events = await db.get_messages_as_events(session_id, limit=10000)
 
     if format == "json":
-        content = json.dumps({"session": session, "events": events}, indent=2)
+        # Apply level-based truncation
+        events, total = _truncate_events_for_export(all_events, level)
+        content = json.dumps({
+            "session": session,
+            "events": events,
+            "metadata": {
+                "export_level": level,
+                "events_total": total,
+                "events_included": len(events),
+            }
+        }, indent=2)
         return Response(
             content=content,
             media_type="application/json",
@@ -309,6 +418,8 @@ async def export_session(session_id: str, format: str = "json") -> Response:
         )
 
     elif format == "md":
+        # Apply level-based truncation
+        events, _ = _truncate_events_for_export(all_events, level)
         md_content = _export_markdown(session, events)
         return Response(
             content=md_content,
@@ -333,8 +444,119 @@ async def export_session(session_id: str, format: str = "json") -> Response:
             },
         )
 
+    elif format == "share_data":
+        # Optimized payload for sharing - returns JSON dict (not file download)
+        return await _prepare_share_data(session, all_events, level)
+
     else:
-        raise HTTPException(status_code=400, detail="Invalid format. Use 'json', 'md', or 'jsonl'")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid format. Use 'json', 'md', 'jsonl', or 'share_data'"
+        )
+
+
+async def _prepare_share_data(
+    session: dict[str, Any],
+    all_events: list[dict],
+    level: str,
+) -> dict[str, Any]:
+    """
+    Prepare optimized share data payload for frontend export.
+
+    This format is designed for client-side HTML/PNG generation:
+    - Session metadata
+    - Computed metrics (tokens, tools, timing, etc.)
+    - Raw stats (token counts, tool counts for direct use)
+    - Truncated events based on level
+    - Chart data for SVG generation
+    - Export metadata
+
+    Args:
+        session: Session data from database
+        all_events: All session events
+        level: Export level (summary/full/archive)
+
+    Returns:
+        Structured payload for frontend export rendering
+    """
+    # Truncate events based on level
+    events, total_events = _truncate_events_for_export(all_events, level)
+
+    # Preprocess events to get raw stats (token counts, tool counts, etc.)
+    preprocessed = preprocess_events(all_events)
+
+    # Compute metrics using all events (for accurate totals)
+    # But we'll include truncated events in the response
+    metrics = compute_metrics(all_events)
+
+    # Extract chart data from metrics
+    chart_data = {
+        "prompt_turns": metrics.get("by_category", {}).get("charts", {}).get("prompt_turns", {}).get("value", {}),
+        "tool_distribution": _extract_tool_distribution(metrics),
+    }
+
+    # Calculate session duration
+    duration_seconds = None
+    if preprocessed.first_timestamp and preprocessed.last_timestamp:
+        duration_seconds = int(
+            (preprocessed.last_timestamp - preprocessed.first_timestamp).total_seconds()
+        )
+
+    # Build response with raw_stats for frontend template use
+    return {
+        "session": {
+            "id": session.get("id"),
+            "project_path": session.get("project_path"),
+            "started_at": session.get("started_at"),
+            "ended_at": session.get("ended_at"),
+            "first_prompt": _get_first_prompt(events),
+        },
+        "metrics": metrics,
+        # Raw stats for direct use by frontend templates
+        # These are the exact values the export template needs
+        "raw_stats": {
+            "total_input_tokens": preprocessed.total_input_tokens,
+            "total_output_tokens": preprocessed.total_output_tokens,
+            "cache_read_tokens": preprocessed.total_cache_read_tokens,
+            "cache_creation_tokens": preprocessed.total_cache_creation_tokens,
+            "total_tool_calls": len(preprocessed.tool_uses),
+            "prompt_count": len(preprocessed.user_prompts),
+            "duration_seconds": duration_seconds,
+            "tool_distribution": dict(preprocessed.tool_counts),
+            "commit_count": preprocessed.commit_count,
+            "images_sent": preprocessed.images_sent,
+        },
+        "events": events,
+        "chart_data": chart_data,
+        "metadata": {
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "export_level": level,
+            "version": "0.2.10",  # Should match package version
+            "events_total": total_events,
+            "events_included": len(events),
+        },
+    }
+
+
+def _extract_tool_distribution(metrics: dict[str, Any]) -> dict[str, int]:
+    """Extract tool distribution from metrics for chart rendering."""
+    tools_metrics = metrics.get("by_category", {}).get("tools", {})
+    tool_dist = tools_metrics.get("tool_distribution", {}).get("value", {})
+    return tool_dist if isinstance(tool_dist, dict) else {}
+
+
+def _get_first_prompt(events: list[dict]) -> str:
+    """Extract first user prompt from events."""
+    for event in events:
+        if event.get("event_type") == "user_prompt":
+            data = event.get("data", {})
+            prompt = data.get("prompt", "")
+            if prompt:
+                # Truncate very long prompts
+                if len(prompt) > 200:
+                    return prompt[:200] + "..."
+                return prompt
+    return ""
 
 
 def _export_markdown(session: dict, events: list[dict]) -> str:

@@ -145,6 +145,87 @@ class Database:
             "file_path": row["file_path"],
         }
 
+    async def delete_session(self, session_id: str) -> dict[str, int]:
+        """
+        Delete a session and all related data from the database.
+
+        NOTE: This does NOT delete the original JSONL file from disk.
+        Only database records are removed.
+
+        Deletes from tables in dependency order:
+        - messages_fts (FTS index)
+        - messages
+        - session_intents
+        - session_metrics
+        - session_context
+        - transcript_files
+        - sessions
+
+        Args:
+            session_id: Session to delete
+
+        Returns:
+            Dictionary with count of deleted rows per table
+        """
+        counts = {}
+
+        # Delete FTS entries for messages in this session
+        # FTS table is linked to messages via rowid, so we need to delete
+        # from messages_fts where the rowid matches message ids for this session
+        cursor = await self.conn.execute(
+            """
+            DELETE FROM messages_fts
+            WHERE rowid IN (SELECT id FROM messages WHERE session_id = ?)
+            """,
+            (session_id,),
+        )
+        counts["messages_fts"] = cursor.rowcount
+
+        # Delete messages
+        cursor = await self.conn.execute(
+            "DELETE FROM messages WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["messages"] = cursor.rowcount
+
+        # Delete session intents
+        cursor = await self.conn.execute(
+            "DELETE FROM session_intents WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_intents"] = cursor.rowcount
+
+        # Delete session metrics
+        cursor = await self.conn.execute(
+            "DELETE FROM session_metrics WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_metrics"] = cursor.rowcount
+
+        # Delete session context snapshots
+        cursor = await self.conn.execute(
+            "DELETE FROM session_context WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["session_context"] = cursor.rowcount
+
+        # Delete transcript file record
+        cursor = await self.conn.execute(
+            "DELETE FROM transcript_files WHERE session_id = ?",
+            (session_id,),
+        )
+        counts["transcript_files"] = cursor.rowcount
+
+        # Finally delete the session itself
+        cursor = await self.conn.execute(
+            "DELETE FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        counts["sessions"] = cursor.rowcount
+
+        await self.conn.commit()
+        return counts
+
     # =====================
     # Message operations
     # =====================
