@@ -19,8 +19,13 @@ sed -i '' "s/^version = .*/version = \"$VERSION\"/" packages/server/pyproject.to
 # Bump package.json
 sed -i '' "s/\"version\": .*/\"version\": \"$VERSION\",/" packages/web/package.json
 
+# Update uv.lock
+echo "Updating uv.lock..."
+(cd packages/server && uv lock)
+
 echo "✅ Bumped to v$VERSION"
 echo ""
 echo "Files updated:"
 grep "^version" packages/server/pyproject.toml
 grep "\"version\"" packages/web/package.json
+echo "uv.lock updated"
