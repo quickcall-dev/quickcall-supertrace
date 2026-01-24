@@ -593,6 +593,25 @@ function getInlineCSS(): string {
       margin-bottom: 8px;
     }
 
+    .message-index {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--border);
+      color: var(--fg-muted);
+    }
+
+    .message-user .message-index {
+      background: color-mix(in oklch, var(--info) 15%, transparent);
+      color: var(--info);
+    }
+
+    .message-assistant .message-index {
+      background: color-mix(in oklch, var(--success) 15%, transparent);
+      color: var(--success);
+    }
+
     .message-role {
       font-size: 12px;
       font-weight: 600;
@@ -778,6 +797,7 @@ function generateConversationSection(
   const displayEvents = conversationEvents.slice(0, maxMessages);
   const hasMore = conversationEvents.length > maxMessages;
 
+  let currentPromptIndex = 0;
   const messagesHTML = displayEvents.map(event => {
     const isUser = event.event_type === 'user_prompt' || event.event_type === 'user_message';
     const content = extractMessageContent(event);
@@ -786,9 +806,22 @@ function generateConversationSection(
     // Skip if no content (e.g., empty assistant_stop events)
     if (!truncatedContent.trim()) return '';
 
+    // Track prompt index - user_prompt events have promptIndex in data
+    if (isUser && event.data) {
+      const dataObj = event.data as Record<string, unknown>;
+      if (typeof dataObj.promptIndex === 'number') {
+        currentPromptIndex = dataObj.promptIndex;
+      } else {
+        currentPromptIndex++;
+      }
+    }
+
+    const promptLabel = isUser ? `Prompt #${currentPromptIndex}` : `Response #${currentPromptIndex}`;
+
     return `
       <div class="message ${isUser ? 'message-user' : 'message-assistant'}">
         <div class="message-header">
+          <span class="message-index">${promptLabel}</span>
           <span class="message-role">${isUser ? 'User' : 'Claude'}</span>
           ${event.timestamp ? `<span class="message-time">${formatMessageTime(event.timestamp)}</span>` : ''}
         </div>
