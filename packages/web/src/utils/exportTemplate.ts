@@ -64,15 +64,11 @@ export function generateDashboardHTML(data: DashboardData): string {
     : 'Unknown date';
 
   // Generate charts for both themes
-  // Calculate dynamic width based on number of turns (min 30px per turn, min 500px total)
-  const numTurns = chart_data.prompt_turns?.turns?.length || 0;
-  const dynamicChartWidth = Math.max(500, numTurns * 30 + 80); // 30px per turn + padding for axes
-
   const promptChartLight = chart_data.prompt_turns
-    ? generatePromptMetricsChartSVG(chart_data.prompt_turns, { width: dynamicChartWidth, isDark: false })
+    ? generatePromptMetricsChartSVG(chart_data.prompt_turns, { width: 600, isDark: false })
     : '';
   const promptChartDark = chart_data.prompt_turns
-    ? generatePromptMetricsChartSVG(chart_data.prompt_turns, { width: dynamicChartWidth, isDark: true })
+    ? generatePromptMetricsChartSVG(chart_data.prompt_turns, { width: 600, isDark: true })
     : '';
 
   const toolChartLight = chart_data.prompt_turns
@@ -83,10 +79,10 @@ export function generateDashboardHTML(data: DashboardData): string {
     : '';
 
   const timingChartLight = chart_data.prompt_turns
-    ? generateTimingChartSVG(chart_data.prompt_turns, { width: dynamicChartWidth, isDark: false })
+    ? generateTimingChartSVG(chart_data.prompt_turns, { width: 600, isDark: false })
     : '';
   const timingChartDark = chart_data.prompt_turns
-    ? generateTimingChartSVG(chart_data.prompt_turns, { width: dynamicChartWidth, isDark: true })
+    ? generateTimingChartSVG(chart_data.prompt_turns, { width: 600, isDark: true })
     : '';
 
   // Build HTML
@@ -531,31 +527,11 @@ function getInlineCSS(): string {
 
     .chart-container {
       overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
-    }
-
-    .chart-container::-webkit-scrollbar {
-      height: 6px;
-    }
-
-    .chart-container::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .chart-container::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
-    }
-
-    .chart-container::-webkit-scrollbar-thumb:hover {
-      background: var(--fg-muted);
     }
 
     .chart-container svg {
       display: block;
+      max-width: 100%;
       height: auto;
     }
 
