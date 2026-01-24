@@ -172,10 +172,15 @@ class Database:
 
         # Record session_id in deleted_sessions BEFORE deleting
         # This prevents the JSONL file from being re-imported during auto-discovery
-        await self.conn.execute(
-            "INSERT OR REPLACE INTO deleted_sessions (session_id) VALUES (?)",
-            (session_id,),
-        )
+        try:
+            await self.conn.execute(
+                "INSERT OR REPLACE INTO deleted_sessions (session_id) VALUES (?)",
+                (session_id,),
+            )
+        except Exception:
+            # Table doesn't exist yet - migration v7 not run
+            # Session will still be deleted, just might get re-imported
+            pass
 
         # Delete FTS entries for messages in this session
         # FTS table is linked to messages via rowid, so we need to delete
@@ -258,15 +263,21 @@ class Database:
         Get all deleted session IDs.
 
         Used by the ingest/poller to filter out deleted sessions in bulk.
+        Returns empty set if table doesn't exist yet (migration not run).
 
         Returns:
             Set of deleted session IDs
         """
-        cursor = await self.conn.execute(
-            "SELECT session_id FROM deleted_sessions"
-        )
-        rows = await cursor.fetchall()
-        return {row["session_id"] for row in rows}
+        try:
+            cursor = await self.conn.execute(
+                "SELECT session_id FROM deleted_sessions"
+            )
+            rows = await cursor.fetchall()
+            return {row["session_id"] for row in rows}
+        except Exception:
+            # Table doesn't exist yet - migration v7 not run
+            # Return empty set so polling continues to work
+            return set()
 
     # =====================
     # Message operations
