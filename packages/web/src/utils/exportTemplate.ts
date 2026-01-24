@@ -559,6 +559,11 @@ function getInlineCSS(): string {
       height: auto;
     }
 
+    .chart-light, .chart-dark {
+      width: fit-content;
+      min-width: 100%;
+    }
+
     .chart-light { display: block; }
     .chart-dark { display: none; }
     .dark .chart-light { display: none; }
