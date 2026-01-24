@@ -150,7 +150,8 @@ class Database:
         Delete a session and all related data from the database.
 
         NOTE: This does NOT delete the original JSONL file from disk.
-        Only database records are removed.
+        Only database records are removed. The session_id is recorded in
+        deleted_sessions table to prevent re-import during auto-discovery.
 
         Deletes from tables in dependency order:
         - messages_fts (FTS index)
@@ -168,6 +169,13 @@ class Database:
             Dictionary with count of deleted rows per table
         """
         counts = {}
+
+        # Record session_id in deleted_sessions BEFORE deleting
+        # This prevents the JSONL file from being re-imported during auto-discovery
+        await self.conn.execute(
+            "INSERT OR REPLACE INTO deleted_sessions (session_id) VALUES (?)",
+            (session_id,),
+        )
 
         # Delete FTS entries for messages in this session
         # FTS table is linked to messages via rowid, so we need to delete
@@ -225,6 +233,40 @@ class Database:
 
         await self.conn.commit()
         return counts
+
+    async def is_session_deleted(self, session_id: str) -> bool:
+        """
+        Check if a session has been deleted by the user.
+
+        Used by the ingest/poller to skip re-importing deleted sessions.
+
+        Args:
+            session_id: Session to check
+
+        Returns:
+            True if session was deleted, False otherwise
+        """
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM deleted_sessions WHERE session_id = ?",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        return row is not None
+
+    async def get_deleted_session_ids(self) -> set[str]:
+        """
+        Get all deleted session IDs.
+
+        Used by the ingest/poller to filter out deleted sessions in bulk.
+
+        Returns:
+            Set of deleted session IDs
+        """
+        cursor = await self.conn.execute(
+            "SELECT session_id FROM deleted_sessions"
+        )
+        rows = await cursor.fetchall()
+        return {row["session_id"] for row in rows}
 
     # =====================
     # Message operations
