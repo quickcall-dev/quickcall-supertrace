@@ -650,6 +650,7 @@ class Database:
         counts = {}
 
         # Delete in order of dependencies (FTS first, then main tables)
+        # Also clear deleted_sessions so force reimport brings back everything
         tables = [
             "messages_fts",
             "messages",
@@ -658,6 +659,7 @@ class Database:
             "session_context",
             "transcript_files",
             "sessions",
+            "deleted_sessions",  # Clear so force reimport brings back all sessions
         ]
 
         for table in tables:
