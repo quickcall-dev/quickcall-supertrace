@@ -10,17 +10,6 @@ import type { PromptTurnsData, MetricsResponse } from '../api/client';
 // Export levels matching backend
 export type ExportLevel = 'summary' | 'full' | 'archive';
 
-// Export formats
-export type ExportFormat = 'html' | 'png';
-
-// PNG quality settings
-export interface PNGOptions {
-  width: 1200 | 800;
-  scale: 1 | 2;
-  format: 'png' | 'jpeg';
-  quality?: number; // 0-1 for jpeg
-}
-
 // Dashboard data structure for export
 export interface DashboardData {
   session: {
@@ -200,11 +189,11 @@ export function truncateEvent(
  * Download a file by triggering browser download
  */
 export function downloadFile(
-  content: string | Blob,
+  content: string,
   filename: string,
   mimeType: string = 'text/html'
 ): void {
-  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -257,24 +246,15 @@ export function generateFilename(
 }
 
 /**
- * Format bytes to human readable string
- */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
  * Estimate export file size based on level
  */
-export function estimateFileSize(level: ExportLevel, format: ExportFormat): string {
+export function estimateFileSize(level: ExportLevel): string {
   const estimates = {
-    summary: { html: '50-100 KB', png: '200-400 KB' },
-    full: { html: '300-500 KB', png: '300-600 KB' },
-    archive: { html: '1-5 MB', png: '400-800 KB' },
+    summary: '50-100 KB',
+    full: '300-500 KB',
+    archive: '1-5 MB',
   };
-  return estimates[level][format];
+  return estimates[level];
 }
 
 /**
@@ -282,66 +262,6 @@ export function estimateFileSize(level: ExportLevel, format: ExportFormat): stri
  */
 export function isLargeSession(eventCount: number): boolean {
   return eventCount > 5000;
-}
-
-/**
- * Export to PNG using html2canvas
- * Dynamically imports html2canvas to avoid loading it until needed
- */
-export async function exportToPNG(
-  htmlContent: string,
-  options: PNGOptions = { width: 1200, scale: 2, format: 'png' },
-  onProgress?: ExportProgressCallback
-): Promise<Blob> {
-  onProgress?.('Loading image library...', 10);
-
-  // Dynamic import for code splitting
-  const html2canvas = (await import('html2canvas')).default;
-
-  onProgress?.('Rendering dashboard...', 30);
-
-  // Create hidden container
-  const container = document.createElement('div');
-  container.style.cssText = `position:fixed;left:-9999px;top:0;width:${options.width}px;background:white;`;
-  container.innerHTML = htmlContent;
-  document.body.appendChild(container);
-
-  // Wait for images/fonts to load
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  onProgress?.('Capturing screenshot...', 60);
-
-  try {
-    const canvas = await html2canvas(container, {
-      width: options.width,
-      scale: options.scale,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false,
-    });
-
-    onProgress?.('Generating image...', 90);
-
-    // Convert to blob
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const mimeType = options.format === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const quality = options.format === 'jpeg' ? (options.quality ?? 0.9) : undefined;
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to generate image'));
-        },
-        mimeType,
-        quality
-      );
-    });
-
-    onProgress?.('Complete', 100);
-    return blob;
-  } finally {
-    document.body.removeChild(container);
-  }
 }
 
 /**
@@ -368,32 +288,4 @@ export async function exportToHTML(
 
   onProgress?.('Complete', 100);
   return { html, filename };
-}
-
-/**
- * Full PNG export flow
- */
-export async function exportSessionToPNG(
-  sessionId: string,
-  level: ExportLevel = 'summary',
-  pngOptions: PNGOptions = { width: 1200, scale: 2, format: 'png' },
-  onProgress?: ExportProgressCallback
-): Promise<{ blob: Blob; filename: string }> {
-  onProgress?.('Starting export...', 5);
-
-  // First generate HTML
-  const { html } = await exportToHTML(sessionId, level, (stage, progress) => {
-    onProgress?.(stage, progress * 0.5); // 0-50%
-  });
-
-  // Then convert to PNG
-  const blob = await exportToPNG(html, pngOptions, (stage, progress) => {
-    onProgress?.(stage, 50 + progress * 0.5); // 50-100%
-  });
-
-  // Generate filename
-  const extension = pngOptions.format === 'jpeg' ? 'jpg' : 'png';
-  const filename = `session-${sessionId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.${extension}`;
-
-  return { blob, filename };
 }
