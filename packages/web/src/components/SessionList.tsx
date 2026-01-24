@@ -14,6 +14,12 @@ import { useVersion } from '../contexts/VersionContext';
 import { SessionContextMenu, type SessionAction } from './SessionContextMenu';
 import { DeleteSessionDialog } from './DeleteSessionDialog';
 import { ExportModal, type ExportLevel } from './ExportModal';
+import {
+  exportToHTML,
+  exportSessionToPNG,
+  downloadFile,
+  type ExportLevel as ExportLevelType,
+} from '../utils/exportHelpers';
 
 interface SessionListProps {
   sessions: Session[];
@@ -198,17 +204,19 @@ export function SessionList({
     onSessionDeleted?.(deleteDialogSession.id);
   };
 
-  // Placeholder export handlers - will be wired to Agent 3's export functions
+  // Export handlers - implemented by Agent 3
   const handleExportHTML = async (sessionId: string, level: ExportLevel) => {
-    console.log(`[SessionList] Export HTML: ${sessionId}, level: ${level}`);
-    // Agent 3 will implement: exportToHTML(sessionId, level)
-    throw new Error('HTML export not yet implemented');
+    const { html, filename } = await exportToHTML(sessionId, level as ExportLevelType);
+    downloadFile(html, filename, 'text/html');
   };
 
   const handleExportPNG = async (sessionId: string, level: ExportLevel) => {
-    console.log(`[SessionList] Export PNG: ${sessionId}, level: ${level}`);
-    // Agent 3 will implement: exportToPNG(sessionId, level)
-    throw new Error('PNG export not yet implemented');
+    const { blob, filename } = await exportSessionToPNG(
+      sessionId,
+      level as ExportLevelType,
+      { width: 1200, scale: 2, format: 'png' }
+    );
+    downloadFile(blob, filename, 'image/png');
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {

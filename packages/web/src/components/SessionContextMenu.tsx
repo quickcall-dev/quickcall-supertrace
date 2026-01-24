@@ -18,7 +18,7 @@ interface SessionContextMenuProps {
 }
 
 export function SessionContextMenu({
-  sessionId,
+  sessionId: _sessionId,
   filePath,
   onAction,
   isOpen,
