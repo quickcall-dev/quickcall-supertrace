@@ -290,3 +290,88 @@ export async function getSessionContext(
 ): Promise<SessionContextResponse> {
   return fetchJson(`${BASE_URL}/sessions/${sessionId}/context`);
 }
+
+// Delete session API
+export interface DeleteSessionResponse {
+  status: string;
+  session_id: string;
+  deleted: {
+    sessions: number;
+    messages: number;
+    metrics: number;
+    context: number;
+  };
+}
+
+export async function deleteSession(
+  sessionId: string
+): Promise<DeleteSessionResponse> {
+  const response = await fetch(`${BASE_URL}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// Export/Share data types for shareable dashboard
+export type ExportLevel = 'summary' | 'full' | 'archive';
+
+export interface DashboardData {
+  session: {
+    id: string;
+    project_path: string | null;
+    started_at: string;
+    first_prompt: string;
+  };
+  metrics: {
+    by_category: {
+      tokens: {
+        estimated_cost: number;
+        cache_savings?: number;
+        total_tokens?: number;
+        input_tokens?: number;
+        output_tokens?: number;
+        cache_read_tokens?: number;
+        cache_create_tokens?: number;
+      };
+      tools: {
+        tool_distribution: Record<string, number>;
+        total_tools?: number;
+      };
+      interaction?: {
+        prompt_count?: number;
+        avg_response_time?: number;
+      };
+      timing?: {
+        duration_seconds?: number;
+        avg_turn_duration?: number;
+      };
+    };
+  };
+  events: Array<{
+    id: number;
+    event_type: string;
+    timestamp: string;
+    data: Record<string, unknown> | null;
+  }>;
+  chart_data: {
+    prompt_turns: PromptTurnsData;
+    tool_distribution: Record<string, number>;
+  };
+  metadata: {
+    exported_at: string;
+    export_level: ExportLevel;
+    version: string;
+    events_total: number;
+    events_included: number;
+  };
+}
+
+export async function getExportData(
+  sessionId: string,
+  level: ExportLevel = 'summary'
+): Promise<DashboardData> {
+  return fetchJson(`${BASE_URL}/sessions/${sessionId}/export?format=share_data&level=${level}`);
+}
