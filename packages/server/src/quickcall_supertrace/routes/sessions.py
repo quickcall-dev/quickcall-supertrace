@@ -531,7 +531,7 @@ async def _prepare_share_data(
         "metadata": {
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "export_level": level,
-            "version": "0.2.10",  # Should match package version
+            "version": "0.2.12",  # Should match package version
             "events_total": total_events,
             "events_included": len(events),
         },
