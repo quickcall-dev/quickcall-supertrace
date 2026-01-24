@@ -39,6 +39,7 @@ export interface DashboardData {
   chart_data: {
     prompt_turns: PromptTurnsData | null;
   };
+  intents: string[];
   metadata: {
     exported_at: string;
     export_level: ExportLevel;
@@ -63,10 +64,11 @@ export async function fetchExportData(
 ): Promise<DashboardData> {
   onProgress?.('Fetching session data...', 10);
 
-  // Fetch session and metrics in parallel
-  const [sessionResponse, metricsResponse] = await Promise.all([
+  // Fetch session, metrics, and intents in parallel
+  const [sessionResponse, metricsResponse, intentsResponse] = await Promise.all([
     fetch(`${BASE_URL}/sessions/${sessionId}?event_limit=${getEventLimit(level)}`),
     fetch(`${BASE_URL}/metrics/session/${sessionId}`),
+    fetch(`${BASE_URL}/sessions/${sessionId}/intents`),
   ]);
 
   if (!sessionResponse.ok) {
@@ -77,6 +79,7 @@ export async function fetchExportData(
 
   const sessionData = await sessionResponse.json();
   const metricsData = metricsResponse.ok ? await metricsResponse.json() : null;
+  const intentsData = intentsResponse.ok ? await intentsResponse.json() : null;
 
   // Extract prompt turns data from metrics
   const promptTurnsData = metricsData?.metrics?.by_category?.charts?.prompt_turns?.value as PromptTurnsData | null;
@@ -95,6 +98,7 @@ export async function fetchExportData(
     chart_data: {
       prompt_turns: promptTurnsData,
     },
+    intents: intentsData?.intents || [],
     metadata: {
       exported_at: new Date().toISOString(),
       export_level: level,

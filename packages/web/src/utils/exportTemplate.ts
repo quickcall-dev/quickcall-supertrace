@@ -21,7 +21,7 @@ import {
  * Generate complete standalone HTML dashboard
  */
 export function generateDashboardHTML(data: DashboardData): string {
-  const { session, metrics, chart_data, metadata } = data;
+  const { session, metrics, chart_data, intents, metadata } = data;
 
   // Extract key metrics from metrics API response
   const tokenMetrics = metrics?.by_category?.tokens || {};
@@ -122,6 +122,18 @@ export function generateDashboardHTML(data: DashboardData): string {
         </div>
       </div>
     </header>
+
+    ${intents && intents.length > 0 ? `
+    <!-- Session Intents -->
+    <section class="intents-section">
+      <div class="intents-container">
+        <span class="intents-label">Session Goals:</span>
+        <div class="intents-list">
+          ${intents.map(intent => `<span class="intent-tag">${escapeHTML(intent)}</span>`).join('')}
+        </div>
+      </div>
+    </section>
+    ` : ''}
 
     <!-- Metrics Grid -->
     <section class="metrics-grid">
@@ -392,6 +404,42 @@ function getInlineCSS(): string {
     .moon-icon { display: none; }
     .dark .sun-icon { display: none; }
     .dark .moon-icon { display: block; }
+
+    /* Intents Section */
+    .intents-section {
+      margin-bottom: 20px;
+    }
+
+    .intents-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .intents-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg-muted);
+      white-space: nowrap;
+      padding-top: 4px;
+    }
+
+    .intents-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .intent-tag {
+      display: inline-block;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 4px 12px;
+      font-size: 13px;
+      color: var(--fg);
+    }
 
     /* Metrics Grid */
     .metrics-grid {
