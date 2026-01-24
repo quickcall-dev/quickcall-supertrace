@@ -23,25 +23,34 @@ import {
 export function generateDashboardHTML(data: DashboardData): string {
   const { session, metrics, chart_data, metadata } = data;
 
-  // Extract key metrics
+  // Extract key metrics from metrics API response
   const tokenMetrics = metrics?.by_category?.tokens || {};
   const toolMetrics = metrics?.by_category?.tools || {};
   const timingMetrics = metrics?.by_category?.timing || {};
   const interactionMetrics = metrics?.by_category?.interaction || {};
 
-  // Get values safely
+  // Get cost values from metrics (these exist as separate metrics)
   const estimatedCost = getMetricValue(tokenMetrics, 'estimated_cost', 0);
-  const totalInputTokens = getMetricValue(tokenMetrics, 'total_input_tokens', 0);
-  const totalOutputTokens = getMetricValue(tokenMetrics, 'total_output_tokens', 0);
-  const cacheReadTokens = getMetricValue(tokenMetrics, 'cache_read_tokens', 0);
   const cacheSavings = getMetricValue(tokenMetrics, 'cache_savings', 0);
-  const totalTools = getMetricValue(toolMetrics, 'total_tool_calls', 0);
-  const durationSeconds = getMetricValue(timingMetrics, 'duration_seconds', 0);
-  const promptCount = getMetricValue(interactionMetrics, 'prompt_count', 0);
-  const avgToolsPerPrompt = getMetricValue(toolMetrics, 'avg_tools_per_prompt', 0);
 
-  // Tool distribution
+  // Get token totals from prompt_turns chart data (not separate metrics)
+  const promptTurns = chart_data.prompt_turns;
+  const totalInputTokens = promptTurns?.totals?.inputTokens || 0;
+  const totalOutputTokens = promptTurns?.totals?.outputTokens || 0;
+  const cacheReadTokens = promptTurns?.totals?.cacheReadTokens || 0;
+
+  // Tool distribution from metrics
   const toolDistribution = toolMetrics?.tool_distribution?.value as Record<string, number> | undefined;
+  const totalTools = toolDistribution
+    ? Object.values(toolDistribution).reduce((sum, count) => sum + count, 0)
+    : (promptTurns?.totals?.tools || 0);
+
+  // Duration from timing metrics (key is "session_duration", not "duration_seconds")
+  const durationSeconds = getMetricValue(timingMetrics, 'session_duration', 0);
+
+  // Interaction metrics
+  const promptCount = getMetricValue(interactionMetrics, 'prompt_count', 0) || (promptTurns?.turns?.length || 0);
+  const avgToolsPerPrompt = promptCount > 0 ? totalTools / promptCount : 0;
 
   // Format project name
   const projectName = session.project_path
@@ -751,8 +760,10 @@ function generateConversationSection(
   }
 
   // Filter to conversation events (user prompts and assistant responses)
+  // Backend uses: user_prompt, assistant_stop (not assistant_response)
   const conversationEvents = events.filter(e =>
     e.event_type === 'user_prompt' ||
+    e.event_type === 'assistant_stop' ||
     e.event_type === 'assistant_response' ||
     e.event_type === 'user_message' ||
     e.event_type === 'assistant_message'
@@ -771,6 +782,9 @@ function generateConversationSection(
     const isUser = event.event_type === 'user_prompt' || event.event_type === 'user_message';
     const content = extractMessageContent(event);
     const truncatedContent = truncateMessage(content, exportLevel);
+
+    // Skip if no content (e.g., empty assistant_stop events)
+    if (!truncatedContent.trim()) return '';
 
     return `
       <div class="message ${isUser ? 'message-user' : 'message-assistant'}">
@@ -809,14 +823,38 @@ function extractMessageContent(event: DashboardData['events'][0]): string {
 
   // Handle different event data structures
   if (typeof data === 'object') {
-    // User prompt
+    // User prompt - data.prompt
     if ('prompt' in data && typeof data.prompt === 'string') {
       return data.prompt;
     }
-    // Assistant response with message
+
+    // Assistant stop - data.transcript array (from _slim_transcript)
+    // Structure: transcript[].message.content[].text
+    if ('transcript' in data && Array.isArray(data.transcript)) {
+      const transcript = data.transcript as Array<{
+        type: string;
+        message?: { content?: Array<{ type: string; text?: string }> };
+      }>;
+      const texts: string[] = [];
+      for (const msg of transcript) {
+        if (msg.type === 'assistant' && msg.message?.content) {
+          for (const block of msg.message.content) {
+            if (block.type === 'text' && block.text) {
+              texts.push(block.text);
+            }
+          }
+        }
+      }
+      if (texts.length > 0) {
+        return texts.join('\n');
+      }
+    }
+
+    // Direct message field (fallback for reimported sessions)
     if ('message' in data && typeof data.message === 'string') {
       return data.message;
     }
+
     // Content array (Claude API format)
     if ('content' in data && Array.isArray(data.content)) {
       return (data.content as Array<{ type: string; text?: string }>)
@@ -824,10 +862,12 @@ function extractMessageContent(event: DashboardData['events'][0]): string {
         .map(c => c.text)
         .join('\n');
     }
+
     // Text field
     if ('text' in data && typeof data.text === 'string') {
       return data.text;
     }
+
     // Response text
     if ('response' in data && typeof data.response === 'string') {
       return data.response;
